@@ -1,0 +1,42 @@
+"use client";
+
+import type { z } from "zod";
+
+import { ResourcePage } from "@/components/resource-form/resource-page";
+import { supplierCreateSchema, supplierUpdateSchema } from "@/lib/masters/schemas";
+
+interface SupplierRow {
+  id: string;
+  name: string;
+  contactPhone: string | null;
+  contactEmail: string | null;
+  isActive: boolean;
+}
+
+export default function SuppliersPage() {
+  return (
+    <ResourcePage<
+      SupplierRow,
+      z.infer<typeof supplierCreateSchema>,
+      z.infer<typeof supplierUpdateSchema>
+    >
+      resource="suppliers"
+      title="Suppliers"
+      columns={[
+        { key: "name", header: "Name" },
+        { key: "contactPhone", header: "Phone" },
+        { key: "contactEmail", header: "Email" },
+        { key: "isActive", header: "Active", render: (row) => (row.isActive ? "Yes" : "No") },
+      ]}
+      fields={[
+        { name: "name", label: "Name", type: "text" },
+        { name: "contactPhone", label: "Contact phone", type: "text" },
+        { name: "contactEmail", label: "Contact email", type: "text" },
+        { name: "paymentTerms", label: "Payment terms", type: "text" },
+      ]}
+      createSchema={supplierCreateSchema}
+      updateSchema={supplierUpdateSchema}
+      getRowId={(row) => row.id}
+    />
+  );
+}
