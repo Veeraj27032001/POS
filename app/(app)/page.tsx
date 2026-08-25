@@ -71,7 +71,8 @@ export default function DashboardPage() {
       if (!res.ok) throw new Error("Failed to load recent activity.");
       return (await res.json()) as { entries: ActivityEntry[] };
     },
-    staleTime: 30_000,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   const statCardsRef = useArrowKeyNav<HTMLDivElement>({ selector: "[data-navcard]", cols: 4 });

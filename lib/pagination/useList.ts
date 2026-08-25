@@ -59,7 +59,8 @@ export function useListCount(params: Omit<ListParams, "page" | "sort" | "sortDir
   return useQuery({
     queryKey: listQueryKey({ ...params, page: 0 }, "count"),
     queryFn: ({ signal }) => fetchList<never>({ ...params, page: 1 }, true, signal),
-    staleTime: 30_000,
+    staleTime: 0,
+    refetchOnMount: "always",
     retry: 1,
   });
 }
@@ -68,7 +69,8 @@ export function usePaginatedList<T>(params: ListParams) {
   return useQuery({
     queryKey: listQueryKey(params),
     queryFn: ({ signal }) => fetchList<T>(params, false, signal),
-    staleTime: 30_000,
+    staleTime: 0,
+    refetchOnMount: "always",
     retry: 1,
   });
 }
