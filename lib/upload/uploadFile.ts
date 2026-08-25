@@ -6,7 +6,9 @@ export interface UploadFileOptions {
   signal?: AbortSignal;
 }
 
-const DEFAULT_CHUNK_SIZE = 5 * 1024 * 1024;
+// Vercel Serverless Functions cap request bodies at 4.5 MB; stay safely under
+// that (accounting for HTTP overhead) rather than the 5 MB spec default.
+const DEFAULT_CHUNK_SIZE = 4 * 1024 * 1024;
 export const MAX_UPLOAD_FILE_SIZE_MB = 50;
 
 export async function uploadFile(
