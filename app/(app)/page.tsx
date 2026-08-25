@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
+import { useEffect, useState } from "react";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { formatRelativeOrAbsolute } from "@/lib/datetime";
@@ -53,6 +54,11 @@ export default function DashboardPage() {
   const { data } = useSession();
   const session = asAppSession(data ?? null);
 
+  const [greetingText, setGreetingText] = useState("Hello");
+  useEffect(() => {
+    setGreetingText(greeting());
+  }, []);
+
   const productsCount = useListCount({ resource: "products", pageSize: 1 });
   const customersCount = useListCount({ resource: "customers", pageSize: 1 });
   const suppliersCount = useListCount({ resource: "suppliers", pageSize: 1 });
@@ -82,7 +88,7 @@ export default function DashboardPage() {
   return (
     <div className="p-8">
       <h1 className="text-2xl font-bold">
-        {greeting()}, {session?.user?.name?.split(" ")[0] ?? "there"}
+        {greetingText}, {session?.user?.name?.split(" ")[0] ?? "there"}
       </h1>
       <p className="text-muted-foreground mb-1 text-sm">
         Here&apos;s what&apos;s happening across your store today.
