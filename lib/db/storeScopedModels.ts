@@ -1,0 +1,7 @@
+export const STORE_SCOPED_MODELS = new Set<string>([
+  "NumberingSeries",
+  "User",
+  "AuditLog",
+  "Terminal",
+  "ApiCredential",
+]);
