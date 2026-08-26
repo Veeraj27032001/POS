@@ -11,6 +11,7 @@ import {
   Menu,
   Package,
   Settings as SettingsIcon,
+  Shield,
   ShieldCheck,
   ShieldQuestion,
   Store,
@@ -61,6 +62,7 @@ const NAV_ITEM_MODULE: Record<string, string> = {
   "/cash-denominations": "settings",
   "/numbering-series": "numbering_series",
   "/settings/tax": "settings",
+  "/settings/roles": "roles",
 };
 
 const NAV_GROUPS: AppNavGroup[] = [
@@ -118,6 +120,7 @@ const NAV_GROUPS: AppNavGroup[] = [
     label: "Settings",
     items: [
       { href: "/settings/tax", label: "Tax Settings", icon: <Landmark className="h-4 w-4" /> },
+      { href: "/settings/roles", label: "Roles", icon: <Shield className="h-4 w-4" /> },
       { href: "/settings/security", label: "Security", icon: <ShieldCheck className="h-4 w-4" /> },
       {
         href: "/settings/preferences",
