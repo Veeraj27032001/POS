@@ -144,13 +144,19 @@ export function ProductMediaManager({
               </div>
             </div>
           ))}
-          <label className="text-muted-foreground hover:text-foreground hover:border-foreground/30 flex h-24 w-28 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed">
+          <label className="text-muted-foreground hover:text-foreground hover:border-foreground/30 flex h-24 w-28 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed p-1 text-center">
             {imageUpload.isUploading ? (
               <Loader2Icon className="size-4 animate-spin" />
             ) : (
               <span className="text-2xl leading-none">+</span>
             )}
-            <span className="text-[11px]">Add image</span>
+            <span className="text-[11px]">
+              {imageUpload.phase === "processing"
+                ? "Processing…"
+                : imageUpload.phase === "uploading"
+                  ? `Uploading… ${Math.round(imageUpload.progress * 100)}%`
+                  : "Add image"}
+            </span>
             <input
               type="file"
               accept="image/*"
@@ -204,13 +210,19 @@ export function ProductMediaManager({
               </div>
             </div>
           ))}
-          <label className="text-muted-foreground hover:text-foreground hover:border-foreground/30 flex h-28 w-48 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed">
+          <label className="text-muted-foreground hover:text-foreground hover:border-foreground/30 flex h-28 w-48 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed p-1 text-center">
             {videoUpload.isUploading ? (
               <Loader2Icon className="size-4 animate-spin" />
             ) : (
               <VideoIcon className="size-4" />
             )}
-            <span className="text-[11px]">Add video</span>
+            <span className="text-[11px]">
+              {videoUpload.phase === "processing"
+                ? "Processing…"
+                : videoUpload.phase === "uploading"
+                  ? `Uploading… ${Math.round(videoUpload.progress * 100)}%`
+                  : "Add video"}
+            </span>
             <input
               type="file"
               accept="video/*"

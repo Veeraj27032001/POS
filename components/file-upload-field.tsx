@@ -13,7 +13,7 @@ export interface FileUploadFieldProps {
 
 export function FileUploadField({ value, onChange, accept }: FileUploadFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const { upload, progress, isUploading, error } = useFileUpload();
+  const { upload, progress, phase, isUploading, error } = useFileUpload();
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -46,11 +46,16 @@ export function FileUploadField({ value, onChange, accept }: FileUploadFieldProp
       />
 
       {isUploading && (
-        <div className="bg-muted relative h-1 w-full overflow-hidden rounded">
-          <div
-            className="bg-primary absolute inset-y-0 left-0 transition-all"
-            style={{ width: `${Math.round(progress * 100)}%` }}
-          />
+        <div className="space-y-1">
+          <div className="bg-muted relative h-1 w-full overflow-hidden rounded">
+            <div
+              className="bg-primary absolute inset-y-0 left-0 transition-all"
+              style={{ width: `${Math.round((phase === "processing" ? 1 : progress) * 100)}%` }}
+            />
+          </div>
+          <p className="text-muted-foreground text-xs">
+            {phase === "processing" ? "Processing…" : `Uploading… ${Math.round(progress * 100)}%`}
+          </p>
         </div>
       )}
 

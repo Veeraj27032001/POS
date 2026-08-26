@@ -2,7 +2,10 @@ import { retryWithBackoff } from "./retryWithBackoff";
 
 export interface UploadFileOptions {
   chunkSizeBytes?: number;
+  /** Fraction (0–1) of chunks successfully sent so far. */
   onProgress?: (fraction: number) => void;
+  /** Fires once all chunks are sent and the server is reassembling/storing the file. */
+  onProcessingStart?: () => void;
   signal?: AbortSignal;
 }
 
@@ -10,6 +13,50 @@ export interface UploadFileOptions {
 // that (accounting for HTTP overhead) rather than the 5 MB spec default.
 const DEFAULT_CHUNK_SIZE = 4 * 1024 * 1024;
 export const MAX_UPLOAD_FILE_SIZE_MB = 50;
+
+// A handful of chunks in flight at once is meaningfully faster than fully
+// sequential, without hitting the server with the whole file's worth of
+// concurrent requests at once.
+const CHUNK_CONCURRENCY = 3;
+
+async function uploadChunksConcurrently(
+  file: File,
+  uploadId: string,
+  chunkSize: number,
+  totalChunks: number,
+  onProgress: ((fraction: number) => void) | undefined,
+  signal: AbortSignal | undefined,
+): Promise<void> {
+  let nextIndex = 0;
+  let completed = 0;
+
+  async function worker(): Promise<void> {
+    for (;;) {
+      const i = nextIndex++;
+      if (i >= totalChunks) return;
+
+      const start = i * chunkSize;
+      const chunk = file.slice(start, Math.min(file.size, start + chunkSize));
+
+      await retryWithBackoff(async () => {
+        const res = await fetch(`/api/uploads/${uploadId}/chunk/${i}`, {
+          method: "PUT",
+          body: chunk,
+          signal,
+        });
+        if (!res.ok) {
+          throw new Error(`Chunk ${i} failed (${res.status})`);
+        }
+      });
+
+      completed += 1;
+      onProgress?.(completed / totalChunks);
+    }
+  }
+
+  const workerCount = Math.min(CHUNK_CONCURRENCY, totalChunks);
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+}
 
 export async function uploadFile(
   file: File,
@@ -23,23 +70,16 @@ export async function uploadFile(
   const uploadId = crypto.randomUUID();
   const totalChunks = Math.max(1, Math.ceil(file.size / chunkSize));
 
-  for (let i = 0; i < totalChunks; i++) {
-    const start = i * chunkSize;
-    const chunk = file.slice(start, Math.min(file.size, start + chunkSize));
+  await uploadChunksConcurrently(
+    file,
+    uploadId,
+    chunkSize,
+    totalChunks,
+    options.onProgress,
+    options.signal,
+  );
 
-    await retryWithBackoff(async () => {
-      const res = await fetch(`/api/uploads/${uploadId}/chunk/${i}`, {
-        method: "PUT",
-        body: chunk,
-        signal: options.signal,
-      });
-      if (!res.ok) {
-        throw new Error(`Chunk ${i} failed (${res.status})`);
-      }
-    });
-
-    options.onProgress?.((i + 1) / totalChunks);
-  }
+  options.onProcessingStart?.();
 
   const res = await fetch(`/api/uploads/${uploadId}/complete`, {
     method: "POST",
