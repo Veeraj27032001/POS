@@ -291,6 +291,7 @@ test("Product view page: add, reorder, and remove images and videos", async ({ p
   // isn't instant, so a 200 there right after deleting doesn't mean the
   // delete failed — it means the CDN hasn't caught up yet.
   const imageDeleteResponse = page.waitForResponse("/api/uploads/delete");
+  page.once("dialog", (dialog) => dialog.accept());
   await page.getByTitle("Remove image").first().click();
   await expect(page.getByText("Images (1)")).toBeVisible();
   expect((await imageDeleteResponse).status()).toBe(200);
@@ -303,6 +304,7 @@ test("Product view page: add, reorder, and remove images and videos", async ({ p
   await expect(page.getByText("Videos (2)")).toBeVisible();
 
   const videoDeleteResponse = page.waitForResponse("/api/uploads/delete");
+  page.once("dialog", (dialog) => dialog.accept());
   await page.getByTitle("Remove video").first().click();
   await expect(page.getByText("Videos (1)")).toBeVisible();
   expect((await videoDeleteResponse).status()).toBe(200);

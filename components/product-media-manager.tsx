@@ -56,6 +56,9 @@ export function ProductMediaManager({
   }
 
   async function handleRemoveImage(index: number) {
+    if (!window.confirm("Remove this image? It will be permanently deleted, not just unlinked.")) {
+      return;
+    }
     const url = images[index];
     const ok = await persist({ images: images.filter((_, i) => i !== index), videos });
     if (ok) await deleteFromStorage(url);
@@ -79,6 +82,9 @@ export function ProductMediaManager({
   }
 
   async function handleRemoveVideo(index: number) {
+    if (!window.confirm("Remove this video? It will be permanently deleted, not just unlinked.")) {
+      return;
+    }
     const url = videos[index];
     const ok = await persist({ images, videos: videos.filter((_, i) => i !== index) });
     if (ok) await deleteFromStorage(url);
