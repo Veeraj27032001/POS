@@ -15,6 +15,7 @@ interface UserRow {
   id: string;
   name: string;
   email: string;
+  role: { name: string } | null;
   mfaMethod: "totp" | "email_otp" | null;
   isActive: boolean;
 }
@@ -81,6 +82,7 @@ export default function UsersPage() {
         columns={[
           { key: "name", header: "Name" },
           { key: "email", header: "Email" },
+          { key: "role", header: "Role", render: (row) => row.role?.name ?? "—" },
           {
             key: "mfaMethod",
             header: "MFA",

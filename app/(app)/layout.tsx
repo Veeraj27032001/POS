@@ -21,7 +21,7 @@ import {
   Warehouse,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { AppNav, type AppNavGroup } from "@/components/app-nav";
 import { Breadcrumbs } from "@/components/breadcrumbs";
@@ -39,8 +39,29 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { hasPermission } from "@/lib/auth/rbac";
 import { asAppSession } from "@/lib/auth/types";
 import { cn } from "@/lib/utils";
+
+// Items with no entry here (Dashboard, Security, Preferences) are always shown.
+const NAV_ITEM_MODULE: Record<string, string> = {
+  "/products": "products",
+  "/categories": "categories",
+  "/uoms": "settings",
+  "/barcodes/system": "products",
+  "/barcodes/product": "products",
+  "/customers": "customers",
+  "/suppliers": "suppliers",
+  "/users": "users",
+  "/stores": "stores",
+  "/warehouses": "settings",
+  "/terminals": "settings",
+  "/payment-methods": "settings",
+  "/reason-codes": "reason_codes",
+  "/cash-denominations": "settings",
+  "/numbering-series": "numbering_series",
+  "/settings/tax": "settings",
+};
 
 const NAV_GROUPS: AppNavGroup[] = [
   {
@@ -107,8 +128,6 @@ const NAV_GROUPS: AppNavGroup[] = [
   },
 ];
 
-const FLAT_NAV_ITEMS = NAV_GROUPS.flatMap((group) => group.items);
-
 const SIDEBAR_COLLAPSED_KEY = "pos:sidebar-collapsed";
 
 function initials(name: string): string {
@@ -148,6 +167,23 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   const userName = session?.user?.name ?? "";
   const userRole = session?.user?.roleName ?? "";
+  const permissions = session?.user?.permissions ?? [];
+
+  const visibleGroups = useMemo(() => {
+    return NAV_GROUPS.map((group) => ({
+      ...group,
+      items: group.items.filter((item) => {
+        const requiredModule = NAV_ITEM_MODULE[item.href];
+        return !requiredModule || hasPermission(permissions, requiredModule, "view");
+      }),
+    })).filter((group) => group.items.length > 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [permissions.join(",")]);
+
+  const flatVisibleItems = useMemo(
+    () => visibleGroups.flatMap((group) => group.items),
+    [visibleGroups],
+  );
 
   return (
     <div className="flex min-h-screen">
@@ -172,12 +208,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </Button>
         </div>
 
-        <AppNav groups={NAV_GROUPS} collapsed={collapsed} />
+        <AppNav groups={visibleGroups} collapsed={collapsed} />
       </aside>
 
       <div className="flex flex-1 flex-col">
         <header className="flex items-center gap-4 border-b px-6 py-3">
-          <HeaderSearch items={FLAT_NAV_ITEMS} />
+          <HeaderSearch items={flatVisibleItems} />
           <div className="flex-1" />
           <FinancialYearSwitcher />
           <ThemeToggle />

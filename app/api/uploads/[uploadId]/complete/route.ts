@@ -14,12 +14,6 @@ function sanitizeExtension(filename: string): string {
   return match ? `.${match[1].toLowerCase()}` : "";
 }
 
-// JPEG/PNG/etc are already compressed formats — generic (gzip-style)
-// compression on top saves nothing meaningful. What actually shrinks
-// storage: re-encoding to WebP (better ratio at equal visual quality) and
-// capping the longest edge, since phone photos routinely arrive far larger
-// than any product-photo UI ever displays. Skip GIF (loses animation) and
-// SVG (already tiny/vector, nothing to gain).
 const MAX_IMAGE_DIMENSION = 1600;
 const WEBP_QUALITY = 80;
 const OPTIMIZABLE_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -33,15 +27,6 @@ async function optimizeIfImage(
     return { body, contentType, key };
   }
   try {
-    // Imported lazily, inside the try block, rather than as a static
-    // top-level import: sharp's native binding has proven unreliable on at
-    // least one production platform (loads, but returns a malformed format
-    // table — a native-addon/environment problem, not something this app's
-    // code controls). A static import fails at module-load time, before our
-    // own error handling ever runs, taking down every upload with it. A
-    // dynamic import here means that same failure is just another
-    // exception this catch already handles — falls back to storing the
-    // original file, unoptimized, rather than 500ing the whole upload.
     const { default: sharp } = await import("sharp");
     const optimized = await sharp(body)
       .resize({
@@ -58,9 +43,6 @@ async function optimizeIfImage(
       key: key.replace(/\.[a-zA-Z0-9]{1,10}$/, "") + ".webp",
     };
   } catch (error) {
-    // Not a valid/decodable image, sharp itself failed to load, or some
-    // other processing failure — store the original rather than fail the
-    // whole upload over an optimization step.
     console.error("Image optimization failed; storing original.", error);
     return { body, contentType, key };
   }

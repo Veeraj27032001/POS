@@ -9,6 +9,7 @@ import { writeAuditLog } from "@/lib/security/audit";
 import { parseListQueryParams } from "@/lib/pagination/queryParams";
 import { apiErrorResponse, parseJsonOrRespond } from "@/lib/validation/response";
 
+import { isResourceHookRejection } from "./types";
 import type { ResourceConfig, ResourceDelegate } from "./types";
 
 async function requireSession(module: string, action: string) {
@@ -69,7 +70,13 @@ export function defineResource<TCreate, TUpdate>(config: ResourceConfig<TCreate,
 
     const run = async () => {
       const { delegate, scopeWhere } = await resolveDelegate(session.user.storeId);
-      const where = { ...scopeWhere, ...searchWhere, ...params.filters, ...notDeletedWhere() };
+      const where = {
+        ...scopeWhere,
+        ...searchWhere,
+        ...params.filters,
+        ...notDeletedWhere(),
+        ...(config.extraWhere?.(session) ?? {}),
+      };
 
       const totalRecords = await delegate.count({ where });
       const totalPages = Math.max(1, Math.ceil(totalRecords / params.pageSize));
@@ -112,7 +119,11 @@ export function defineResource<TCreate, TUpdate>(config: ResourceConfig<TCreate,
         data.storeId = session.user.storeId;
       }
       if (config.beforeCreate) {
-        data = await config.beforeCreate(data);
+        const result = await config.beforeCreate(data, session);
+        if (isResourceHookRejection(result)) {
+          return apiErrorResponse("forbidden", result.forbidden, 403);
+        }
+        data = result;
       }
       const created = await delegate.create({ data });
       await writeAuditLog({
@@ -137,7 +148,7 @@ export function defineResource<TCreate, TUpdate>(config: ResourceConfig<TCreate,
     const run = async () => {
       const { delegate, scopeWhere } = await resolveDelegate(session.user.storeId);
       const record = await delegate.findUnique({
-        where: { id, ...scopeWhere, ...notDeletedWhere() },
+        where: { id, ...scopeWhere, ...notDeletedWhere(), ...(config.extraWhere?.(session) ?? {}) },
       });
       if (!record) return apiErrorResponse("not_found", "Record not found.", 404);
       return NextResponse.json(record);
@@ -157,13 +168,22 @@ export function defineResource<TCreate, TUpdate>(config: ResourceConfig<TCreate,
     const run = async () => {
       const { delegate, scopeWhere } = await resolveDelegate(session.user.storeId);
       const existing = await delegate.findUnique({
-        where: { id, ...scopeWhere, ...notDeletedWhere() },
+        where: { id, ...scopeWhere, ...notDeletedWhere(), ...(config.extraWhere?.(session) ?? {}) },
       });
       if (!existing) return apiErrorResponse("not_found", "Record not found.", 404);
 
+      let data = parsed.data as Record<string, unknown>;
+      if (config.beforeUpdate) {
+        const result = await config.beforeUpdate(data, existing, session);
+        if (isResourceHookRejection(result)) {
+          return apiErrorResponse("forbidden", result.forbidden, 403);
+        }
+        data = result;
+      }
+
       const updated = await delegate.update({
         where: { id },
-        data: parsed.data as Record<string, unknown>,
+        data,
       });
       await writeAuditLog({
         userId: session.user.id,
@@ -188,7 +208,7 @@ export function defineResource<TCreate, TUpdate>(config: ResourceConfig<TCreate,
     const run = async () => {
       const { delegate, scopeWhere } = await resolveDelegate(session.user.storeId);
       const existing = await delegate.findUnique({
-        where: { id, ...scopeWhere, ...notDeletedWhere() },
+        where: { id, ...scopeWhere, ...notDeletedWhere(), ...(config.extraWhere?.(session) ?? {}) },
       });
       if (!existing) return apiErrorResponse("not_found", "Record not found.", 404);
 
@@ -222,7 +242,7 @@ export function defineResource<TCreate, TUpdate>(config: ResourceConfig<TCreate,
     const run = async () => {
       const { delegate, scopeWhere } = await resolveDelegate(session.user.storeId);
       const existing = await delegate.findUnique({
-        where: { id, ...scopeWhere, ...notDeletedWhere() },
+        where: { id, ...scopeWhere, ...notDeletedWhere(), ...(config.extraWhere?.(session) ?? {}) },
       });
       if (!existing) return apiErrorResponse("not_found", "Record not found.", 404);
 

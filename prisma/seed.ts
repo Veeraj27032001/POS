@@ -282,7 +282,7 @@ async function main() {
       name: "Demo Admin",
       email: seedAdminEmail,
       passwordHash,
-      roleId: roleIds["Owner"],
+      roleId: roleIds["Super Admin"],
       storeId: store.id,
     },
   });

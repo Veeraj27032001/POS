@@ -1,3 +1,10 @@
 export { defineResource } from "./defineResource";
 export { createDetailHandlers } from "./createDetailHandlers";
-export type { ResourceConfig, ResourceDelegate, ResourceScoping } from "./types";
+export { isResourceHookRejection } from "./types";
+export type {
+  ResourceConfig,
+  ResourceDelegate,
+  ResourceHookRejection,
+  ResourceHookResult,
+  ResourceScoping,
+} from "./types";

@@ -1,5 +1,8 @@
-import { defineResource } from "@/lib/resource";
-import type { ResourceDelegate } from "@/lib/resource";
+import { ROLE_RANK, roleRank, SUPER_ADMIN_ROLE_NAME } from "@/lib/auth/rbac";
+import type { AppSession } from "@/lib/auth/types";
+import { unscoped } from "@/lib/db";
+import { defineResource, isResourceHookRejection } from "@/lib/resource";
+import type { ResourceDelegate, ResourceHookResult } from "@/lib/resource";
 import { hashSecret } from "@/lib/security/hash";
 
 import { generateSystemBarcode } from "./generateSystemBarcode";
@@ -168,7 +171,7 @@ export const discountResource = defineResource({
 
 export const reasonCodeResource = defineResource({
   name: "reason_code",
-  module: "settings",
+  module: "reason_codes",
   scoping: "none",
   createSchema: schemas.reasonCodeCreateSchema,
   updateSchema: schemas.reasonCodeUpdateSchema,
@@ -205,13 +208,51 @@ export const apiCredentialResource = defineResource({
 
 export const storeResource = defineResource({
   name: "store",
-  module: "settings",
+  module: "stores",
   scoping: "none",
   createSchema: schemas.storeCreateSchema,
   updateSchema: schemas.storeUpdateSchema,
   searchFields: ["name", "gstin"],
   getDelegate: delegateOf("store"),
 });
+
+async function guardRoleAssignment(
+  data: Record<string, unknown>,
+  session: AppSession,
+): Promise<ResourceHookResult> {
+  const roleId = data.roleId;
+  if (typeof roleId !== "string") return data;
+  const targetRole = await unscoped().role.findUnique({
+    where: { id: roleId },
+    select: { name: true },
+  });
+  if (!targetRole) return data; // an invalid id fails normal FK validation, not this check
+  if (targetRole.name === SUPER_ADMIN_ROLE_NAME) {
+    return { forbidden: "Super Admin cannot be assigned here — it's added directly, by hand." };
+  }
+  if (roleRank(targetRole.name) < roleRank(session.user.roleName)) {
+    return { forbidden: "You cannot assign a role with more access than your own." };
+  }
+  return data;
+}
+
+function userDelegateWithRole(client: unknown): ResourceDelegate {
+  const raw = (client as Record<string, ResourceDelegate>).user as unknown as {
+    count: ResourceDelegate["count"];
+    findMany: (args: Record<string, unknown>) => Promise<Record<string, unknown>[]>;
+    findUnique: (args: Record<string, unknown>) => Promise<Record<string, unknown> | null>;
+    create: (args: Record<string, unknown>) => Promise<Record<string, unknown>>;
+    update: (args: Record<string, unknown>) => Promise<Record<string, unknown>>;
+  };
+  const include = { role: { select: { name: true } } };
+  return {
+    count: (args) => raw.count(args),
+    findMany: (args) => raw.findMany({ ...args, include }),
+    findUnique: (args) => raw.findUnique({ ...args, include }),
+    create: (args) => raw.create({ ...args, include }),
+    update: (args) => raw.update({ ...args, include }),
+  };
+}
 
 export const userResource = defineResource({
   name: "user",
@@ -221,11 +262,21 @@ export const userResource = defineResource({
   createSchema: schemas.userCreateSchema,
   updateSchema: schemas.userUpdateSchema,
   searchFields: ["name", "email"],
-  getDelegate: delegateOf("user"),
-  beforeCreate: async (data) => {
-    const { password, ...rest } = data as { password: string; [key: string]: unknown };
+  getDelegate: userDelegateWithRole,
+  extraWhere: (session) => {
+    const viewerRank = roleRank(session.user.roleName);
+    const visibleRoleNames = Object.entries(ROLE_RANK)
+      .filter(([, rank]) => rank >= viewerRank)
+      .map(([name]) => name);
+    return { role: { name: { in: visibleRoleNames } } };
+  },
+  beforeCreate: async (data, session) => {
+    const guarded = await guardRoleAssignment(data, session);
+    if (isResourceHookRejection(guarded)) return guarded;
+    const { password, ...rest } = guarded as { password: string; [key: string]: unknown };
     return { ...rest, passwordHash: await hashSecret(password) };
   },
+  beforeUpdate: async (data, _existing, session) => guardRoleAssignment(data, session),
 });
 
 export const financialYearResource = defineResource({
