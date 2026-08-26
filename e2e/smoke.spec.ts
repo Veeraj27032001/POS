@@ -252,6 +252,7 @@ test("System and Product Barcodes pages render actual barcode graphics", async (
 });
 
 test("Product view page: add, reorder, and remove images and videos", async ({ page }) => {
+  test.setTimeout(300_000); // four background attach+poll waits, worst case
   await login(page);
   await page.goto("/products");
 
@@ -276,13 +277,20 @@ test("Product view page: add, reorder, and remove images and videos", async ({ p
     "base64",
   );
 
+  // Adding a photo/video now finishes on the server independently of this
+  // tab (see ProductMediaManager) — the client polls to reflect it live
+  // once the background merge+attach completes, which can take longer than
+  // the default assertion timeout, especially under dev-mode compile
+  // overhead, so these specific checks get a generous explicit timeout.
+  const BACKGROUND_ATTACH_TIMEOUT = 60_000;
+
   const imageInput = page.locator('input[type="file"][accept="image/*"]');
   await imageInput.setInputFiles({ name: "one.png", mimeType: "image/png", buffer: pngBuffer });
-  await expect(page.getByText("Images (1)")).toBeVisible();
+  await expect(page.getByText("Images (1)")).toBeVisible({ timeout: BACKGROUND_ATTACH_TIMEOUT });
   await expect(page.getByText("Cover")).toBeVisible();
 
   await imageInput.setInputFiles({ name: "two.png", mimeType: "image/png", buffer: pngBuffer });
-  await expect(page.getByText("Images (2)")).toBeVisible();
+  await expect(page.getByText("Images (2)")).toBeVisible({ timeout: BACKGROUND_ATTACH_TIMEOUT });
 
   // Removing it from the product must also delete the underlying file —
   // otherwise storage cost keeps climbing from orphaned uploads. Assert on
@@ -298,10 +306,10 @@ test("Product view page: add, reorder, and remove images and videos", async ({ p
 
   const videoInput = page.locator('input[type="file"][accept="video/*"]');
   await videoInput.setInputFiles({ name: "one.mp4", mimeType: "video/mp4", buffer: pngBuffer });
-  await expect(page.getByText("Videos (1)")).toBeVisible();
+  await expect(page.getByText("Videos (1)")).toBeVisible({ timeout: BACKGROUND_ATTACH_TIMEOUT });
 
   await videoInput.setInputFiles({ name: "two.mp4", mimeType: "video/mp4", buffer: pngBuffer });
-  await expect(page.getByText("Videos (2)")).toBeVisible();
+  await expect(page.getByText("Videos (2)")).toBeVisible({ timeout: BACKGROUND_ATTACH_TIMEOUT });
 
   const videoDeleteResponse = page.waitForResponse("/api/uploads/delete");
   page.once("dialog", (dialog) => dialog.accept());

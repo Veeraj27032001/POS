@@ -7,6 +7,14 @@ export interface UploadFileOptions {
   /** Fires once all chunks are sent and the server is reassembling/storing the file. */
   onProcessingStart?: () => void;
   signal?: AbortSignal;
+  /**
+   * When set, the server finishes reassembly/storage and attaches the
+   * result to this record itself, in the background — the caller doesn't
+   * need to stay connected for that to finish. In that case uploadFile()
+   * resolves with `url: null` as soon as every chunk is sent; the record
+   * gets updated independently, whether or not the caller is still around.
+   */
+  attachTo?: { resource: "products"; id: string; field: "images" | "videos" };
 }
 
 // Vercel Serverless Functions cap request bodies at 4.5 MB; stay safely under
@@ -19,6 +27,46 @@ export const MAX_UPLOAD_FILE_SIZE_MB = 50;
 // concurrent requests at once.
 const CHUNK_CONCURRENCY = 3;
 
+// fetch() has no upload-progress event, so a chunk only ever reports 0% or
+// 100% — with a handful of large chunks that reads as big jumps (10% ->
+// 20%) rather than smooth progress. XMLHttpRequest exposes real byte-level
+// upload progress, which we report continuously as each chunk streams.
+function putChunk(
+  url: string,
+  chunk: Blob,
+  signal: AbortSignal | undefined,
+  onBytesSent: (loaded: number) => void,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", url);
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) onBytesSent(event.loaded);
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        onBytesSent(chunk.size);
+        resolve();
+      } else {
+        reject(new Error(`Chunk failed (${xhr.status})`));
+      }
+    };
+    xhr.onerror = () => reject(new Error("Chunk upload failed (network error)."));
+    xhr.onabort = () => reject(new Error("Chunk upload aborted."));
+
+    if (signal) {
+      if (signal.aborted) {
+        xhr.abort();
+        return;
+      }
+      signal.addEventListener("abort", () => xhr.abort(), { once: true });
+    }
+
+    xhr.send(chunk);
+  });
+}
+
 async function uploadChunksConcurrently(
   file: File,
   uploadId: string,
@@ -28,7 +76,12 @@ async function uploadChunksConcurrently(
   signal: AbortSignal | undefined,
 ): Promise<void> {
   let nextIndex = 0;
-  let completed = 0;
+  const bytesSentByChunk = new Array<number>(totalChunks).fill(0);
+
+  function reportProgress() {
+    const totalSent = bytesSentByChunk.reduce((sum, n) => sum + n, 0);
+    onProgress?.(Math.min(1, totalSent / file.size));
+  }
 
   async function worker(): Promise<void> {
     for (;;) {
@@ -37,20 +90,15 @@ async function uploadChunksConcurrently(
 
       const start = i * chunkSize;
       const chunk = file.slice(start, Math.min(file.size, start + chunkSize));
+      const url = `/api/uploads/${uploadId}/chunk/${i}`;
 
       await retryWithBackoff(async () => {
-        const res = await fetch(`/api/uploads/${uploadId}/chunk/${i}`, {
-          method: "PUT",
-          body: chunk,
-          signal,
+        bytesSentByChunk[i] = 0;
+        await putChunk(url, chunk, signal, (loaded) => {
+          bytesSentByChunk[i] = loaded;
+          reportProgress();
         });
-        if (!res.ok) {
-          throw new Error(`Chunk ${i} failed (${res.status})`);
-        }
       });
-
-      completed += 1;
-      onProgress?.(completed / totalChunks);
     }
   }
 
@@ -61,7 +109,7 @@ async function uploadChunksConcurrently(
 export async function uploadFile(
   file: File,
   options: UploadFileOptions = {},
-): Promise<{ url: string }> {
+): Promise<{ url: string | null }> {
   if (file.size > MAX_UPLOAD_FILE_SIZE_MB * 1024 * 1024) {
     throw new Error(`File exceeds the ${MAX_UPLOAD_FILE_SIZE_MB} MB upload limit.`);
   }
@@ -81,6 +129,10 @@ export async function uploadFile(
 
   options.onProcessingStart?.();
 
+  // Note: deliberately not passing `signal` here when attachTo is set —
+  // this request only needs to reach the server and get acknowledged
+  // (202), not stay open for the full merge. The server continues the
+  // actual work independently of this request/connection either way.
   const res = await fetch(`/api/uploads/${uploadId}/complete`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -88,8 +140,9 @@ export async function uploadFile(
       filename: file.name,
       contentType: file.type || "application/octet-stream",
       totalChunks,
+      attachTo: options.attachTo,
     }),
-    signal: options.signal,
+    signal: options.attachTo ? undefined : options.signal,
   });
 
   if (!res.ok) {
@@ -97,7 +150,8 @@ export async function uploadFile(
     throw new Error(body?.error?.message ?? "Failed to finalize upload.");
   }
 
-  return res.json();
+  const data = (await res.json()) as { url?: string };
+  return { url: data.url ?? null };
 }
 
 /** Deletes a previously-uploaded file from storage, given the URL uploadFile() returned. */

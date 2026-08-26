@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowDownIcon, ArrowUpIcon, Loader2Icon, VideoIcon, XIcon } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { deleteUploadedFile, useFileUpload } from "@/lib/upload";
@@ -12,6 +13,9 @@ export interface ProductMediaManagerProps {
   onUpdated: (next: { images: string[]; videos: string[] }) => void;
 }
 
+const POLL_INTERVAL_MS = 2000;
+const POLL_MAX_ATTEMPTS = 20; // ~40s — generous for a background merge that's normally seconds
+
 export function ProductMediaManager({
   productId,
   images,
@@ -20,6 +24,8 @@ export function ProductMediaManager({
 }: ProductMediaManagerProps) {
   const imageUpload = useFileUpload();
   const videoUpload = useFileUpload();
+  const [pendingImages, setPendingImages] = useState(0);
+  const [pendingVideos, setPendingVideos] = useState(0);
 
   async function persist(next: { images: string[]; videos: string[] }): Promise<boolean> {
     const res = await fetch(`/api/products/${productId}`, {
@@ -46,13 +52,44 @@ export function ProductMediaManager({
     }
   }
 
+  // The server attaches the uploaded file to the product itself once its
+  // background processing finishes (see /api/uploads/[id]/complete) — this
+  // just polls for that to reflect it live if the user stays on the page.
+  // If they navigate away, the file still gets attached; they'll just see
+  // it next time they open the product instead of watching it appear.
+  //
+  // Deliberately not gated on a mounted-ref: this closure keeps running to
+  // completion regardless of what happens to this component instance (a
+  // dev-mode Fast Refresh remount, a real unmount, whatever), and calling
+  // onUpdated/setPending against a stale closure is harmless here — worst
+  // case is a wasted state update, not a crash.
+  async function pollForAttachment(field: "images" | "videos", previousCount: number) {
+    const setPending = field === "images" ? setPendingImages : setPendingVideos;
+    setPending((n) => n + 1);
+    try {
+      for (let attempt = 0; attempt < POLL_MAX_ATTEMPTS; attempt++) {
+        await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+
+        const res = await fetch(`/api/products/${productId}`);
+        if (!res.ok) continue;
+        const fresh = (await res.json()) as { images: string[]; videos: string[] };
+        if (fresh[field].length > previousCount) {
+          onUpdated({ images: fresh.images, videos: fresh.videos });
+          return;
+        }
+      }
+    } finally {
+      setPending((n) => Math.max(0, n - 1));
+    }
+  }
+
   async function handleAddImage(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    const url = await imageUpload.upload(file);
-    if (!url) return;
-    await persist({ images: [...images, url], videos });
+    const previousCount = images.length;
+    await imageUpload.upload(file, { resource: "products", id: productId, field: "images" });
+    void pollForAttachment("images", previousCount);
   }
 
   async function handleRemoveImage(index: number) {
@@ -76,9 +113,9 @@ export function ProductMediaManager({
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    const url = await videoUpload.upload(file);
-    if (!url) return;
-    await persist({ images, videos: [...videos, url] });
+    const previousCount = videos.length;
+    await videoUpload.upload(file, { resource: "products", id: productId, field: "videos" });
+    void pollForAttachment("videos", previousCount);
   }
 
   async function handleRemoveVideo(index: number) {
@@ -104,6 +141,12 @@ export function ProductMediaManager({
         <p className="mb-2 text-sm font-medium">
           Images{" "}
           {images.length > 0 && <span className="text-muted-foreground">({images.length})</span>}
+          {pendingImages > 0 && (
+            <span className="text-muted-foreground ml-2 inline-flex items-center gap-1 text-xs font-normal">
+              <Loader2Icon className="size-3 animate-spin" />
+              {pendingImages} processing…
+            </span>
+          )}
         </p>
         <div className="flex flex-wrap gap-3">
           {images.map((url, index) => (
@@ -178,6 +221,12 @@ export function ProductMediaManager({
         <p className="mb-2 text-sm font-medium">
           Videos{" "}
           {videos.length > 0 && <span className="text-muted-foreground">({videos.length})</span>}
+          {pendingVideos > 0 && (
+            <span className="text-muted-foreground ml-2 inline-flex items-center gap-1 text-xs font-normal">
+              <Loader2Icon className="size-3 animate-spin" />
+              {pendingVideos} processing…
+            </span>
+          )}
         </p>
         <div className="flex flex-wrap gap-3">
           {videos.map((url, index) => (
