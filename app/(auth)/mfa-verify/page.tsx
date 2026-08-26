@@ -2,7 +2,6 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { signIn } from "next-auth/react";
-import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -76,7 +75,8 @@ function MfaVerifyForm() {
 
   return (
     <AuthSplitLayout>
-      <Image src="/logo.png" alt="POS logo" width={36} height={36} className="mb-7 rounded-lg" />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/logo.png" alt="POS logo" width={36} height={36} className="mb-7 rounded-lg" />
       <h1 className="mb-1.5 text-[26px] font-extrabold">
         {method === "email_otp" ? "Enter emailed code" : "Enter authenticator code"}
       </h1>

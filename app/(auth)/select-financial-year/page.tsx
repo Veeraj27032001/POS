@@ -1,7 +1,6 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 
@@ -81,7 +80,8 @@ function SelectFinancialYearForm() {
 
   return (
     <AuthSplitLayout>
-      <Image src="/logo.png" alt="POS logo" width={36} height={36} className="mb-7 rounded-lg" />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/logo.png" alt="POS logo" width={36} height={36} className="mb-7 rounded-lg" />
       <h1 className="mb-1.5 text-[26px] font-extrabold">Select financial year</h1>
       <p className="text-muted-foreground mb-8 text-sm">
         Choose the financial year for this session. You can switch it later from the header.

@@ -21,7 +21,6 @@ import {
   Warehouse,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
-import Image from "next/image";
 import { useEffect, useState } from "react";
 
 import { AppNav, type AppNavGroup } from "@/components/app-nav";
@@ -159,13 +158,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         )}
       >
         <div className={cn("flex items-center gap-2 px-1 pb-4", collapsed && "justify-center")}>
-          <Image
-            src="/logo.png"
-            alt="POS logo"
-            width={28}
-            height={28}
-            className="size-7 shrink-0 rounded-lg object-cover"
-          />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="POS logo" className="size-7 shrink-0 rounded-lg object-cover" />
           {!collapsed && <span className="flex-1 text-[15px] font-extrabold">POS</span>}
           <Button
             variant="ghost"
