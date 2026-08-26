@@ -21,4 +21,9 @@ export const localStorageAdapter: StorageAdapter = {
     const filePath = join(UPLOAD_ROOT, key);
     await rm(filePath, { force: true });
   },
+
+  keyFromUrl(url) {
+    const prefix = "/api/uploads/";
+    return url.startsWith(prefix) ? decodeURIComponent(url.slice(prefix.length)) : null;
+  },
 };

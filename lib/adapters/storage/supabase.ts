@@ -68,4 +68,9 @@ export const supabaseStorageAdapter: StorageAdapter = {
       new DeleteObjectCommand({ Bucket: env().SUPABASE_STORAGE_BUCKET, Key: key }),
     );
   },
+
+  keyFromUrl(url) {
+    const prefix = `${env().SUPABASE_URL}/storage/v1/object/public/${env().SUPABASE_STORAGE_BUCKET}/`;
+    return url.startsWith(prefix) ? decodeURIComponent(url.slice(prefix.length)) : null;
+  },
 };

@@ -284,8 +284,16 @@ test("Product view page: add, reorder, and remove images and videos", async ({ p
   await imageInput.setInputFiles({ name: "two.png", mimeType: "image/png", buffer: pngBuffer });
   await expect(page.getByText("Images (2)")).toBeVisible();
 
+  // Removing it from the product must also delete the underlying file —
+  // otherwise storage cost keeps climbing from orphaned uploads. Assert on
+  // the actual delete-request response rather than re-fetching the public
+  // URL afterward: that URL is CDN-fronted, and edge-cache invalidation
+  // isn't instant, so a 200 there right after deleting doesn't mean the
+  // delete failed — it means the CDN hasn't caught up yet.
+  const imageDeleteResponse = page.waitForResponse("/api/uploads/delete");
   await page.getByTitle("Remove image").first().click();
   await expect(page.getByText("Images (1)")).toBeVisible();
+  expect((await imageDeleteResponse).status()).toBe(200);
 
   const videoInput = page.locator('input[type="file"][accept="video/*"]');
   await videoInput.setInputFiles({ name: "one.mp4", mimeType: "video/mp4", buffer: pngBuffer });
@@ -294,8 +302,10 @@ test("Product view page: add, reorder, and remove images and videos", async ({ p
   await videoInput.setInputFiles({ name: "two.mp4", mimeType: "video/mp4", buffer: pngBuffer });
   await expect(page.getByText("Videos (2)")).toBeVisible();
 
+  const videoDeleteResponse = page.waitForResponse("/api/uploads/delete");
   await page.getByTitle("Remove video").first().click();
   await expect(page.getByText("Videos (1)")).toBeVisible();
+  expect((await videoDeleteResponse).status()).toBe(200);
 });
 
 const NAV_HREFS = [

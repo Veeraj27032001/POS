@@ -59,3 +59,16 @@ export async function uploadFile(
 
   return res.json();
 }
+
+/** Deletes a previously-uploaded file from storage, given the URL uploadFile() returned. */
+export async function deleteUploadedFile(url: string): Promise<void> {
+  const res = await fetch("/api/uploads/delete", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error?.message ?? "Failed to delete file.");
+  }
+}

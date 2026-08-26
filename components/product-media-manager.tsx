@@ -3,7 +3,7 @@
 import { ArrowDownIcon, ArrowUpIcon, Loader2Icon, VideoIcon, XIcon } from "lucide-react";
 import { toast } from "sonner";
 
-import { useFileUpload } from "@/lib/upload";
+import { deleteUploadedFile, useFileUpload } from "@/lib/upload";
 
 export interface ProductMediaManagerProps {
   productId: string;
@@ -21,7 +21,7 @@ export function ProductMediaManager({
   const imageUpload = useFileUpload();
   const videoUpload = useFileUpload();
 
-  async function persist(next: { images: string[]; videos: string[] }) {
+  async function persist(next: { images: string[]; videos: string[] }): Promise<boolean> {
     const res = await fetch(`/api/products/${productId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -30,9 +30,20 @@ export function ProductMediaManager({
     if (!res.ok) {
       const body = await res.json().catch(() => null);
       toast.error(body?.error?.message ?? "Failed to save media.");
-      return;
+      return false;
     }
     onUpdated(next);
+    return true;
+  }
+
+  // Removes the file from storage too, once it's no longer referenced —
+  // otherwise it just sits there forever, still costing storage.
+  async function deleteFromStorage(url: string) {
+    try {
+      await deleteUploadedFile(url);
+    } catch {
+      toast.error("Removed from the product, but failed to delete the file from storage.");
+    }
   }
 
   async function handleAddImage(e: React.ChangeEvent<HTMLInputElement>) {
@@ -44,8 +55,10 @@ export function ProductMediaManager({
     await persist({ images: [...images, url], videos });
   }
 
-  function handleRemoveImage(index: number) {
-    persist({ images: images.filter((_, i) => i !== index), videos });
+  async function handleRemoveImage(index: number) {
+    const url = images[index];
+    const ok = await persist({ images: images.filter((_, i) => i !== index), videos });
+    if (ok) await deleteFromStorage(url);
   }
 
   function handleMoveImage(index: number, direction: -1 | 1) {
@@ -65,8 +78,10 @@ export function ProductMediaManager({
     await persist({ images, videos: [...videos, url] });
   }
 
-  function handleRemoveVideo(index: number) {
-    persist({ images, videos: videos.filter((_, i) => i !== index) });
+  async function handleRemoveVideo(index: number) {
+    const url = videos[index];
+    const ok = await persist({ images, videos: videos.filter((_, i) => i !== index) });
+    if (ok) await deleteFromStorage(url);
   }
 
   function handleMoveVideo(index: number, direction: -1 | 1) {
