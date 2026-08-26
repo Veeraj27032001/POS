@@ -27,5 +27,10 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|api).*)"],
+  // Excludes framework internals, the API (auth'd per-route instead), and
+  // any request for a static file (public/ assets — logo, icons, etc.) —
+  // those must be publicly reachable without going through the auth check.
+  matcher: [
+    "/((?!_next/static|_next/image|favicon\\.ico|api|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|css|js|txt|xml|json)$).*)",
+  ],
 };
