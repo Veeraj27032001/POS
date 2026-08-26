@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 
 import { after } from "next/server";
-import sharp from "sharp";
 
 import { auth } from "@/auth";
 import { getStorageAdapter } from "@/lib/adapters/storage";
@@ -34,6 +33,16 @@ async function optimizeIfImage(
     return { body, contentType, key };
   }
   try {
+    // Imported lazily, inside the try block, rather than as a static
+    // top-level import: sharp's native binding has proven unreliable on at
+    // least one production platform (loads, but returns a malformed format
+    // table — a native-addon/environment problem, not something this app's
+    // code controls). A static import fails at module-load time, before our
+    // own error handling ever runs, taking down every upload with it. A
+    // dynamic import here means that same failure is just another
+    // exception this catch already handles — falls back to storing the
+    // original file, unoptimized, rather than 500ing the whole upload.
+    const { default: sharp } = await import("sharp");
     const optimized = await sharp(body)
       .resize({
         width: MAX_IMAGE_DIMENSION,
@@ -49,8 +58,9 @@ async function optimizeIfImage(
       key: key.replace(/\.[a-zA-Z0-9]{1,10}$/, "") + ".webp",
     };
   } catch (error) {
-    // Not a valid/decodable image (or some other sharp failure) — store the
-    // original rather than fail the whole upload over an optimization step.
+    // Not a valid/decodable image, sharp itself failed to load, or some
+    // other processing failure — store the original rather than fail the
+    // whole upload over an optimization step.
     console.error("Image optimization failed; storing original.", error);
     return { body, contentType, key };
   }
