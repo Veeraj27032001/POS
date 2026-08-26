@@ -296,11 +296,27 @@ model Product {
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
 
-  suppliers      Supplier[]
-  discounts      Discount[]
-  priceListItems PriceListItem[]
+  suppliers           Supplier[]
+  discounts           Discount[]
+  priceListItems      PriceListItem[]
+  pendingMediaUploads PendingMediaUpload[]
 
   @@map("products")
+}
+
+// A live row here means that image/video is still being merged/stored/
+// attached in the background (see /api/uploads/[id]/complete). Any device
+// or session can query this for a given product, so "still processing" is
+// visible everywhere, not just in the browser tab that started the
+// upload. The row is deleted once the attach finishes (success or not).
+model PendingMediaUpload {
+  id        String   @id @default(uuid())
+  productId String   @map("product_id")
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  field     String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("pending_media_uploads")
 }
 
 model Customer {

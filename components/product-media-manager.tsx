@@ -1,10 +1,10 @@
 "use client";
 
 import { ArrowDownIcon, ArrowUpIcon, Loader2Icon, VideoIcon, XIcon } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { deleteUploadedFile, useFileUpload } from "@/lib/upload";
+import { deleteUploadedFile, useFileUpload, useSmoothedProgress } from "@/lib/upload";
 
 export interface ProductMediaManagerProps {
   productId: string;
@@ -14,7 +14,11 @@ export interface ProductMediaManagerProps {
 }
 
 const POLL_INTERVAL_MS = 2000;
-const POLL_MAX_ATTEMPTS = 20; // ~40s — generous for a background merge that's normally seconds
+
+interface PendingMediaRow {
+  id: string;
+  field: "images" | "videos";
+}
 
 export function ProductMediaManager({
   productId,
@@ -24,8 +28,11 @@ export function ProductMediaManager({
 }: ProductMediaManagerProps) {
   const imageUpload = useFileUpload();
   const videoUpload = useFileUpload();
+  const imageDisplayProgress = useSmoothedProgress(imageUpload.progress);
+  const videoDisplayProgress = useSmoothedProgress(videoUpload.progress);
   const [pendingImages, setPendingImages] = useState(0);
   const [pendingVideos, setPendingVideos] = useState(0);
+  const pollingRef = useRef(false);
 
   async function persist(next: { images: string[]; videos: string[] }): Promise<boolean> {
     const res = await fetch(`/api/products/${productId}`, {
@@ -52,44 +59,59 @@ export function ProductMediaManager({
     }
   }
 
-  // The server attaches the uploaded file to the product itself once its
-  // background processing finishes (see /api/uploads/[id]/complete) — this
-  // just polls for that to reflect it live if the user stays on the page.
-  // If they navigate away, the file still gets attached; they'll just see
-  // it next time they open the product instead of watching it appear.
+  // The server tracks "still processing" in the database (PendingMediaUpload
+  // — see /api/uploads/[id]/complete and /api/products/[id]/pending-media),
+  // not in this browser's local state, so it's the same answer no matter
+  // which device or tab checks: a refresh, or opening the product on a
+  // different device entirely, both see the real, current status.
   //
-  // Deliberately not gated on a mounted-ref: this closure keeps running to
-  // completion regardless of what happens to this component instance (a
-  // dev-mode Fast Refresh remount, a real unmount, whatever), and calling
-  // onUpdated/setPending against a stale closure is harmless here — worst
-  // case is a wasted state update, not a crash.
-  async function pollForAttachment(field: "images" | "videos", previousCount: number) {
-    const setPending = field === "images" ? setPendingImages : setPendingVideos;
-    setPending((n) => n + 1);
+  // This polls that endpoint to reflect it live while the user is here, and
+  // always does one product refetch on the tick where the pending list is
+  // found empty — not only when a prior tick had seen it non-empty. A
+  // background attach can finish (and its pending row get deleted) before
+  // this loop's very first check runs, especially for a small file, so
+  // "was it ever seen pending" is not a safe signal that nothing changed;
+  // re-checking the product itself on every terminating tick is. Runs on
+  // mount too, so a page load — including right after a refresh — picks up
+  // whatever finished while nobody was watching.
+  async function pollUntilClear() {
+    if (pollingRef.current) return;
+    pollingRef.current = true;
     try {
-      for (let attempt = 0; attempt < POLL_MAX_ATTEMPTS; attempt++) {
-        await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+      for (;;) {
+        const res = await fetch(`/api/products/${productId}/pending-media`);
+        const rows: PendingMediaRow[] = res.ok ? (await res.json()).pending : [];
+        const imageCount = rows.filter((r) => r.field === "images").length;
+        const videoCount = rows.filter((r) => r.field === "videos").length;
+        setPendingImages(imageCount);
+        setPendingVideos(videoCount);
 
-        const res = await fetch(`/api/products/${productId}`);
-        if (!res.ok) continue;
-        const fresh = (await res.json()) as { images: string[]; videos: string[] };
-        if (fresh[field].length > previousCount) {
-          onUpdated({ images: fresh.images, videos: fresh.videos });
+        if (imageCount === 0 && videoCount === 0) {
+          const productRes = await fetch(`/api/products/${productId}`);
+          if (productRes.ok) {
+            const fresh = (await productRes.json()) as { images: string[]; videos: string[] };
+            onUpdated({ images: fresh.images, videos: fresh.videos });
+          }
           return;
         }
+        await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
       }
     } finally {
-      setPending((n) => Math.max(0, n - 1));
+      pollingRef.current = false;
     }
   }
+
+  useEffect(() => {
+    void pollUntilClear();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productId]);
 
   async function handleAddImage(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    const previousCount = images.length;
     await imageUpload.upload(file, { resource: "products", id: productId, field: "images" });
-    void pollForAttachment("images", previousCount);
+    void pollUntilClear();
   }
 
   async function handleRemoveImage(index: number) {
@@ -113,9 +135,8 @@ export function ProductMediaManager({
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    const previousCount = videos.length;
     await videoUpload.upload(file, { resource: "products", id: productId, field: "videos" });
-    void pollForAttachment("videos", previousCount);
+    void pollUntilClear();
   }
 
   async function handleRemoveVideo(index: number) {
@@ -203,7 +224,7 @@ export function ProductMediaManager({
               {imageUpload.phase === "processing"
                 ? "Processing…"
                 : imageUpload.phase === "uploading"
-                  ? `Uploading… ${Math.round(imageUpload.progress * 100)}%`
+                  ? `Uploading… ${Math.round(imageDisplayProgress * 100)}%`
                   : "Add image"}
             </span>
             <input
@@ -275,7 +296,7 @@ export function ProductMediaManager({
               {videoUpload.phase === "processing"
                 ? "Processing…"
                 : videoUpload.phase === "uploading"
-                  ? `Uploading… ${Math.round(videoUpload.progress * 100)}%`
+                  ? `Uploading… ${Math.round(videoDisplayProgress * 100)}%`
                   : "Add video"}
             </span>
             <input

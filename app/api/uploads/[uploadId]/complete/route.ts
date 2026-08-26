@@ -127,6 +127,18 @@ export async function POST(
   // tab doesn't need to stay open for the merge, storage upload, and
   // attaching the URL to the record to finish; that all happens
   // server-side regardless of whether the client is still connected.
+  //
+  // The pending row is created here (before responding) so it's guaranteed
+  // to exist by the time the client's request resolves — any device or
+  // session querying this product afterward can see "still processing" is
+  // real, not just a client-side guess that would vanish on a refresh or a
+  // different device.
+  const db = unscoped();
+  const pendingRow = await db.pendingMediaUpload.create({
+    data: { productId: attachTo.id, field: attachTo.field },
+    select: { id: true },
+  });
+
   after(async () => {
     try {
       const result = await reassembleAndStore();
@@ -136,7 +148,6 @@ export async function POST(
         );
         return;
       }
-      const db = unscoped();
       if (attachTo.field === "images") {
         await db.$executeRaw`UPDATE products SET images = array_append(images, ${result.url}) WHERE id = ${attachTo.id}`;
       } else {
@@ -144,6 +155,8 @@ export async function POST(
       }
     } catch (error) {
       console.error(`Upload ${uploadId}: background processing failed.`, error);
+    } finally {
+      await db.pendingMediaUpload.delete({ where: { id: pendingRow.id } }).catch(() => {});
     }
   });
 
