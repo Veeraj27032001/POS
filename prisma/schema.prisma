@@ -280,7 +280,7 @@ model Product {
   taxCode          TaxCode   @relation(fields: [taxCodeId], references: [id])
   trackExpiry      Boolean   @default(false) @map("track_expiry")
   images           String[]
-  videoUrl         String?   @map("video_url")
+  videos           String[]  @map("videos")
   description      String?
   packSize         Decimal?  @map("pack_size") @db.Decimal(10, 3)
   uomId            String    @map("uom_id")

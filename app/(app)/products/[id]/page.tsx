@@ -30,7 +30,7 @@ interface ProductRow {
   defaultCostPrice: string | null;
   isActive: boolean;
   images: string[];
-  videoUrl: string | null;
+  videos: string[];
 }
 
 function lookupLabel(options: { value: string; label: string }[], id: string | null) {
@@ -162,7 +162,7 @@ export default function ProductViewPage() {
           <ProductMediaManager
             productId={row.id}
             images={row.images}
-            videoUrl={row.videoUrl}
+            videos={row.videos}
             onUpdated={(next) => {
               setRow((prev) => (prev ? { ...prev, ...next } : prev));
               invalidate("products");

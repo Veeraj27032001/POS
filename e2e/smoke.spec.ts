@@ -251,7 +251,7 @@ test("System and Product Barcodes pages render actual barcode graphics", async (
   await expect(productSvg.locator("rect, path")).not.toHaveCount(0);
 });
 
-test("Product view page: add, reorder, and remove images", async ({ page }) => {
+test("Product view page: add, reorder, and remove images and videos", async ({ page }) => {
   await login(page);
   await page.goto("/products");
 
@@ -286,6 +286,16 @@ test("Product view page: add, reorder, and remove images", async ({ page }) => {
 
   await page.getByTitle("Remove image").first().click();
   await expect(page.getByText("Images (1)")).toBeVisible();
+
+  const videoInput = page.locator('input[type="file"][accept="video/*"]');
+  await videoInput.setInputFiles({ name: "one.mp4", mimeType: "video/mp4", buffer: pngBuffer });
+  await expect(page.getByText("Videos (1)")).toBeVisible();
+
+  await videoInput.setInputFiles({ name: "two.mp4", mimeType: "video/mp4", buffer: pngBuffer });
+  await expect(page.getByText("Videos (2)")).toBeVisible();
+
+  await page.getByTitle("Remove video").first().click();
+  await expect(page.getByText("Videos (1)")).toBeVisible();
 });
 
 const NAV_HREFS = [

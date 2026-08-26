@@ -8,20 +8,20 @@ import { useFileUpload } from "@/lib/upload";
 export interface ProductMediaManagerProps {
   productId: string;
   images: string[];
-  videoUrl: string | null;
-  onUpdated: (next: { images: string[]; videoUrl: string | null }) => void;
+  videos: string[];
+  onUpdated: (next: { images: string[]; videos: string[] }) => void;
 }
 
 export function ProductMediaManager({
   productId,
   images,
-  videoUrl,
+  videos,
   onUpdated,
 }: ProductMediaManagerProps) {
   const imageUpload = useFileUpload();
   const videoUpload = useFileUpload();
 
-  async function persist(next: { images: string[]; videoUrl: string | null }) {
+  async function persist(next: { images: string[]; videos: string[] }) {
     const res = await fetch(`/api/products/${productId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -41,19 +41,19 @@ export function ProductMediaManager({
     if (!file) return;
     const url = await imageUpload.upload(file);
     if (!url) return;
-    await persist({ images: [...images, url], videoUrl });
+    await persist({ images: [...images, url], videos });
   }
 
   function handleRemoveImage(index: number) {
-    persist({ images: images.filter((_, i) => i !== index), videoUrl });
+    persist({ images: images.filter((_, i) => i !== index), videos });
   }
 
-  function handleMove(index: number, direction: -1 | 1) {
+  function handleMoveImage(index: number, direction: -1 | 1) {
     const target = index + direction;
     if (target < 0 || target >= images.length) return;
     const next = [...images];
     [next[index], next[target]] = [next[target], next[index]];
-    persist({ images: next, videoUrl });
+    persist({ images: next, videos });
   }
 
   async function handleAddVideo(e: React.ChangeEvent<HTMLInputElement>) {
@@ -62,11 +62,19 @@ export function ProductMediaManager({
     if (!file) return;
     const url = await videoUpload.upload(file);
     if (!url) return;
-    await persist({ images, videoUrl: url });
+    await persist({ images, videos: [...videos, url] });
   }
 
-  function handleRemoveVideo() {
-    persist({ images, videoUrl: null });
+  function handleRemoveVideo(index: number) {
+    persist({ images, videos: videos.filter((_, i) => i !== index) });
+  }
+
+  function handleMoveVideo(index: number, direction: -1 | 1) {
+    const target = index + direction;
+    if (target < 0 || target >= videos.length) return;
+    const next = [...videos];
+    [next[index], next[target]] = [next[target], next[index]];
+    persist({ images, videos: next });
   }
 
   return (
@@ -91,7 +99,7 @@ export function ProductMediaManager({
               <div className="bg-muted/50 flex items-center justify-between gap-0.5 border-t px-1 py-1">
                 <button
                   type="button"
-                  onClick={() => handleMove(index, -1)}
+                  onClick={() => handleMoveImage(index, -1)}
                   disabled={index === 0}
                   className="hover:bg-muted rounded p-1.5 disabled:opacity-30"
                   title="Move earlier"
@@ -101,7 +109,7 @@ export function ProductMediaManager({
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleMove(index, 1)}
+                  onClick={() => handleMoveImage(index, 1)}
                   disabled={index === images.length - 1}
                   className="hover:bg-muted rounded p-1.5 disabled:opacity-30"
                   title="Move later"
@@ -140,26 +148,54 @@ export function ProductMediaManager({
       </div>
 
       <div>
-        <p className="mb-2 text-sm font-medium">Video</p>
-        {videoUrl ? (
-          <div className="flex items-center gap-3">
-            <video src={videoUrl} controls className="h-24 rounded-lg border" />
-            <button
-              type="button"
-              onClick={handleRemoveVideo}
-              className="text-muted-foreground hover:text-destructive text-sm underline"
-            >
-              Remove video
-            </button>
-          </div>
-        ) : (
-          <label className="text-muted-foreground hover:text-foreground flex h-16 w-40 cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed">
+        <p className="mb-2 text-sm font-medium">
+          Videos{" "}
+          {videos.length > 0 && <span className="text-muted-foreground">({videos.length})</span>}
+        </p>
+        <div className="flex flex-wrap gap-3">
+          {videos.map((url, index) => (
+            <div key={`${url}-${index}`} className="w-48 overflow-hidden rounded-lg border">
+              <video src={url} controls className="h-28 w-full bg-black object-cover" />
+              <div className="bg-muted/50 flex items-center justify-between gap-0.5 border-t px-1 py-1">
+                <button
+                  type="button"
+                  onClick={() => handleMoveVideo(index, -1)}
+                  disabled={index === 0}
+                  className="hover:bg-muted rounded p-1.5 disabled:opacity-30"
+                  title="Move earlier"
+                  aria-label="Move earlier"
+                >
+                  <ArrowUpIcon className="size-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleMoveVideo(index, 1)}
+                  disabled={index === videos.length - 1}
+                  className="hover:bg-muted rounded p-1.5 disabled:opacity-30"
+                  title="Move later"
+                  aria-label="Move later"
+                >
+                  <ArrowDownIcon className="size-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveVideo(index)}
+                  className="hover:bg-destructive/10 text-destructive rounded p-1.5"
+                  title="Remove video"
+                  aria-label="Remove video"
+                >
+                  <XIcon className="size-3.5" />
+                </button>
+              </div>
+            </div>
+          ))}
+          <label className="text-muted-foreground hover:text-foreground hover:border-foreground/30 flex h-28 w-48 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed">
             {videoUpload.isUploading ? (
               <Loader2Icon className="size-4 animate-spin" />
             ) : (
               <VideoIcon className="size-4" />
             )}
-            <span className="text-sm">Add video</span>
+            <span className="text-[11px]">Add video</span>
             <input
               type="file"
               accept="video/*"
@@ -168,7 +204,7 @@ export function ProductMediaManager({
               disabled={videoUpload.isUploading}
             />
           </label>
-        )}
+        </div>
       </div>
     </div>
   );

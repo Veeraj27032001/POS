@@ -63,7 +63,7 @@ export const productCreateSchema = z.object({
   taxCodeId: opaqueIdSchema,
   trackExpiry: z.boolean().default(false),
   images: z.array(z.string()).default([]),
-  videoUrl: z.string().optional().nullable(),
+  videos: z.array(z.string()).default([]),
   description: optionalString(2000),
   packSize: nonNegativeDecimal.optional().nullable(),
   uomId: opaqueIdSchema,

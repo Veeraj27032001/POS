@@ -15,9 +15,37 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const APP_NAME = "POS";
+const APP_DESCRIPTION =
+  "Store-scoped, multi-warehouse retail POS for the India market — masters, stock, billing, and reporting in one portal.";
+const SITE_URL = "https://pos.vedixsolutions.com";
+
 export const metadata: Metadata = {
-  title: "POS",
-  description: "Store-scoped, multi-warehouse retail POS",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: APP_NAME,
+    template: `%s · ${APP_NAME}`,
+  },
+  description: APP_DESCRIPTION,
+  icons: {
+    icon: "/logo.png",
+    shortcut: "/logo.png",
+    apple: "/logo.png",
+  },
+  openGraph: {
+    title: APP_NAME,
+    description: APP_DESCRIPTION,
+    url: SITE_URL,
+    siteName: APP_NAME,
+    images: [{ url: "/logo.png", width: 720, height: 720, alt: `${APP_NAME} logo` }],
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: APP_NAME,
+    description: APP_DESCRIPTION,
+    images: ["/logo.png"],
+  },
 };
 
 export default function RootLayout({
