@@ -41,7 +41,7 @@ export default function UserViewPage() {
   const [deleting, setDeleting] = useState(false);
   const invalidate = useInvalidateResource();
   const roles = useOptionsList("roles", "name");
-  const stores = useOptionsList("stores", "name");
+  const stores = useOptionsList("stores/options", "name");
 
   useEffect(() => {
     fetch(`/api/users/${id}`)

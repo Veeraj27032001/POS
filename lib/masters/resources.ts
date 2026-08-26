@@ -219,20 +219,33 @@ export const storeResource = defineResource({
 async function guardRoleAssignment(
   data: Record<string, unknown>,
   session: AppSession,
+  existing?: Record<string, unknown>,
 ): Promise<ResourceHookResult> {
-  const roleId = data.roleId;
+  const roleId = (data.roleId as string | undefined) ?? (existing?.roleId as string | undefined);
   if (typeof roleId !== "string") return data;
+
   const targetRole = await unscoped().role.findUnique({
     where: { id: roleId },
     select: { name: true },
   });
   if (!targetRole) return data; // an invalid id fails normal FK validation, not this check
-  if (targetRole.name === SUPER_ADMIN_ROLE_NAME) {
-    return { forbidden: "Super Admin cannot be assigned here — it's added directly, by hand." };
+
+  if (typeof data.roleId === "string") {
+    if (targetRole.name === SUPER_ADMIN_ROLE_NAME) {
+      return { forbidden: "Super Admin cannot be assigned here — it's added directly, by hand." };
+    }
+    if (roleRank(targetRole.name) < roleRank(session.user.roleName)) {
+      return { forbidden: "You cannot assign a role with more access than your own." };
+    }
   }
-  if (roleRank(targetRole.name) < roleRank(session.user.roleName)) {
-    return { forbidden: "You cannot assign a role with more access than your own." };
+
+  // Manager/Cashier (and anything ranked below them) always belong to one
+  // store; Admin/Super Admin may optionally be left cross-store.
+  const resultingStoreId = "storeId" in data ? data.storeId : existing?.storeId;
+  if (roleRank(targetRole.name) >= ROLE_RANK.Manager && !resultingStoreId) {
+    return { forbidden: `${targetRole.name} accounts must belong to a store.` };
   }
+
   return data;
 }
 
@@ -276,7 +289,7 @@ export const userResource = defineResource({
     const { password, ...rest } = guarded as { password: string; [key: string]: unknown };
     return { ...rest, passwordHash: await hashSecret(password) };
   },
-  beforeUpdate: async (data, _existing, session) => guardRoleAssignment(data, session),
+  beforeUpdate: async (data, existing, session) => guardRoleAssignment(data, session, existing),
 });
 
 export const financialYearResource = defineResource({

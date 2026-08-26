@@ -4,18 +4,24 @@ import { OTP } from "otplib";
 
 const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? "admin@example.com";
 const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? "ChangeMe123!";
+const ADMIN2_EMAIL = process.env.SEED_ADMIN2_EMAIL;
+const ADMIN2_PASSWORD = process.env.SEED_ADMIN2_PASSWORD;
 
 const totp = new OTP({ strategy: "totp" });
 
-async function login(page: Page) {
+async function loginAs(page: Page, email: string, password: string) {
   await page.goto("/login");
-  await page.getByLabel("Email").fill(ADMIN_EMAIL);
-  await page.getByLabel("Password").fill(ADMIN_PASSWORD);
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: "Sign in" }).click();
 
   await expect(page).toHaveURL(/\/select-financial-year/);
   await page.getByRole("button", { name: "Continue" }).click();
   await expect(page).toHaveURL("/");
+}
+
+async function login(page: Page) {
+  await loginAs(page, ADMIN_EMAIL, ADMIN_PASSWORD);
 }
 
 test("unauthenticated API request is rejected", async ({ request }) => {
@@ -479,4 +485,42 @@ test("mfa-verify page shows method-specific copy for TOTP vs email code", async 
   await page.goto("/mfa-verify?ticket=placeholder&method=email_otp");
   await expect(page.getByRole("heading", { name: "Enter emailed code" })).toBeVisible();
   await expect(page.getByText("We sent a 6-digit code to your email address.")).toBeVisible();
+});
+
+test("Admin: store picker is populated, Super Admin is hidden, and Manager/Cashier require a store", async ({
+  page,
+}) => {
+  test.skip(!ADMIN2_EMAIL || !ADMIN2_PASSWORD, "SEED_ADMIN2_EMAIL/PASSWORD not configured");
+  await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
+
+  // Super-admin-only links must not even render for an Admin session.
+  await expect(page.getByRole("link", { name: "Stores" })).not.toBeVisible();
+  await expect(page.getByRole("link", { name: "Reason Codes" })).not.toBeVisible();
+  await expect(page.getByRole("link", { name: "Numbering Series" })).not.toBeVisible();
+
+  await page.goto("/users");
+  await page.getByRole("button", { name: "New User" }).click();
+
+  await page.getByText("Select role…").click();
+  await expect(page.getByRole("option", { name: "Super Admin" })).not.toBeVisible();
+  await page.getByRole("option", { name: "Cashier" }).click();
+
+  // The store picker must actually have options for an Admin session — this
+  // is the bug: it silently came up empty once Stores became a restricted
+  // module, because the picker reused the gated Stores list endpoint.
+  await page.getByText("Select store…").click();
+  await expect(page.getByRole("option").first()).toBeVisible();
+  await page.keyboard.press("Escape");
+
+  const testName = `Test Cashier No Store ${Date.now()}`;
+  await page.getByLabel("Name").fill(testName);
+  await page.getByLabel("Email").fill(`cashier-${Date.now()}@example.com`);
+  await page.getByLabel("Temporary password").fill("TempPass123!");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("must belong to a store")).toBeVisible();
+
+  await page.getByText("Select store…").click();
+  await page.getByRole("option").first().click();
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText(testName)).toBeVisible();
 });

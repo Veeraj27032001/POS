@@ -28,7 +28,7 @@ export function NewUserDialog() {
   const [open, setOpen] = useState(false);
   const invalidate = useInvalidateResource();
   const roles = useOptionsList("roles", "name");
-  const stores = useOptionsList("stores", "name");
+  const stores = useOptionsList("stores/options", "name");
 
   const {
     register,
@@ -101,7 +101,7 @@ export function NewUserDialog() {
           </div>
 
           <div className="space-y-1.5">
-            <Label>Store (leave blank for cross-store access)</Label>
+            <Label>Store (required for Manager/Cashier; leave blank for cross-store access)</Label>
             <Controller
               name="storeId"
               control={control}
