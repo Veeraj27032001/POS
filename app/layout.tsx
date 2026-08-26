@@ -27,11 +27,9 @@ export const metadata: Metadata = {
     template: `%s · ${APP_NAME}`,
   },
   description: APP_DESCRIPTION,
-  icons: {
-    icon: "/logo.png",
-    shortcut: "/logo.png",
-    apple: "/logo.png",
-  },
+  // Favicon/apple-touch icon come from app/icon.png + app/apple-icon.png
+  // (Next.js file convention) — no metadata.icons here, to avoid the two
+  // sources fighting over which one wins in the generated <head>.
   openGraph: {
     title: APP_NAME,
     description: APP_DESCRIPTION,
