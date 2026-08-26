@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import { after } from "next/server";
+import sharp from "sharp";
 
 import { auth } from "@/auth";
 import { getStorageAdapter } from "@/lib/adapters/storage";
@@ -12,6 +13,47 @@ import { apiErrorResponse, parseJsonOrRespond } from "@/lib/validation/response"
 function sanitizeExtension(filename: string): string {
   const match = /\.([a-zA-Z0-9]{1,10})$/.exec(filename);
   return match ? `.${match[1].toLowerCase()}` : "";
+}
+
+// JPEG/PNG/etc are already compressed formats — generic (gzip-style)
+// compression on top saves nothing meaningful. What actually shrinks
+// storage: re-encoding to WebP (better ratio at equal visual quality) and
+// capping the longest edge, since phone photos routinely arrive far larger
+// than any product-photo UI ever displays. Skip GIF (loses animation) and
+// SVG (already tiny/vector, nothing to gain).
+const MAX_IMAGE_DIMENSION = 1600;
+const WEBP_QUALITY = 80;
+const OPTIMIZABLE_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+
+async function optimizeIfImage(
+  body: Buffer,
+  contentType: string,
+  key: string,
+): Promise<{ body: Buffer; contentType: string; key: string }> {
+  if (!OPTIMIZABLE_IMAGE_TYPES.has(contentType)) {
+    return { body, contentType, key };
+  }
+  try {
+    const optimized = await sharp(body)
+      .resize({
+        width: MAX_IMAGE_DIMENSION,
+        height: MAX_IMAGE_DIMENSION,
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .webp({ quality: WEBP_QUALITY })
+      .toBuffer();
+    return {
+      body: optimized,
+      contentType: "image/webp",
+      key: key.replace(/\.[a-zA-Z0-9]{1,10}$/, "") + ".webp",
+    };
+  } catch (error) {
+    // Not a valid/decodable image (or some other sharp failure) — store the
+    // original rather than fail the whole upload over an optimization step.
+    console.error("Image optimization failed; storing original.", error);
+    return { body, contentType, key };
+  }
 }
 
 export async function POST(
@@ -41,15 +83,17 @@ export async function POST(
     for (const chunkKey of chunkKeys) {
       chunks.push(await storage.get(chunkKey));
     }
-    const body = Buffer.concat(chunks);
+    const assembled = Buffer.concat(chunks);
 
     const maxBytes = env().MAX_UPLOAD_FILE_SIZE_MB * 1024 * 1024;
-    if (body.length > maxBytes) {
+    if (assembled.length > maxBytes) {
       await Promise.all(chunkKeys.map((chunkKey) => storage.remove(chunkKey)));
       return { tooLarge: true };
     }
 
-    const { url } = await storage.put({ key, contentType, body });
+    const optimized = await optimizeIfImage(assembled, contentType, key);
+
+    const { url } = await storage.put(optimized);
     await Promise.all(chunkKeys.map((chunkKey) => storage.remove(chunkKey)));
     return { url };
   }
