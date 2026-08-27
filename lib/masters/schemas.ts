@@ -80,9 +80,13 @@ export const customerCreateSchema = z.object({
   name: requiredString("Name"),
   phone: phoneSchema,
   email: emailSchema.optional().nullable(),
+  address: optionalString(500),
+  countryId: opaqueIdSchema.optional().nullable(),
+  stateId: opaqueIdSchema.optional().nullable(),
   taxId: optionalString(32),
   creditLimit: nonNegativeDecimal.optional().nullable(),
   loyaltyPoints: nonNegativeInt.optional().nullable(),
+  storeIds: z.array(opaqueIdSchema).min(1, "Select at least one store."),
   isActive: z.boolean().default(true),
 });
 export const customerUpdateSchema = customerCreateSchema.partial();
@@ -91,8 +95,12 @@ export const supplierCreateSchema = z.object({
   name: requiredString("Name"),
   contactPhone: phoneSchema.optional().nullable(),
   contactEmail: emailSchema.optional().nullable(),
+  address: optionalString(500),
+  countryId: opaqueIdSchema.optional().nullable(),
+  stateId: opaqueIdSchema.optional().nullable(),
   taxId: optionalString(32),
   paymentTerms: optionalString(100),
+  storeIds: z.array(opaqueIdSchema).min(1, "Select at least one store."),
   isActive: z.boolean().default(true),
 });
 export const supplierUpdateSchema = supplierCreateSchema.partial();
@@ -100,6 +108,8 @@ export const supplierUpdateSchema = supplierCreateSchema.partial();
 export const warehouseCreateSchema = z.object({
   name: requiredString("Name"),
   address: requiredString("Address"),
+  countryId: opaqueIdSchema.optional().nullable(),
+  stateId: opaqueIdSchema.optional().nullable(),
   storeId: opaqueIdSchema.optional().nullable(),
   isActive: z.boolean().default(true),
 });

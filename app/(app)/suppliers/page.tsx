@@ -32,7 +32,30 @@ export default function SuppliersPage() {
         { name: "name", label: "Name", type: "text" },
         { name: "contactPhone", label: "Contact phone", type: "text" },
         { name: "contactEmail", label: "Contact email", type: "text" },
+        { name: "address", label: "Address", type: "text" },
+        {
+          name: "countryId",
+          label: "Country",
+          type: "select",
+          optionsResource: "countries",
+          placeholder: "Select country…",
+        },
+        {
+          name: "stateId",
+          label: "State",
+          type: "select",
+          optionsResource: "states",
+          dependsOn: "countryId",
+          placeholder: "Select state…",
+        },
         { name: "paymentTerms", label: "Payment terms", type: "text" },
+        {
+          name: "storeIds",
+          label: "Stores",
+          type: "multi-select",
+          optionsResource: "stores/options",
+          placeholder: "Select store(s)…",
+        },
       ]}
       createSchema={supplierCreateSchema}
       updateSchema={supplierUpdateSchema}

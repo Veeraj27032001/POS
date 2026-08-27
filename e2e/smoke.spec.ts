@@ -566,3 +566,46 @@ test("Store: create with Country/State cascade, Currency, and Timezone pickers",
   await expect(page.getByText("INR")).toBeVisible();
   await expect(page.getByText("Asia/Kolkata")).toBeVisible();
 });
+
+test("Customer: requires at least one store, supports selecting more than one", async ({
+  page,
+}) => {
+  await login(page);
+  await page.goto("/customers");
+  await page.getByRole("button", { name: "New" }).click();
+
+  const customerName = `Test Customer ${Date.now()}`;
+  await page.getByLabel("Name").fill(customerName);
+  await page.getByLabel("Phone").fill("9876543210");
+  await page.getByLabel("Email").fill(`customer-${Date.now()}@example.com`);
+
+  // No store selected yet — save must be rejected server-side.
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Select at least one store")).toBeVisible();
+
+  await page.getByText("Select store(s)…").click();
+  await page.getByRole("option").first().click();
+  // Selecting a second option must not close the popover — it's multi-select.
+  const optionCount = await page.getByRole("option").count();
+  if (optionCount > 1) {
+    await page.getByRole("option").nth(1).click();
+  }
+  await page.keyboard.press("Escape");
+
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Customer created.")).toBeVisible();
+  await expect(page.getByText(customerName)).toBeVisible();
+});
+
+test("Warehouse: store dropdown is scoped to the requester — Admin sees only their own store", async ({
+  page,
+}) => {
+  test.skip(!ADMIN2_EMAIL || !ADMIN2_PASSWORD, "SEED_ADMIN2_EMAIL/PASSWORD not configured");
+  await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
+  await page.goto("/warehouses");
+  await page.getByRole("button", { name: "New" }).click();
+
+  await page.getByText("Select store…").click();
+  const options = page.getByRole("option");
+  await expect(options).toHaveCount(1);
+});

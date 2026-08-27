@@ -53,6 +53,17 @@ function DynamicFieldValue({
     field.optionsLabelField ?? "name",
     field.dependsOn && dependsOnValue ? `${field.dependsOn}=${dependsOnValue}` : undefined,
   );
+  if (field.type === "multi-select") {
+    const ids = Array.isArray(value) ? value : [];
+    if (ids.length === 0) return <>—</>;
+    return (
+      <>
+        {ids
+          .map((id) => options.find((option) => option.value === id)?.label ?? String(id))
+          .join(", ")}
+      </>
+    );
+  }
   if (value === null || value === undefined || value === "") return <>—</>;
   return <>{options.find((option) => option.value === value)?.label ?? String(value)}</>;
 }

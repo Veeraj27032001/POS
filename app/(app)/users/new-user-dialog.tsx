@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
-import type { z } from "zod";
+import { z } from "zod";
 
 import { SearchableSelect } from "@/components/searchable-select";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,13 @@ import { userCreateSchema } from "@/lib/masters/schemas";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 import { useInvalidateResource } from "@/lib/pagination/useList";
 
-type UserCreateInput = z.infer<typeof userCreateSchema>;
+const formSchema = userCreateSchema
+  .extend({ confirmPassword: z.string().min(1, "Confirm the password") })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+type UserCreateInput = z.infer<typeof formSchema>;
 
 export function NewUserDialog() {
   const [open, setOpen] = useState(false);
@@ -38,13 +44,14 @@ export function NewUserDialog() {
     control,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<UserCreateInput>({ resolver: zodResolver(userCreateSchema) as never });
+  } = useForm<UserCreateInput>({ resolver: zodResolver(formSchema) as never });
 
   async function onSubmit(values: UserCreateInput) {
+    const { confirmPassword: _confirmPassword, ...payload } = values;
     const res = await fetch("/api/users", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(values),
+      body: JSON.stringify(payload),
     });
     if (!res.ok) {
       const body = await res.json().catch(() => null);
@@ -87,6 +94,14 @@ export function NewUserDialog() {
               <Label htmlFor="password">Temporary password</Label>
               <Input id="password" type="password" {...register("password")} />
               {errors.password && <p className="text-sm text-red-600">{errors.password.message}</p>}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="confirmPassword">Confirm password</Label>
+              <Input id="confirmPassword" type="password" {...register("confirmPassword")} />
+              {errors.confirmPassword && (
+                <p className="text-sm text-red-600">{errors.confirmPassword.message}</p>
+              )}
             </div>
 
             <div className="space-y-1.5">

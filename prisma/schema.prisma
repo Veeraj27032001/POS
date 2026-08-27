@@ -41,8 +41,11 @@ model Country {
   isActive    Boolean  @default(true) @map("is_active")
   createdAt   DateTime @default(now()) @map("created_at")
 
-  states State[]
-  stores Store[]
+  states     State[]
+  stores     Store[]
+  warehouses Warehouse[]
+  customers  Customer[]
+  suppliers  Supplier[]
 
   @@map("countries")
 }
@@ -56,7 +59,10 @@ model State {
   isActive  Boolean  @default(true) @map("is_active")
   createdAt DateTime @default(now()) @map("created_at")
 
-  stores Store[]
+  stores     Store[]
+  warehouses Warehouse[]
+  customers  Customer[]
+  suppliers  Supplier[]
 
   @@unique([countryId, code])
   @@map("states")
@@ -116,6 +122,8 @@ model Store {
   priceLists      PriceList[]
   loyaltyRules    LoyaltyRule[]
   apiCredentials  ApiCredential[]
+  customers       Customer[]
+  suppliers       Supplier[]
 
   @@map("stores")
 }
@@ -381,6 +389,11 @@ model Customer {
   name          String
   phone         String
   email         String?
+  address       String?
+  countryId     String?  @map("country_id")
+  country       Country? @relation(fields: [countryId], references: [id])
+  stateId       String?  @map("state_id")
+  state         State?   @relation(fields: [stateId], references: [id])
   taxId         String?  @map("tax_id")
   creditLimit   Decimal? @map("credit_limit") @db.Decimal(12, 2)
   loyaltyPoints Int?     @map("loyalty_points")
@@ -388,6 +401,8 @@ model Customer {
   isDeleted     Boolean  @default(false) @map("is_deleted")
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
+
+  stores Store[]
 
   @@map("customers")
 }
@@ -397,6 +412,11 @@ model Supplier {
   name         String
   contactPhone String?  @map("contact_phone")
   contactEmail String?  @map("contact_email")
+  address      String?
+  countryId    String?  @map("country_id")
+  country      Country? @relation(fields: [countryId], references: [id])
+  stateId      String?  @map("state_id")
+  state        State?   @relation(fields: [stateId], references: [id])
   taxId        String?  @map("tax_id")
   paymentTerms String?  @map("payment_terms")
   isActive     Boolean  @default(true) @map("is_active")
@@ -405,18 +425,23 @@ model Supplier {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   products Product[]
+  stores   Store[]
 
   @@map("suppliers")
 }
 
 model Warehouse {
-  id        String  @id @default(uuid())
+  id        String   @id @default(uuid())
   name      String
   address   String
-  storeId   String? @map("store_id")
-  store     Store?  @relation(fields: [storeId], references: [id])
-  isActive  Boolean @default(true) @map("is_active")
-  isDeleted Boolean @default(false) @map("is_deleted")
+  countryId String?  @map("country_id")
+  country   Country? @relation(fields: [countryId], references: [id])
+  stateId   String?  @map("state_id")
+  state     State?   @relation(fields: [stateId], references: [id])
+  storeId   String?  @map("store_id")
+  store     Store?   @relation(fields: [storeId], references: [id])
+  isActive  Boolean  @default(true) @map("is_active")
+  isDeleted Boolean  @default(false) @map("is_deleted")
 
   @@map("warehouses")
 }

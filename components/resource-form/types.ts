@@ -1,5 +1,5 @@
 export type ResourceFieldType =
-  "text" | "textarea" | "number" | "boolean" | "select" | "date" | "file";
+  "text" | "textarea" | "number" | "boolean" | "select" | "multi-select" | "date" | "file";
 
 export interface ResourceFieldOption {
   value: string;

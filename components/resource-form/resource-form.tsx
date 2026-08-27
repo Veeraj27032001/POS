@@ -6,6 +6,7 @@ import { Controller, useForm, useWatch } from "react-hook-form";
 import type { ZodType } from "zod";
 
 import { FileUploadField } from "@/components/file-upload-field";
+import { MultiSearchableSelect } from "@/components/multi-searchable-select";
 import { SearchableSelect } from "@/components/searchable-select";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -61,14 +62,23 @@ function DynamicSelectField<T extends FieldValues>({
       <Controller
         name={field.name as never}
         control={control}
-        render={({ field: f }) => (
-          <SearchableSelect
-            options={options}
-            value={(f.value as string) ?? null}
-            onChange={f.onChange}
-            placeholder={field.placeholder}
-          />
-        )}
+        render={({ field: f }) =>
+          field.type === "multi-select" ? (
+            <MultiSearchableSelect
+              options={options}
+              value={(f.value as string[]) ?? []}
+              onChange={f.onChange}
+              placeholder={field.placeholder}
+            />
+          ) : (
+            <SearchableSelect
+              options={options}
+              value={(f.value as string) ?? null}
+              onChange={f.onChange}
+              placeholder={field.placeholder}
+            />
+          )
+        }
       />
     </div>
   );
@@ -81,6 +91,16 @@ export function ResourceForm<T extends FieldValues>({
   onSubmit,
   submitLabel = "Save",
 }: ResourceFormProps<T>) {
+  // Multi-select fields need to start as [] rather than undefined — Zod's
+  // array().min(1) reports "expected array, received undefined" otherwise,
+  // not the field's actual custom message.
+  const resolvedDefaults: Record<string, unknown> = { ...defaultValues };
+  for (const field of fields) {
+    if (field.type === "multi-select" && resolvedDefaults[field.name] === undefined) {
+      resolvedDefaults[field.name] = [];
+    }
+  }
+
   const {
     register,
     handleSubmit,
@@ -88,11 +108,11 @@ export function ResourceForm<T extends FieldValues>({
     formState: { errors, isSubmitting },
   } = useForm<T>({
     resolver: zodResolver(schema as never) as never,
-    defaultValues: defaultValues as never,
+    defaultValues: resolvedDefaults as never,
   });
 
   const guardedSubmit = useSubmitGuard(onSubmit);
-  const fullWidthTypes = new Set(["textarea", "file", "boolean"]);
+  const fullWidthTypes = new Set(["textarea", "file", "boolean", "multi-select"]);
 
   return (
     <form
@@ -104,7 +124,7 @@ export function ResourceForm<T extends FieldValues>({
           const fieldError = errors[field.name as keyof T];
           const spanClass = fullWidthTypes.has(field.type) ? "sm:col-span-2" : undefined;
 
-          if (field.type === "select" && field.optionsResource) {
+          if ((field.type === "select" || field.type === "multi-select") && field.optionsResource) {
             return (
               <div key={field.name} className={spanClass}>
                 <DynamicSelectField field={field} control={control} />

@@ -1,3 +1,4 @@
+import { getNotifier } from "@/lib/adapters/notifier";
 import { ROLE_RANK, roleRank, SUPER_ADMIN_ROLE_NAME } from "@/lib/auth/rbac";
 import type { AppSession } from "@/lib/auth/types";
 import { unscoped } from "@/lib/db";
@@ -10,6 +11,58 @@ import * as schemas from "./schemas";
 
 function delegateOf(name: string) {
   return (client: unknown) => (client as Record<string, ResourceDelegate>)[name];
+}
+
+// For models with a stores many-to-many relation (Customer, Supplier):
+// wraps the delegate to always include the related store ids (needed for
+// the multi-select field to show its current value), and turns an incoming
+// `storeIds: string[]` into Prisma's relation-set syntax before writing.
+function projectStoreIds<T extends Record<string, unknown> | null>(row: T): T {
+  if (!row) return row;
+  const stores = row.stores as { id: string }[] | undefined;
+  if (!stores) return row;
+  return { ...row, storeIds: stores.map((s) => s.id) };
+}
+
+function delegateWithStores(name: string) {
+  return (client: unknown): ResourceDelegate => {
+    const raw = (
+      client as Record<string, Record<string, (args: Record<string, unknown>) => unknown>>
+    )[name];
+    const include = { stores: { select: { id: true } } };
+    return {
+      count: (args) => raw.count(args) as ReturnType<ResourceDelegate["count"]>,
+      findMany: async (args) => {
+        const rows = (await raw.findMany({ ...args, include })) as Record<string, unknown>[];
+        return rows.map((row) => projectStoreIds(row));
+      },
+      findUnique: async (args) => {
+        const row = (await raw.findUnique({ ...args, include })) as Record<string, unknown> | null;
+        return projectStoreIds(row);
+      },
+      create: async (args) => {
+        const row = (await raw.create({ ...args, include })) as Record<string, unknown>;
+        return projectStoreIds(row);
+      },
+      update: async (args) => {
+        const row = (await raw.update({ ...args, include })) as Record<string, unknown>;
+        return projectStoreIds(row);
+      },
+    };
+  };
+}
+
+// Prisma's `create()` doesn't accept relation `set` — there's nothing to
+// replace yet — only `update()` does, so the two need different verbs even
+// though the incoming `storeIds` shape is the same either way.
+function withStoreIds(
+  data: Record<string, unknown>,
+  mode: "create" | "update",
+): Record<string, unknown> {
+  const { storeIds, ...rest } = data;
+  if (!Array.isArray(storeIds)) return rest;
+  const refs = storeIds.map((id) => ({ id: String(id) }));
+  return { ...rest, stores: mode === "create" ? { connect: refs } : { set: refs } };
 }
 
 export const taxRegionResource = defineResource({
@@ -95,7 +148,9 @@ export const customerResource = defineResource({
   createSchema: schemas.customerCreateSchema,
   updateSchema: schemas.customerUpdateSchema,
   searchFields: ["name", "phone", "email"],
-  getDelegate: delegateOf("customer"),
+  getDelegate: delegateWithStores("customer"),
+  beforeCreate: (data) => withStoreIds(data, "create"),
+  beforeUpdate: (data) => withStoreIds(data, "update"),
 });
 
 export const supplierResource = defineResource({
@@ -105,7 +160,9 @@ export const supplierResource = defineResource({
   createSchema: schemas.supplierCreateSchema,
   updateSchema: schemas.supplierUpdateSchema,
   searchFields: ["name"],
-  getDelegate: delegateOf("supplier"),
+  getDelegate: delegateWithStores("supplier"),
+  beforeCreate: (data) => withStoreIds(data, "create"),
+  beforeUpdate: (data) => withStoreIds(data, "update"),
 });
 
 export const warehouseResource = defineResource({
@@ -286,8 +343,21 @@ export const userResource = defineResource({
   beforeCreate: async (data, session) => {
     const guarded = await guardRoleAssignment(data, session);
     if (isResourceHookRejection(guarded)) return guarded;
-    const { password, ...rest } = guarded as { password: string; [key: string]: unknown };
-    return { ...rest, passwordHash: await hashSecret(password) };
+    const { password, email, name, ...rest } = guarded as {
+      password: string;
+      email: string;
+      name: string;
+      [key: string]: unknown;
+    };
+    getNotifier()
+      .send({
+        to: email,
+        channel: "email",
+        subject: "Your account has been created",
+        body: `Hi ${name},\n\nAn account has been created for you.\n\nEmail: ${email}\nTemporary password: ${password}\n\nSign in and change this password as soon as possible.`,
+      })
+      .catch((error) => console.error(`Failed to send welcome email to ${email}.`, error));
+    return { ...rest, email, name, passwordHash: await hashSecret(password) };
   },
   beforeUpdate: async (data, existing, session) => guardRoleAssignment(data, session, existing),
 });

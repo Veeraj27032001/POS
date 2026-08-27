@@ -22,6 +22,28 @@ export default function WarehouseViewPage() {
       fields={[
         { name: "name", label: "Name", type: "text" },
         { name: "address", label: "Address", type: "text" },
+        {
+          name: "countryId",
+          label: "Country",
+          type: "select",
+          optionsResource: "countries",
+          placeholder: "Select country…",
+        },
+        {
+          name: "stateId",
+          label: "State",
+          type: "select",
+          optionsResource: "states",
+          dependsOn: "countryId",
+          placeholder: "Select state…",
+        },
+        {
+          name: "storeId",
+          label: "Store",
+          type: "select",
+          optionsResource: "stores/options",
+          placeholder: "Select store…",
+        },
       ]}
       updateSchema={warehouseUpdateSchema}
       id={id}

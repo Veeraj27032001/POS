@@ -32,6 +32,29 @@ export default function CustomersPage() {
         { name: "name", label: "Name", type: "text" },
         { name: "phone", label: "Phone", type: "text" },
         { name: "email", label: "Email", type: "text" },
+        { name: "address", label: "Address", type: "text" },
+        {
+          name: "countryId",
+          label: "Country",
+          type: "select",
+          optionsResource: "countries",
+          placeholder: "Select country…",
+        },
+        {
+          name: "stateId",
+          label: "State",
+          type: "select",
+          optionsResource: "states",
+          dependsOn: "countryId",
+          placeholder: "Select state…",
+        },
+        {
+          name: "storeIds",
+          label: "Stores",
+          type: "multi-select",
+          optionsResource: "stores/options",
+          placeholder: "Select store(s)…",
+        },
       ]}
       createSchema={customerCreateSchema}
       updateSchema={customerUpdateSchema}
