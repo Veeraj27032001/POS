@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { DataTable } from "@/components/data-table/data-table";
 import { StoreCardFilter } from "@/components/store-card-filter";
 import { useInvalidateResource } from "@/lib/pagination/useList";
@@ -138,12 +138,12 @@ export default function NumberingSeriesPage() {
               header: "",
               render: (row) => (
                 <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    nativeButton={false}
-                    render={<Link href={`/numbering-series/${row.id}`}>View</Link>}
-                  />
+                  <Link
+                    href={`/numbering-series/${row.id}`}
+                    className={buttonVariants({ variant: "outline", size: "sm" })}
+                  >
+                    View
+                  </Link>
                   <EditSeriesDialog
                     id={row.id}
                     prefix={row.prefix}

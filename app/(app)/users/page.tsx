@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { DataTable } from "@/components/data-table/data-table";
 import { useInvalidateResource } from "@/lib/pagination/useList";
 
@@ -99,12 +99,12 @@ export default function UsersPage() {
             header: "",
             render: (row) => (
               <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  nativeButton={false}
-                  render={<Link href={`/users/${row.id}`}>View</Link>}
-                />
+                <Link
+                  href={`/users/${row.id}`}
+                  className={buttonVariants({ variant: "outline", size: "sm" })}
+                >
+                  View
+                </Link>
                 <Button
                   variant="outline"
                   size="sm"

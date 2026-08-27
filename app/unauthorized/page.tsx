@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 
 export default async function UnauthorizedPage({
   searchParams,
@@ -19,7 +19,9 @@ export default async function UnauthorizedPage({
         You need to be signed in to view{" "}
         {callbackUrl ? <span className="font-mono">{callbackUrl}</span> : "this page"}.
       </p>
-      <Button nativeButton={false} render={<Link href={loginHref}>Sign in</Link>} />
+      <Link href={loginHref} className={buttonVariants()}>
+        Sign in
+      </Link>
     </main>
   );
 }

@@ -8,7 +8,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 import { AuthSplitLayout } from "@/components/auth-split-layout";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -67,7 +67,9 @@ function MfaVerifyForm() {
       <AuthSplitLayout>
         <div className="space-y-4 text-center">
           <p>Your login attempt has expired.</p>
-          <Button nativeButton={false} render={<a href="/login">Back to sign in</a>} />
+          <a href="/login" className={buttonVariants()}>
+            Back to sign in
+          </a>
         </div>
       </AuthSplitLayout>
     );

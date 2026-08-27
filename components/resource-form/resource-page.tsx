@@ -8,7 +8,7 @@ import type { FieldValues } from "react-hook-form";
 import { toast } from "sonner";
 import type { ZodType } from "zod";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -158,12 +158,12 @@ export function ResourcePage<
       header: "",
       render: (row) => (
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            nativeButton={false}
-            render={<Link href={`/${resource}/${getRowId(row)}`}>View</Link>}
-          />
+          <Link
+            href={`/${resource}/${getRowId(row)}`}
+            className={buttonVariants({ variant: "outline", size: "sm" })}
+          >
+            View
+          </Link>
           <Button variant="outline" size="sm" onClick={() => setEditingRow(row)}>
             Edit
           </Button>
