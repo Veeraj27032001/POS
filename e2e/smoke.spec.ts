@@ -769,6 +769,63 @@ test("Numbering Series: editing the current number corrects it without creating 
   await expect(row.getByRole("cell").nth(2)).toHaveText("42");
 });
 
+test("Products: HSN tax details show on create and the view page when the preference is enabled", async ({
+  page,
+}) => {
+  await login(page);
+
+  await page.goto("/settings/tax-engine");
+  const hsnCheckbox = page.locator("#hsn-tax-display");
+  await expect(hsnCheckbox).toBeVisible();
+  if (!(await hsnCheckbox.isChecked())) {
+    await hsnCheckbox.click();
+    await expect(page.getByText("Tax preferences updated.")).toBeVisible();
+  }
+
+  const taxCodesRes = await page.request.get("/api/tax-codes?pageSize=1");
+  const taxCodesBody = (await taxCodesRes.json()) as { data: { code: string }[] };
+  const code = taxCodesBody.data[0].code;
+
+  const hsnRes = await page.request.get(`/api/hsn-codes?search=${code}`);
+  const hsnBody = (await hsnRes.json()) as { data: { hsnCode: string }[] };
+  if (!hsnBody.data.some((h) => h.hsnCode === code)) {
+    await page.request.post("/api/hsn-codes", {
+      data: {
+        hsnCode: code,
+        description: "Test HSN row",
+        cgstRate: 2.5,
+        sgstRate: 2.5,
+        igstRate: 5,
+      },
+    });
+  }
+
+  await page.goto("/products");
+  await page.getByRole("button", { name: "New Product" }).click();
+  const productName = `Test HSN Product ${Date.now()}`;
+  await page.getByLabel("Name").fill(productName);
+  await page.getByText("Select category…").click();
+  await page.getByRole("option").first().click();
+  await page.getByText("Select tax code…").click();
+  await page.getByRole("option", { name: code }).click();
+
+  await expect(page.getByText("CGST")).toBeVisible();
+  await expect(page.getByText("SGST")).toBeVisible();
+  await expect(page.getByText("IGST")).toBeVisible();
+
+  await page.getByText("Select UOM…").click();
+  await page.getByRole("option").first().click();
+  await page.getByLabel("Price").fill("25");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText(productName)).toBeVisible();
+
+  await page.getByText(productName).click();
+  await expect(page).toHaveURL(/\/products\/[0-9a-f-]+$/);
+  await expect(page.getByText("CGST")).toBeVisible();
+  await expect(page.getByText("SGST")).toBeVisible();
+  await expect(page.getByText("IGST")).toBeVisible();
+});
+
 test("Roles: creating a role and saving its rights succeeds, and Super-Admin-only modules never appear", async ({
   page,
 }) => {

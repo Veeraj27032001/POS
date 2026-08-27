@@ -6,6 +6,7 @@ import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import type { z } from "zod";
 
+import { ProductHsnTaxDetails } from "@/components/product-hsn-tax-details";
 import { RequiredMark } from "@/components/required-mark";
 import { SearchableSelect } from "@/components/searchable-select";
 import { Button } from "@/components/ui/button";
@@ -40,11 +41,13 @@ export function NewProductDialog() {
     handleSubmit,
     control,
     reset,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<ProductCreateInput>({
     resolver: zodResolver(productCreateSchema) as never,
     defaultValues: { trackExpiry: false, images: [], stockTracked: true },
   });
+  const selectedTaxCodeId = watch("taxCodeId");
 
   async function onSubmit(values: ProductCreateInput) {
     const res = await fetch("/api/products", {
@@ -126,6 +129,8 @@ export function NewProductDialog() {
                 <p className="text-sm text-red-600">{errors.taxCodeId.message}</p>
               )}
             </div>
+
+            <ProductHsnTaxDetails taxCodeId={selectedTaxCodeId} />
 
             <div className="space-y-1.5">
               <Label>

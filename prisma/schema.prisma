@@ -282,6 +282,15 @@ model HsnCode {
   @@map("hsn_codes")
 }
 
+// Singleton — a single row of global, Super-Admin-only tax preferences.
+model TaxPreferences {
+  id                    String  @id @default(uuid())
+  hsnTaxDisplayEnabled  Boolean @default(true) @map("hsn_tax_display_enabled")
+  autoApplyTaxByDefault Boolean @default(true) @map("auto_apply_tax_by_default")
+
+  @@map("tax_preferences")
+}
+
 model TaxRegion {
   id          String @id @default(uuid())
   countryCode String @map("country_code")

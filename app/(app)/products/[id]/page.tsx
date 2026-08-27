@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { ProductHsnTaxDetails } from "@/components/product-hsn-tax-details";
 import { ProductMediaManager } from "@/components/product-media-manager";
 import { Button } from "@/components/ui/button";
 import { getPrintBridge } from "@/lib/adapters/print";
@@ -195,6 +196,8 @@ export default function ProductViewPage() {
           ))}
         </dl>
       )}
+
+      {row && <ProductHsnTaxDetails taxCodeId={row.taxCodeId} />}
     </div>
   );
 }
