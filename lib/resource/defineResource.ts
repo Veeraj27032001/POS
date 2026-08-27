@@ -62,7 +62,7 @@ export function defineResource<TCreate, TUpdate>(config: ResourceConfig<TCreate,
     if (config.scoping === "optional") {
       return {
         delegate: config.getDelegate(unscoped()),
-        scopeWhere: { OR: [{ storeId }, { storeId: null }] },
+        scopeWhere: storeId ? { OR: [{ storeId }, { storeId: null }] } : undefined,
       };
     }
     return { delegate: config.getDelegate(prisma) };
