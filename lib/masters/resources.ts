@@ -6,6 +6,7 @@ import { defineResource, isResourceHookRejection } from "@/lib/resource";
 import type { ResourceDelegate, ResourceHookResult } from "@/lib/resource";
 import { hashSecret } from "@/lib/security/hash";
 
+import { copyNumberingSeriesToStores, findReferenceStoreId } from "./copyNumberingSeries";
 import { generateSystemBarcode } from "./generateSystemBarcode";
 import * as schemas from "./schemas";
 
@@ -272,6 +273,13 @@ export const storeResource = defineResource({
   updateSchema: schemas.storeUpdateSchema,
   searchFields: ["name", "gstin"],
   getDelegate: delegateOf("store"),
+  afterCreate: async (created) => {
+    const newStoreId = created.id as string;
+    const referenceStoreId = await findReferenceStoreId(newStoreId);
+    if (referenceStoreId) {
+      await copyNumberingSeriesToStores(referenceStoreId, [newStoreId]);
+    }
+  },
 });
 
 async function guardRoleAssignment(

@@ -214,7 +214,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <AppNav groups={visibleGroups} collapsed={collapsed} />
       </aside>
 
-      <div className="flex flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden">
         <header className="flex items-center gap-4 border-b px-6 py-3">
           <HeaderSearch items={flatVisibleItems} />
           <div className="flex-1" />

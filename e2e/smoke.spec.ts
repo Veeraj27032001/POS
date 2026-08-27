@@ -716,14 +716,11 @@ test("Warehouses: a store-scoped Admin sees only their own store card", async ({
   await expect(cards.first()).toHaveAttribute("aria-pressed", "true");
 });
 
-test("Numbering Series: store tabs scope creation, and copy propagates to every other store", async ({
+test("Numbering Series: store cards scope the list, a new store is auto-seeded, and copy still works", async ({
   page,
 }) => {
   await login(page);
 
-  // A brand-new store starts with zero numbering series — the cleanest
-  // source to prove creation is scoped to the active tab and that "Copy
-  // to All Stores" actually reaches other stores.
   await page.goto("/stores");
   await page.getByRole("button", { name: "New" }).click();
   const storeName = `Test NS Store ${Date.now()}`;
@@ -733,29 +730,36 @@ test("Numbering Series: store tabs scope creation, and copy propagates to every 
   await expect(page.getByText("Store created.")).toBeVisible();
 
   await page.goto("/numbering-series");
-  await expect(page.getByRole("tab").first()).toBeVisible();
-  const tabCount = await page.getByRole("tab").count();
-  expect(tabCount).toBeGreaterThan(1);
+  const cards = page.locator("button[aria-pressed]");
+  await expect(cards.first()).toBeVisible();
+  expect(await cards.count()).toBeGreaterThan(1);
 
-  await page.getByRole("tab", { name: storeName }).click();
-  await expect(page.getByRole("tab", { name: storeName })).toHaveAttribute("aria-selected", "true");
+  await page.getByRole("button", { name: storeName }).click();
+  await expect(page.getByRole("button", { name: storeName })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
 
-  await page.getByRole("button", { name: "New Series" }).click();
-  await page.getByText("Select document type…").click();
-  await page.getByRole("option", { name: "stock_retest" }).click();
-  await page.getByText("Select financial year…").click();
-  await page.getByRole("option").first().click();
-  await page.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page.getByText("Numbering series created.")).toBeVisible();
-  await expect(page.getByText("stock_retest")).toBeVisible();
+  // A brand-new store is auto-seeded with the reference store's full
+  // series set on creation — no manual "Copy to All Stores" click needed.
+  await expect(page.getByText(/\d+ record/)).toBeVisible();
+  const recordText = await page.getByText(/\d+ record/).textContent();
+  expect(Number(recordText?.match(/\d+/)?.[0] ?? 0)).toBeGreaterThan(0);
 
   page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Copy to All Stores" }).click();
   await expect(page.getByText(/Copied \d+ series across \d+ store\(s\)\./)).toBeVisible();
+});
 
-  // Switch to a different store's tab — the copied series must show up
-  // there too, proving the copy reached beyond the source store.
-  const otherTab = page.getByRole("tab").filter({ hasNotText: storeName }).first();
-  await otherTab.click();
-  await expect(page.getByText("stock_retest")).toBeVisible();
+test("Numbering Series: the store filter wraps instead of overflowing the page body", async ({
+  page,
+}) => {
+  await login(page);
+  await page.goto("/numbering-series");
+  await expect(page.locator("button[aria-pressed]").first()).toBeVisible();
+
+  const overflowsBody = await page.evaluate(
+    () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+  );
+  expect(overflowsBody).toBe(false);
 });

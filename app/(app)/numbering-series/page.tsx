@@ -2,13 +2,12 @@
 
 import { Loader2Icon } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/data-table/data-table";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useOptionsList } from "@/lib/masters/useOptionsList";
+import { StoreCardFilter } from "@/components/store-card-filter";
 import { useInvalidateResource } from "@/lib/pagination/useList";
 
 import { NewSeriesDialog } from "./new-series-dialog";
@@ -27,18 +26,12 @@ export default function NumberingSeriesPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [copying, setCopying] = useState(false);
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
-  const stores = useOptionsList("stores/options", "name");
-
-  useEffect(() => {
-    if (!selectedStoreId && stores.length > 0) setSelectedStoreId(stores[0].value);
-  }, [stores, selectedStoreId]);
 
   async function handleCopyToAllStores() {
     if (!selectedStoreId) return;
-    const sourceLabel = stores.find((s) => s.value === selectedStoreId)?.label ?? "this store";
     if (
       !window.confirm(
-        `Copy every numbering series from ${sourceLabel} to all other stores that don't already have it?`,
+        "Copy every numbering series from the selected store to all other stores that don't already have it?",
       )
     ) {
       return;
@@ -123,17 +116,7 @@ export default function NumberingSeriesPage() {
         </div>
       </div>
 
-      {stores.length > 0 && selectedStoreId && (
-        <Tabs value={selectedStoreId} onValueChange={(v) => setSelectedStoreId(v as string)}>
-          <TabsList>
-            {stores.map((store) => (
-              <TabsTrigger key={store.value} value={store.value}>
-                {store.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-      )}
+      <StoreCardFilter value={selectedStoreId} onChange={setSelectedStoreId} />
 
       {selectedStoreId && (
         <DataTable<SeriesRow>
