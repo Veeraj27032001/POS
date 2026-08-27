@@ -6,6 +6,7 @@ import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import type { z } from "zod";
 
+import { RequiredMark } from "@/components/required-mark";
 import { SearchableSelect } from "@/components/searchable-select";
 import { Button } from "@/components/ui/button";
 import {
@@ -75,7 +76,10 @@ export function NewSeriesDialog() {
         >
           <DialogFormBody>
             <div className="space-y-1.5">
-              <Label>Document type</Label>
+              <Label>
+                Document type
+                <RequiredMark />
+              </Label>
               <Controller
                 name="seriesType"
                 control={control}
@@ -94,7 +98,10 @@ export function NewSeriesDialog() {
             </div>
 
             <div className="space-y-1.5">
-              <Label>Financial year</Label>
+              <Label>
+                Financial year
+                <RequiredMark />
+              </Label>
               <Controller
                 name="financialYearId"
                 control={control}

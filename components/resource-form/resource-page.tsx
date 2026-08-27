@@ -218,6 +218,7 @@ export function ResourcePage<
           {editingRow && (
             <ResourceForm
               schema={updateSchema}
+              requiredFieldsSchema={createSchema}
               fields={fields}
               defaultValues={editingRow as unknown as Partial<TUpdate>}
               onSubmit={handleUpdate}

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { RequiredMark } from "@/components/required-mark";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -61,7 +62,10 @@ function NewRoleDialog({ onCreated }: { onCreated: () => void }) {
         <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <DialogFormBody>
             <div className="space-y-1.5 sm:col-span-2">
-              <Label htmlFor="role-name">Name</Label>
+              <Label htmlFor="role-name">
+                Name
+                <RequiredMark />
+              </Label>
               <Input
                 id="role-name"
                 value={name}

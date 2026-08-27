@@ -1,5 +1,21 @@
+import type { ZodType } from "zod";
+
 export type ResourceFieldType =
   "text" | "textarea" | "number" | "boolean" | "select" | "multi-select" | "date" | "file";
+
+/** Field names a schema requires (not .optional()/.nullable()) — used to
+ * show a required-field indicator without hand-maintaining it per field.
+ * Pass the *create* schema even for an edit form, since .partial() update
+ * schemas make every field optional and would defeat the point. */
+export function getRequiredFieldNames(schema: ZodType): Set<string> {
+  const shape = (schema as unknown as { shape?: Record<string, { isOptional(): boolean }> }).shape;
+  if (!shape) return new Set();
+  return new Set(
+    Object.entries(shape)
+      .filter(([, fieldSchema]) => !fieldSchema.isOptional())
+      .map(([name]) => name),
+  );
+}
 
 export interface ResourceFieldOption {
   value: string;

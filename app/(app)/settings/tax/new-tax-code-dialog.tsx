@@ -6,6 +6,7 @@ import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import type { z } from "zod";
 
+import { RequiredMark } from "@/components/required-mark";
 import { SearchableSelect } from "@/components/searchable-select";
 import { Button } from "@/components/ui/button";
 import {
@@ -73,7 +74,10 @@ export function NewTaxCodeDialog() {
         >
           <DialogFormBody>
             <div className="space-y-1.5 sm:col-span-2">
-              <Label>Scheme</Label>
+              <Label>
+                Scheme
+                <RequiredMark />
+              </Label>
               <Controller
                 name="schemeId"
                 control={control}
@@ -90,13 +94,19 @@ export function NewTaxCodeDialog() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="code">Code (HSN)</Label>
+              <Label htmlFor="code">
+                Code (HSN)
+                <RequiredMark />
+              </Label>
               <Input id="code" {...register("code")} />
               {errors.code && <p className="text-sm text-red-600">{errors.code.message}</p>}
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description">
+                Description
+                <RequiredMark />
+              </Label>
               <Input id="description" {...register("description")} />
               {errors.description && (
                 <p className="text-sm text-red-600">{errors.description.message}</p>
@@ -104,7 +114,10 @@ export function NewTaxCodeDialog() {
             </div>
 
             <div className="space-y-1.5 sm:col-span-2">
-              <Label htmlFor="componentGroup">Component group</Label>
+              <Label htmlFor="componentGroup">
+                Component group
+                <RequiredMark />
+              </Label>
               <Input
                 id="componentGroup"
                 placeholder="CGST_SGST or IGST"

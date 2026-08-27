@@ -6,6 +6,7 @@ import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import type { z } from "zod";
 
+import { RequiredMark } from "@/components/required-mark";
 import { SearchableSelect } from "@/components/searchable-select";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -77,7 +78,10 @@ export function NewProductDialog() {
         >
           <DialogFormBody>
             <div className="space-y-1.5 sm:col-span-2">
-              <Label htmlFor="name">Name</Label>
+              <Label htmlFor="name">
+                Name
+                <RequiredMark />
+              </Label>
               <Input id="name" placeholder="e.g. Maggi 10rs Pack" {...register("name")} />
               {errors.name && <p className="text-sm text-red-600">{errors.name.message}</p>}
             </div>
@@ -102,7 +106,10 @@ export function NewProductDialog() {
             </div>
 
             <div className="space-y-1.5">
-              <Label>Tax code (HSN)</Label>
+              <Label>
+                Tax code (HSN)
+                <RequiredMark />
+              </Label>
               <Controller
                 name="taxCodeId"
                 control={control}
@@ -121,7 +128,10 @@ export function NewProductDialog() {
             </div>
 
             <div className="space-y-1.5">
-              <Label>Unit of measure</Label>
+              <Label>
+                Unit of measure
+                <RequiredMark />
+              </Label>
               <Controller
                 name="uomId"
                 control={control}
@@ -138,7 +148,10 @@ export function NewProductDialog() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="price">Price</Label>
+              <Label htmlFor="price">
+                Price
+                <RequiredMark />
+              </Label>
               <Input
                 id="price"
                 type="number"

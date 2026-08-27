@@ -73,13 +73,14 @@ export interface ResourceViewPageProps<TUpdate extends FieldValues> {
   title: string;
   fields: ResourceFieldConfig[];
   updateSchema: ZodType<TUpdate>;
+  createSchema?: ZodType;
   id: string;
 }
 
 export function ResourceViewPage<
   TRow extends { id: string; isActive?: boolean },
   TUpdate extends FieldValues,
->({ resource, title, fields, updateSchema, id }: ResourceViewPageProps<TUpdate>) {
+>({ resource, title, fields, updateSchema, createSchema, id }: ResourceViewPageProps<TUpdate>) {
   const [row, setRow] = useState<TRow | null | undefined>(undefined);
   const [editOpen, setEditOpen] = useState(false);
   const [toggling, setToggling] = useState(false);
@@ -197,6 +198,7 @@ export function ResourceViewPage<
                 </DialogHeader>
                 <ResourceForm
                   schema={updateSchema}
+                  requiredFieldsSchema={createSchema}
                   fields={fields}
                   defaultValues={row as unknown as Partial<TUpdate>}
                   onSubmit={handleUpdate}

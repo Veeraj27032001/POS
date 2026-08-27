@@ -6,6 +6,7 @@ import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 
+import { RequiredMark } from "@/components/required-mark";
 import { SearchableSelect } from "@/components/searchable-select";
 import { Button } from "@/components/ui/button";
 import {
@@ -79,25 +80,37 @@ export function NewUserDialog() {
         >
           <DialogFormBody>
             <div className="space-y-1.5">
-              <Label htmlFor="name">Name</Label>
+              <Label htmlFor="name">
+                Name
+                <RequiredMark />
+              </Label>
               <Input id="name" {...register("name")} />
               {errors.name && <p className="text-sm text-red-600">{errors.name.message}</p>}
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">
+                Email
+                <RequiredMark />
+              </Label>
               <Input id="email" type="email" {...register("email")} />
               {errors.email && <p className="text-sm text-red-600">{errors.email.message}</p>}
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="password">Temporary password</Label>
+              <Label htmlFor="password">
+                Temporary password
+                <RequiredMark />
+              </Label>
               <Input id="password" type="password" {...register("password")} />
               {errors.password && <p className="text-sm text-red-600">{errors.password.message}</p>}
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="confirmPassword">Confirm password</Label>
+              <Label htmlFor="confirmPassword">
+                Confirm password
+                <RequiredMark />
+              </Label>
               <Input id="confirmPassword" type="password" {...register("confirmPassword")} />
               {errors.confirmPassword && (
                 <p className="text-sm text-red-600">{errors.confirmPassword.message}</p>
@@ -105,7 +118,10 @@ export function NewUserDialog() {
             </div>
 
             <div className="space-y-1.5">
-              <Label>Role</Label>
+              <Label>
+                Role
+                <RequiredMark />
+              </Label>
               <Controller
                 name="roleId"
                 control={control}

@@ -7,6 +7,7 @@ import type { ZodType } from "zod";
 
 import { FileUploadField } from "@/components/file-upload-field";
 import { MultiSearchableSelect } from "@/components/multi-searchable-select";
+import { RequiredMark } from "@/components/required-mark";
 import { SearchableSelect } from "@/components/searchable-select";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -25,6 +26,7 @@ import { useSubmitGuard } from "@/lib/forms/useSubmitGuard";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 import { cn } from "@/lib/utils";
 
+import { getRequiredFieldNames } from "./types";
 import type { ResourceFieldConfig } from "./types";
 
 export interface ResourceFormProps<T extends FieldValues> {
@@ -33,14 +35,37 @@ export interface ResourceFormProps<T extends FieldValues> {
   defaultValues?: Partial<T>;
   onSubmit: (values: T) => Promise<void>;
   submitLabel?: string;
+  /** Schema to derive the required-field (*) indicator from — pass the
+   * *create* schema even on an edit form, since .partial() update schemas
+   * mark every field optional. Defaults to `schema`. */
+  requiredFieldsSchema?: ZodType;
+}
+
+function FieldLabel({
+  htmlFor,
+  label,
+  required,
+}: {
+  htmlFor: string;
+  label: string;
+  required: boolean;
+}) {
+  return (
+    <Label htmlFor={htmlFor}>
+      {label}
+      {required && <RequiredMark />}
+    </Label>
+  );
 }
 
 function DynamicSelectField<T extends FieldValues>({
   field,
   control,
+  required,
 }: {
   field: ResourceFieldConfig;
   control: Control<T>;
+  required: boolean;
 }) {
   const watched = useWatch({ control, name: (field.dependsOn ?? "") as never }) as unknown;
   const dependsOnValue = field.dependsOn ? (watched as string | undefined) : undefined;
@@ -58,7 +83,7 @@ function DynamicSelectField<T extends FieldValues>({
 
   return (
     <div className="space-y-1.5">
-      <Label htmlFor={field.name}>{field.label}</Label>
+      <FieldLabel htmlFor={field.name} label={field.label} required={required} />
       <Controller
         name={field.name as never}
         control={control}
@@ -90,7 +115,9 @@ export function ResourceForm<T extends FieldValues>({
   defaultValues,
   onSubmit,
   submitLabel = "Save",
+  requiredFieldsSchema,
 }: ResourceFormProps<T>) {
+  const requiredFields = getRequiredFieldNames(requiredFieldsSchema ?? schema);
   // Multi-select fields need to start as [] rather than undefined — Zod's
   // array().min(1) reports "expected array, received undefined" otherwise,
   // not the field's actual custom message.
@@ -127,7 +154,11 @@ export function ResourceForm<T extends FieldValues>({
           if ((field.type === "select" || field.type === "multi-select") && field.optionsResource) {
             return (
               <div key={field.name} className={spanClass}>
-                <DynamicSelectField field={field} control={control} />
+                <DynamicSelectField
+                  field={field}
+                  control={control}
+                  required={requiredFields.has(field.name)}
+                />
                 {fieldError && (
                   <p className="text-sm text-red-600">
                     {String(fieldError.message ?? "Invalid value")}
@@ -139,7 +170,13 @@ export function ResourceForm<T extends FieldValues>({
 
           return (
             <div key={field.name} className={cn("space-y-1.5", spanClass)}>
-              {field.type !== "boolean" && <Label htmlFor={field.name}>{field.label}</Label>}
+              {field.type !== "boolean" && (
+                <FieldLabel
+                  htmlFor={field.name}
+                  label={field.label}
+                  required={requiredFields.has(field.name)}
+                />
+              )}
 
               {field.type === "boolean" && (
                 <Controller
