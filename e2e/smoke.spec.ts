@@ -524,3 +524,45 @@ test("Admin: store picker is populated, Super Admin is hidden, and Manager/Cashi
   await page.getByRole("button", { name: "Save" }).click();
   await expect(page.getByText(testName)).toBeVisible();
 });
+
+test("Store: create with Country/State cascade, Currency, and Timezone pickers", async ({
+  page,
+}) => {
+  await login(page);
+  await page.goto("/stores");
+  await page.getByRole("button", { name: "New" }).click();
+
+  const storeName = `Test Store ${Date.now()}`;
+  await page.getByLabel("Name").fill(storeName);
+  await page.getByLabel("Address").fill("456 Test Lane, Bengaluru");
+
+  await page.getByText("Select country…").click();
+  await page.locator("[cmdk-input]").fill("India");
+  await page.getByRole("option", { name: "India" }).click();
+
+  // State only appears once a country with seeded states is selected.
+  await page.getByText("Select state…").click();
+  await page.locator("[cmdk-input]").fill("Karnataka");
+  await page.getByRole("option", { name: "Karnataka" }).click();
+
+  await page.getByText("Select currency…").click();
+  await page.locator("[cmdk-input]").fill("INR");
+  await page.getByRole("option", { name: "INR" }).click();
+
+  await page.getByText("Select timezone…").click();
+  await page.locator("[cmdk-input]").fill("Asia/Kolkata");
+  await page.getByRole("option", { name: "Asia/Kolkata" }).click();
+
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Store created.")).toBeVisible();
+
+  const row = page.getByRole("row").filter({ hasText: storeName });
+  await row.getByRole("link", { name: "View" }).click();
+  await expect(page).toHaveURL(/\/stores\/[0-9a-f-]+$/);
+
+  // The view page must resolve these to real labels, not raw UUIDs.
+  await expect(page.getByText("India")).toBeVisible();
+  await expect(page.getByText("Karnataka")).toBeVisible();
+  await expect(page.getByText("INR")).toBeVisible();
+  await expect(page.getByText("Asia/Kolkata")).toBeVisible();
+});
