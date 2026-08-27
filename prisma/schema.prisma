@@ -33,14 +33,71 @@ model RoleRight {
   @@map("role_rights")
 }
 
+model Country {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  name        String
+  callingCode String   @map("calling_code")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  states State[]
+  stores Store[]
+
+  @@map("countries")
+}
+
+model State {
+  id        String   @id @default(uuid())
+  countryId String   @map("country_id")
+  country   Country  @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  code      String
+  name      String
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  stores Store[]
+
+  @@unique([countryId, code])
+  @@map("states")
+}
+
+model Currency {
+  id       String  @id @default(uuid())
+  code     String  @unique
+  name     String
+  symbol   String
+  isActive Boolean @default(true) @map("is_active")
+
+  stores Store[]
+
+  @@map("currencies")
+}
+
+model Timezone {
+  id       String  @id @default(uuid())
+  name     String  @unique
+  isActive Boolean @default(true) @map("is_active")
+
+  stores Store[]
+
+  @@map("timezones")
+}
+
 model Store {
   id                String     @id @default(uuid())
   name              String
   address           String
+  countryId         String?    @map("country_id")
+  country           Country?   @relation(fields: [countryId], references: [id])
+  stateId           String?    @map("state_id")
+  state             State?     @relation(fields: [stateId], references: [id])
   taxRegionId       String?    @map("tax_region_id")
   taxRegion         TaxRegion? @relation(fields: [taxRegionId], references: [id])
-  timezone          String     @default("Asia/Kolkata")
-  defaultCurrency   String     @default("INR") @map("default_currency")
+  timezoneId        String?    @map("timezone_id")
+  storeTimezone     Timezone?  @relation(fields: [timezoneId], references: [id])
+  currencyId        String?    @map("currency_id")
+  currency          Currency?  @relation(fields: [currencyId], references: [id])
   gstin             String?
   logoUrl           String?    @map("logo_url")
   receiptHeaderText String?    @map("receipt_header_text")

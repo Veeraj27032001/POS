@@ -2,6 +2,10 @@ import { ROLE_SEED_DATA } from "@/lib/auth/rbacSeedData";
 import { unscoped } from "@/lib/db";
 import { hashSecret } from "@/lib/security/hash";
 
+import { COUNTRIES } from "./seedData/countries";
+import { CURRENCIES } from "./seedData/currencies";
+import { INDIA_STATES } from "./seedData/indiaStates";
+
 const db = unscoped();
 
 function fixedId(n: number): string {
@@ -220,14 +224,67 @@ async function main() {
     },
   });
 
+  console.log("Seeding countries, states, currencies, timezones…");
+  const countryIds: Record<string, string> = {};
+  for (const country of COUNTRIES) {
+    const row = await db.country.upsert({
+      where: { code: country.code },
+      update: { name: country.name, callingCode: country.callingCode },
+      create: country,
+    });
+    countryIds[country.code] = row.id;
+  }
+
+  const indiaStateIds: Record<string, string> = {};
+  for (const state of INDIA_STATES) {
+    const row = await db.state.upsert({
+      where: { countryId_code: { countryId: countryIds.IN, code: state.code } },
+      update: { name: state.name },
+      create: { ...state, countryId: countryIds.IN },
+    });
+    indiaStateIds[state.code] = row.id;
+  }
+
+  for (const currency of CURRENCIES) {
+    await db.currency.upsert({
+      where: { code: currency.code },
+      update: { name: currency.name, symbol: currency.symbol },
+      create: currency,
+    });
+  }
+
+  // The canonical, always-current IANA tz database list, straight from the
+  // runtime rather than a hand-maintained copy that could drift out of date.
+  // ICU's canonical set uses some pre-rename zone names (e.g. Asia/Calcutta)
+  // that don't match what this India-focused app expects everywhere else
+  // (APP_DEFAULT_TIMEZONE, the old Store.timezone default) — add the
+  // renamed form(s) explicitly so the expected name is always selectable.
+  const timezoneNames = new Set(Intl.supportedValuesOf("timeZone"));
+  timezoneNames.add("Asia/Kolkata");
+  for (const name of timezoneNames) {
+    await db.timezone.upsert({ where: { name }, update: {}, create: { name } });
+  }
+
+  const inrCurrency = await db.currency.findUniqueOrThrow({ where: { code: "INR" } });
+  const kolkataTimezone = await db.timezone.findUniqueOrThrow({ where: { name: "Asia/Kolkata" } });
+
   console.log("Seeding demo store, warehouse, terminal…");
   const store = await db.store.upsert({
     where: { id: IDS.store },
-    update: {},
+    update: {
+      countryId: countryIds.IN,
+      stateId: indiaStateIds.KA,
+      currencyId: inrCurrency.id,
+      timezoneId: kolkataTimezone.id,
+    },
     create: {
       id: IDS.store,
       name: "Demo Store",
       address: "123 MG Road, Bengaluru",
+      countryId: countryIds.IN,
+      stateId: indiaStateIds.KA,
+      currencyId: inrCurrency.id,
+      timezoneId: kolkataTimezone.id,
       taxRegionId: region.id,
       gstin: "29AAAAA0000A1Z5",
     },

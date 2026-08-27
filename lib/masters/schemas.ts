@@ -206,9 +206,11 @@ export const apiCredentialUpdateSchema = z.object({
 export const storeCreateSchema = z.object({
   name: requiredString("Name"),
   address: requiredString("Address"),
+  countryId: opaqueIdSchema.optional().nullable(),
+  stateId: opaqueIdSchema.optional().nullable(),
   taxRegionId: opaqueIdSchema.optional().nullable(),
-  timezone: requiredString("Timezone", 64).default("Asia/Kolkata"),
-  defaultCurrency: requiredString("Currency", 3).default("INR"),
+  timezoneId: opaqueIdSchema.optional().nullable(),
+  currencyId: opaqueIdSchema.optional().nullable(),
   gstin: optionalString(15),
   logoUrl: optionalString(500),
   receiptHeaderText: optionalString(500),
