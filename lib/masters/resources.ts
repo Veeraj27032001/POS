@@ -66,48 +66,6 @@ function withStoreIds(
   return { ...rest, stores: mode === "create" ? { connect: refs } : { set: refs } };
 }
 
-export const taxRegionResource = defineResource({
-  name: "tax_region",
-  module: "tax_settings",
-  scoping: "none",
-  createSchema: schemas.taxRegionCreateSchema,
-  updateSchema: schemas.taxRegionUpdateSchema,
-  searchFields: ["name", "countryCode"],
-  getDelegate: delegateOf("taxRegion"),
-  hasIsActive: false,
-});
-
-export const taxSchemeResource = defineResource({
-  name: "tax_scheme",
-  module: "tax_settings",
-  scoping: "none",
-  createSchema: schemas.taxSchemeCreateSchema,
-  updateSchema: schemas.taxSchemeUpdateSchema,
-  searchFields: ["name"],
-  getDelegate: delegateOf("taxScheme"),
-});
-
-export const taxComponentResource = defineResource({
-  name: "tax_component",
-  module: "tax_settings",
-  scoping: "none",
-  createSchema: schemas.taxComponentCreateSchema,
-  updateSchema: schemas.taxComponentUpdateSchema,
-  searchFields: ["name"],
-  getDelegate: delegateOf("taxComponent"),
-  hasIsActive: false,
-});
-
-export const taxCodeResource = defineResource({
-  name: "tax_code",
-  module: "tax_settings",
-  scoping: "none",
-  createSchema: schemas.taxCodeCreateSchema,
-  updateSchema: schemas.taxCodeUpdateSchema,
-  searchFields: ["code", "description"],
-  getDelegate: delegateOf("taxCode"),
-});
-
 export const hsnCodeResource = defineResource({
   name: "hsn_code",
   module: "hsn_codes",
@@ -148,7 +106,13 @@ export const productResource = defineResource({
   updateSchema: schemas.productUpdateSchema,
   searchFields: ["name", "skuBarcode", "systemBarcode"],
   getDelegate: delegateOf("product"),
-  beforeCreate: (data) => ({ ...data, systemBarcode: generateSystemBarcode() }),
+  beforeCreate: async (data) => {
+    const preferences = await unscoped().taxPreferences.findFirst();
+    if (preferences?.hsnTaxDisplayEnabled && !data.hsnCodeId) {
+      return { forbidden: "HSN code is required." };
+    }
+    return { ...data, systemBarcode: generateSystemBarcode() };
+  },
   defaultSort: { createdAt: "desc" },
 });
 

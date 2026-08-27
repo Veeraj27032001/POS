@@ -23,16 +23,29 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useSubmitGuard } from "@/lib/forms/useSubmitGuard";
-import { productCreateSchema } from "@/lib/masters/schemas";
+import { productUpdateSchema } from "@/lib/masters/schemas";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 import { useTaxPreferences } from "@/lib/masters/useTaxPreferences";
-import { useInvalidateResource } from "@/lib/pagination/useList";
 
-type ProductCreateInput = z.infer<typeof productCreateSchema>;
+type ProductUpdateInput = z.infer<typeof productUpdateSchema>;
 
-export function NewProductDialog() {
+export interface EditProductDialogProps {
+  id: string;
+  name: string;
+  categoryId: string | null;
+  hsnCodeId: string | null;
+  uomId: string;
+  price: string;
+  skuBarcode: string | null;
+  reorderLevel: number | null;
+  trackExpiry: boolean;
+  stockTracked: boolean;
+  onSaved: (updated: Record<string, unknown>) => void;
+}
+
+export function EditProductDialog(props: EditProductDialogProps) {
+  const { id, onSaved, ...current } = props;
   const [open, setOpen] = useState(false);
-  const invalidate = useInvalidateResource();
   const categories = useOptionsList("categories", "name");
   const hsnCodes = useOptionsList("hsn-codes/options", "hsnCode");
   const uoms = useOptionsList("uoms", "name");
@@ -43,18 +56,27 @@ export function NewProductDialog() {
     register,
     handleSubmit,
     control,
-    reset,
     watch,
     formState: { errors, isSubmitting },
-  } = useForm<ProductCreateInput>({
-    resolver: zodResolver(productCreateSchema) as never,
-    defaultValues: { trackExpiry: false, images: [], stockTracked: true },
+  } = useForm<ProductUpdateInput>({
+    resolver: zodResolver(productUpdateSchema) as never,
+    defaultValues: {
+      name: current.name,
+      categoryId: current.categoryId,
+      hsnCodeId: current.hsnCodeId,
+      uomId: current.uomId,
+      price: Number(current.price),
+      skuBarcode: current.skuBarcode ?? undefined,
+      reorderLevel: current.reorderLevel ?? undefined,
+      trackExpiry: current.trackExpiry,
+      stockTracked: current.stockTracked,
+    },
   });
   const selectedHsnCodeId = watch("hsnCodeId");
 
-  async function onSubmit(values: ProductCreateInput) {
-    const res = await fetch("/api/products", {
-      method: "POST",
+  async function onSubmit(values: ProductUpdateInput) {
+    const res = await fetch(`/api/products/${id}`, {
+      method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(values),
     });
@@ -63,20 +85,26 @@ export function NewProductDialog() {
       toast.error(body?.error?.message ?? "Failed to save.");
       return;
     }
+    const updated = await res.json();
     setOpen(false);
-    reset();
-    invalidate("products");
-    toast.success("Product created.");
+    onSaved(updated);
+    toast.success("Product updated.");
   }
 
   const guardedSubmit = useSubmitGuard(onSubmit);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button>New Product</Button>} />
+      <DialogTrigger
+        render={
+          <Button variant="outline" size="sm">
+            Edit
+          </Button>
+        }
+      />
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>New Product</DialogTitle>
+          <DialogTitle>Edit Product</DialogTitle>
         </DialogHeader>
         <form
           onSubmit={handleSubmit(guardedSubmit)}
@@ -84,11 +112,11 @@ export function NewProductDialog() {
         >
           <DialogFormBody>
             <div className="space-y-1.5 sm:col-span-2">
-              <Label htmlFor="name">
+              <Label htmlFor="edit-name">
                 Name
                 <RequiredMark />
               </Label>
-              <Input id="name" placeholder="e.g. Maggi 10rs Pack" {...register("name")} />
+              <Input id="edit-name" {...register("name")} />
               {errors.name && <p className="text-sm text-red-600">{errors.name.message}</p>}
             </div>
 
@@ -106,9 +134,6 @@ export function NewProductDialog() {
                   />
                 )}
               />
-              {errors.categoryId && (
-                <p className="text-sm text-red-600">{errors.categoryId.message}</p>
-              )}
             </div>
 
             {hsnEnabled && (
@@ -158,12 +183,12 @@ export function NewProductDialog() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="price">
+              <Label htmlFor="edit-price">
                 Price
                 <RequiredMark />
               </Label>
               <Input
-                id="price"
+                id="edit-price"
                 type="number"
                 step="0.01"
                 {...register("price", { valueAsNumber: true })}
@@ -172,14 +197,14 @@ export function NewProductDialog() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="skuBarcode">Manufacturer barcode (optional)</Label>
-              <Input id="skuBarcode" {...register("skuBarcode")} />
+              <Label htmlFor="edit-skuBarcode">Manufacturer barcode (optional)</Label>
+              <Input id="edit-skuBarcode" {...register("skuBarcode")} />
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="reorderLevel">Reorder level (optional)</Label>
+              <Label htmlFor="edit-reorderLevel">Reorder level (optional)</Label>
               <Input
-                id="reorderLevel"
+                id="edit-reorderLevel"
                 type="number"
                 {...register("reorderLevel", {
                   setValueAs: (v) => (v === "" || v === null ? undefined : Number(v)),
@@ -196,11 +221,11 @@ export function NewProductDialog() {
               render={({ field }) => (
                 <div className="flex items-center gap-2 sm:col-span-2">
                   <Checkbox
-                    id="trackExpiry"
+                    id="edit-trackExpiry"
                     checked={Boolean(field.value)}
                     onCheckedChange={(checked) => field.onChange(checked)}
                   />
-                  <Label htmlFor="trackExpiry">Track expiry</Label>
+                  <Label htmlFor="edit-trackExpiry">Track expiry</Label>
                 </div>
               )}
             />
@@ -211,11 +236,11 @@ export function NewProductDialog() {
               render={({ field }) => (
                 <div className="flex items-center gap-2 sm:col-span-2">
                   <Checkbox
-                    id="stockTracked"
+                    id="edit-stockTracked"
                     checked={Boolean(field.value)}
                     onCheckedChange={(checked) => field.onChange(checked)}
                   />
-                  <Label htmlFor="stockTracked">Track stock</Label>
+                  <Label htmlFor="edit-stockTracked">Track stock</Label>
                 </div>
               )}
             />
@@ -223,7 +248,7 @@ export function NewProductDialog() {
 
           <DialogFormActions>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Saving…" : "Save"}
+              {isSubmitting ? "Saving…" : "Save changes"}
             </Button>
           </DialogFormActions>
         </form>

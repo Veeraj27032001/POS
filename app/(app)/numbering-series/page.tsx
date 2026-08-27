@@ -141,6 +141,7 @@ export default function NumberingSeriesPage() {
                   <Button
                     variant="outline"
                     size="sm"
+                    nativeButton={false}
                     render={<Link href={`/numbering-series/${row.id}`}>View</Link>}
                   />
                   <EditSeriesDialog

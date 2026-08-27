@@ -62,7 +62,6 @@ const NAV_ITEM_MODULE: Record<string, string> = {
   "/reason-codes": "reason_codes",
   "/cash-denominations": "settings",
   "/numbering-series": "numbering_series",
-  "/settings/tax": "tax_settings",
   "/settings/hsn-codes": "hsn_codes",
   "/settings/tax-engine": "stores",
   "/settings/roles": "roles",
@@ -122,7 +121,6 @@ const NAV_GROUPS: AppNavGroup[] = [
   {
     label: "Settings",
     items: [
-      { href: "/settings/tax", label: "Tax Settings", icon: <Landmark className="h-4 w-4" /> },
       { href: "/settings/hsn-codes", label: "HSN Codes", icon: <Landmark className="h-4 w-4" /> },
       {
         href: "/settings/tax-engine",

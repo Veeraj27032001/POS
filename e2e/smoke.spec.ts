@@ -77,7 +77,7 @@ test("create two standalone products and print a label", async ({ page }) => {
     await page.getByLabel("Name").fill(productName);
     await page.getByText("Select category…").click();
     await page.getByRole("option").first().click();
-    await page.getByText("Select tax code…").click();
+    await page.getByText("Select HSN code…").click();
     await page.getByRole("option").first().click();
     await page.getByText("Select UOM…").click();
     await page.getByRole("option").first().click();
@@ -105,7 +105,7 @@ test("Product view page resolves category/tax/UOM names and toggles active state
   await page.getByLabel("Name").fill(productName);
   await page.getByText("Select category…").click();
   await page.getByRole("option").first().click();
-  await page.getByText("Select tax code…").click();
+  await page.getByText("Select HSN code…").click();
   await page.getByRole("option").first().click();
   await page.getByText("Select UOM…").click();
   await page.getByRole("option").first().click();
@@ -237,7 +237,7 @@ test("System and Product Barcodes pages render actual barcode graphics", async (
   await page.getByLabel("Name").fill(productName);
   await page.getByText("Select category…").click();
   await page.getByRole("option").first().click();
-  await page.getByText("Select tax code…").click();
+  await page.getByText("Select HSN code…").click();
   await page.getByRole("option").first().click();
   await page.getByText("Select UOM…").click();
   await page.getByRole("option").first().click();
@@ -267,7 +267,7 @@ test("Product view page: add, reorder, and remove images and videos", async ({ p
   await page.getByLabel("Name").fill(productName);
   await page.getByText("Select category…").click();
   await page.getByRole("option").first().click();
-  await page.getByText("Select tax code…").click();
+  await page.getByText("Select HSN code…").click();
   await page.getByRole("option").first().click();
   await page.getByText("Select UOM…").click();
   await page.getByRole("option").first().click();
@@ -341,7 +341,6 @@ const NAV_HREFS = [
   "/numbering-series",
   "/barcodes/system",
   "/barcodes/product",
-  "/settings/tax",
   "/settings/hsn-codes",
   "/settings/tax-engine",
   "/settings/security",
@@ -778,27 +777,14 @@ test("Products: HSN tax details show on create and the view page when the prefer
   const hsnCheckbox = page.locator("#hsn-tax-display");
   await expect(hsnCheckbox).toBeVisible();
   if (!(await hsnCheckbox.isChecked())) {
-    await hsnCheckbox.click();
+    await page.getByText("Show HSN tax details on products").click();
     await expect(page.getByText("Tax preferences updated.")).toBeVisible();
   }
 
-  const taxCodesRes = await page.request.get("/api/tax-codes?pageSize=1");
-  const taxCodesBody = (await taxCodesRes.json()) as { data: { code: string }[] };
-  const code = taxCodesBody.data[0].code;
-
-  const hsnRes = await page.request.get(`/api/hsn-codes?search=${code}`);
-  const hsnBody = (await hsnRes.json()) as { data: { hsnCode: string }[] };
-  if (!hsnBody.data.some((h) => h.hsnCode === code)) {
-    await page.request.post("/api/hsn-codes", {
-      data: {
-        hsnCode: code,
-        description: "Test HSN row",
-        cgstRate: 2.5,
-        sgstRate: 2.5,
-        igstRate: 5,
-      },
-    });
-  }
+  const code = `TST${Date.now() % 100000}`;
+  await page.request.post("/api/hsn-codes", {
+    data: { hsnCode: code, description: "Test HSN row", cgstRate: 2.5, sgstRate: 2.5, igstRate: 5 },
+  });
 
   await page.goto("/products");
   await page.getByRole("button", { name: "New Product" }).click();
@@ -806,7 +792,7 @@ test("Products: HSN tax details show on create and the view page when the prefer
   await page.getByLabel("Name").fill(productName);
   await page.getByText("Select category…").click();
   await page.getByRole("option").first().click();
-  await page.getByText("Select tax code…").click();
+  await page.getByText("Select HSN code…").click();
   await page.getByRole("option", { name: code }).click();
 
   await expect(page.getByText("CGST")).toBeVisible();
@@ -824,6 +810,76 @@ test("Products: HSN tax details show on create and the view page when the prefer
   await expect(page.getByText("CGST")).toBeVisible();
   await expect(page.getByText("SGST")).toBeVisible();
   await expect(page.getByText("IGST")).toBeVisible();
+});
+
+test("Products: editing a product from the view page updates its details", async ({ page }) => {
+  await login(page);
+  await page.goto("/products");
+
+  const productName = `Test Edit Product ${Date.now()}`;
+  await page.getByRole("button", { name: "New Product" }).click();
+  await page.getByLabel("Name").fill(productName);
+  await page.getByText("Select category…").click();
+  await page.getByRole("option").first().click();
+  await page.getByText("Select HSN code…").click();
+  await page.getByRole("option").first().click();
+  await page.getByText("Select UOM…").click();
+  await page.getByRole("option").first().click();
+  await page.getByLabel("Price").fill("30");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText(productName)).toBeVisible();
+
+  await page.getByText(productName).click();
+  await expect(page).toHaveURL(/\/products\/[0-9a-f-]+$/);
+
+  await page.getByRole("button", { name: "Edit" }).click();
+  const updatedName = `${productName} Edited`;
+  await page.locator("#edit-name").fill(updatedName);
+  await page.locator("#edit-price").fill("45");
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await expect(page.getByText("Product updated.")).toBeVisible();
+  await expect(page.getByText(updatedName)).toBeVisible();
+  const priceRow = page.getByText("Price", { exact: true }).locator("..");
+  await expect(priceRow).toContainText("45");
+});
+
+test("Products: HSN dropdown is hidden and not required when the preference is off", async ({
+  page,
+}) => {
+  await login(page);
+
+  await page.goto("/settings/tax-engine");
+  const hsnCheckbox = page.locator("#hsn-tax-display");
+  const hsnLabel = page.getByText("Show HSN tax details on products");
+  await expect(hsnCheckbox).toBeVisible();
+  if (await hsnCheckbox.isChecked()) {
+    await hsnLabel.click();
+    await expect(page.getByText("Tax preferences updated.")).toBeVisible();
+  }
+
+  try {
+    await page.goto("/products");
+    await page.getByRole("button", { name: "New Product" }).click();
+    await expect(page.getByText("Select HSN code…")).not.toBeVisible();
+
+    const productName = `Test No HSN Product ${Date.now()}`;
+    await page.getByLabel("Name").fill(productName);
+    await page.getByText("Select category…").click();
+    await page.getByRole("option").first().click();
+    await page.getByText("Select UOM…").click();
+    await page.getByRole("option").first().click();
+    await page.getByLabel("Price").fill("12");
+    await page.getByRole("button", { name: "Save" }).click();
+    await expect(page.getByText(productName)).toBeVisible();
+  } finally {
+    // Re-enable so every other test's default assumption (the HSN field
+    // shows) holds regardless of run order.
+    await page.goto("/settings/tax-engine");
+    if (!(await page.locator("#hsn-tax-display").isChecked())) {
+      await page.getByText("Show HSN tax details on products").click();
+      await expect(page.getByText("Tax preferences updated.")).toBeVisible();
+    }
+  }
 });
 
 test("Roles: creating a role and saving its rights succeeds, and Super-Admin-only modules never appear", async ({

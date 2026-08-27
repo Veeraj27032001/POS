@@ -67,7 +67,7 @@ function MfaVerifyForm() {
       <AuthSplitLayout>
         <div className="space-y-4 text-center">
           <p>Your login attempt has expired.</p>
-          <Button render={<a href="/login">Back to sign in</a>} />
+          <Button nativeButton={false} render={<a href="/login">Back to sign in</a>} />
         </div>
       </AuthSplitLayout>
     );

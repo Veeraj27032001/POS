@@ -102,6 +102,7 @@ export default function UsersPage() {
                 <Button
                   variant="outline"
                   size="sm"
+                  nativeButton={false}
                   render={<Link href={`/users/${row.id}`}>View</Link>}
                 />
                 <Button

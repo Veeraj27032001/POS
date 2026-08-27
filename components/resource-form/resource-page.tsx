@@ -161,6 +161,7 @@ export function ResourcePage<
           <Button
             variant="outline"
             size="sm"
+            nativeButton={false}
             render={<Link href={`/${resource}/${getRowId(row)}`}>View</Link>}
           />
           <Button variant="outline" size="sm" onClick={() => setEditingRow(row)}>

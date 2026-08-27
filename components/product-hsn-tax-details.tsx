@@ -2,51 +2,35 @@
 
 import { useEffect, useState } from "react";
 
-import { useOptionsList } from "@/lib/masters/useOptionsList";
+import { useTaxPreferences } from "@/lib/masters/useTaxPreferences";
 
 interface HsnRatesRow {
-  hsnCode: string;
   cgstRate: string;
   sgstRate: string;
   igstRate: string;
 }
 
-export function ProductHsnTaxDetails({ taxCodeId }: { taxCodeId: string | null | undefined }) {
-  const [displayEnabled, setDisplayEnabled] = useState(false);
-  const taxCodes = useOptionsList("tax-codes", "code");
+export function ProductHsnTaxDetails({ hsnCodeId }: { hsnCodeId: string | null | undefined }) {
+  const preferences = useTaxPreferences();
   const [rates, setRates] = useState<HsnRatesRow | null>(null);
 
   useEffect(() => {
-    fetch("/api/tax-preferences")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((body: { hsnTaxDisplayEnabled: boolean } | null) =>
-        setDisplayEnabled(body?.hsnTaxDisplayEnabled ?? false),
-      );
-  }, []);
-
-  useEffect(() => {
-    if (!displayEnabled || !taxCodeId || taxCodes.length === 0) {
-      setRates(null);
-      return;
-    }
-    const code = taxCodes.find((t) => t.value === taxCodeId)?.label;
-    if (!code) {
+    if (!preferences?.hsnTaxDisplayEnabled || !hsnCodeId) {
       setRates(null);
       return;
     }
     let cancelled = false;
-    fetch(`/api/hsn-codes?search=${encodeURIComponent(code)}&pageSize=10`)
+    fetch(`/api/hsn-codes/${hsnCodeId}/rates`)
       .then((res) => (res.ok ? res.json() : null))
-      .then((body: { data: HsnRatesRow[] } | null) => {
-        if (cancelled) return;
-        setRates(body?.data.find((h) => h.hsnCode === code) ?? null);
+      .then((body: HsnRatesRow | null) => {
+        if (!cancelled) setRates(body);
       });
     return () => {
       cancelled = true;
     };
-  }, [displayEnabled, taxCodeId, taxCodes]);
+  }, [preferences, hsnCodeId]);
 
-  if (!displayEnabled || !rates) return null;
+  if (!preferences?.hsnTaxDisplayEnabled || !rates) return null;
 
   return (
     <div className="bg-muted/40 grid grid-cols-3 gap-3 rounded-lg border p-3 text-sm sm:col-span-2">

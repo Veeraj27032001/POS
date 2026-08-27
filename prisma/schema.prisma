@@ -99,8 +99,6 @@ model Store {
   country           Country?   @relation(fields: [countryId], references: [id])
   stateId           String?    @map("state_id")
   state             State?     @relation(fields: [stateId], references: [id])
-  taxRegionId       String?    @map("tax_region_id")
-  taxRegion         TaxRegion? @relation(fields: [taxRegionId], references: [id])
   taxEngineId       String?    @map("tax_engine_id")
   taxEngine         TaxEngine? @relation(fields: [taxEngineId], references: [id])
   timezoneId        String?    @map("timezone_id")
@@ -279,6 +277,8 @@ model HsnCode {
   isActive    Boolean @default(true) @map("is_active")
   isDeleted   Boolean @default(false) @map("is_deleted")
 
+  products Product[]
+
   @@map("hsn_codes")
 }
 
@@ -289,59 +289,6 @@ model TaxPreferences {
   autoApplyTaxByDefault Boolean @default(true) @map("auto_apply_tax_by_default")
 
   @@map("tax_preferences")
-}
-
-model TaxRegion {
-  id          String @id @default(uuid())
-  countryCode String @map("country_code")
-  name        String
-
-  schemes TaxScheme[]
-  stores  Store[]
-
-  @@map("tax_regions")
-}
-
-model TaxScheme {
-  id        String    @id @default(uuid())
-  regionId  String    @map("region_id")
-  region    TaxRegion @relation(fields: [regionId], references: [id], onDelete: Cascade)
-  name      String
-  isActive  Boolean   @default(true) @map("is_active")
-  isDeleted Boolean   @default(false) @map("is_deleted")
-
-  components TaxComponent[]
-  codes      TaxCode[]
-
-  @@map("tax_schemes")
-}
-
-model TaxComponent {
-  id            String    @id @default(uuid())
-  schemeId      String    @map("scheme_id")
-  scheme        TaxScheme @relation(fields: [schemeId], references: [id], onDelete: Cascade)
-  name          String
-  ratePercent   Decimal   @map("rate_percent") @db.Decimal(12, 2)
-  effectiveFrom DateTime  @map("effective_from") @db.Date
-  effectiveTo   DateTime? @map("effective_to") @db.Date
-
-  @@map("tax_components")
-}
-
-model TaxCode {
-  id             String    @id @default(uuid())
-  schemeId       String    @map("scheme_id")
-  scheme         TaxScheme @relation(fields: [schemeId], references: [id], onDelete: Cascade)
-  code           String
-  description    String
-  componentGroup String    @map("component_group")
-  isActive       Boolean   @default(true) @map("is_active")
-  isDeleted      Boolean   @default(false) @map("is_deleted")
-
-  products Product[]
-
-  @@unique([schemeId, code])
-  @@map("tax_codes")
 }
 
 model Category {
@@ -378,8 +325,8 @@ model Product {
   name             String
   categoryId       String?   @map("category_id")
   category         Category? @relation(fields: [categoryId], references: [id])
-  taxCodeId        String    @map("tax_code_id")
-  taxCode          TaxCode   @relation(fields: [taxCodeId], references: [id])
+  hsnCodeId        String?   @map("hsn_code_id")
+  hsnCode          HsnCode?  @relation(fields: [hsnCodeId], references: [id])
   trackExpiry      Boolean   @default(false) @map("track_expiry")
   images           String[]
   videos           String[]  @map("videos")

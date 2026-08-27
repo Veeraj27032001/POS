@@ -11,14 +11,17 @@ import { ProductMediaManager } from "@/components/product-media-manager";
 import { Button } from "@/components/ui/button";
 import { getPrintBridge } from "@/lib/adapters/print";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
+import { useTaxPreferences } from "@/lib/masters/useTaxPreferences";
 import { useInvalidateResource } from "@/lib/pagination/useList";
 import { cn } from "@/lib/utils";
+
+import { EditProductDialog } from "../edit-product-dialog";
 
 interface ProductRow {
   id: string;
   name: string;
   categoryId: string | null;
-  taxCodeId: string;
+  hsnCodeId: string | null;
   uomId: string;
   price: string;
   packSize: string | null;
@@ -47,8 +50,10 @@ export default function ProductViewPage() {
   const [deleting, setDeleting] = useState(false);
   const invalidate = useInvalidateResource();
   const categories = useOptionsList("categories", "name");
-  const taxCodes = useOptionsList("tax-codes", "code");
+  const hsnCodes = useOptionsList("hsn-codes/options", "hsnCode");
   const uoms = useOptionsList("uoms", "name");
+  const preferences = useTaxPreferences();
+  const hsnEnabled = preferences?.hsnTaxDisplayEnabled ?? false;
 
   useEffect(() => {
     fetch(`/api/products/${id}`)
@@ -143,6 +148,19 @@ export default function ProductViewPage() {
             <Button variant="outline" size="sm" onClick={handlePrintLabel}>
               Print Label
             </Button>
+            <EditProductDialog
+              id={row.id}
+              name={row.name}
+              categoryId={row.categoryId}
+              hsnCodeId={row.hsnCodeId}
+              uomId={row.uomId}
+              price={row.price}
+              skuBarcode={row.skuBarcode}
+              reorderLevel={row.reorderLevel}
+              trackExpiry={row.trackExpiry}
+              stockTracked={row.stockTracked}
+              onSaved={(updated) => setRow((prev) => (prev ? { ...prev, ...updated } : prev))}
+            />
             <Button variant="outline" size="sm" disabled={toggling} onClick={handleToggleActive}>
               {toggling && <Loader2Icon className="size-3.5 animate-spin" />}
               {row.isActive ? "Deactivate" : "Activate"}
@@ -177,7 +195,7 @@ export default function ProductViewPage() {
           {[
             ["Name", row.name],
             ["Category", lookupLabel(categories, row.categoryId)],
-            ["Tax code (HSN)", lookupLabel(taxCodes, row.taxCodeId)],
+            ...(hsnEnabled ? [["HSN code", lookupLabel(hsnCodes, row.hsnCodeId)]] : []),
             ["Unit of measure", lookupLabel(uoms, row.uomId)],
             ["Price", row.price],
             ["Default cost price", row.defaultCostPrice ?? "—"],
@@ -197,7 +215,7 @@ export default function ProductViewPage() {
         </dl>
       )}
 
-      {row && <ProductHsnTaxDetails taxCodeId={row.taxCodeId} />}
+      {row && <ProductHsnTaxDetails hsnCodeId={row.hsnCodeId} />}
     </div>
   );
 }

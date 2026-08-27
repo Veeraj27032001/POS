@@ -114,42 +114,21 @@ const REASON_CODES: Array<{ category: string; label: string }> = [
 ];
 
 async function main() {
-  console.log("Seeding India tax region + GST scheme + HSN codes…");
-  const region = await db.taxRegion.upsert({
-    where: { id: IDS.region },
-    update: {},
-    create: { id: IDS.region, countryCode: "IN", name: "India" },
-  });
-
-  const scheme = await db.taxScheme.upsert({
-    where: { id: IDS.scheme },
-    update: {},
-    create: { id: IDS.scheme, regionId: region.id, name: "India GST", isActive: true },
-  });
-
-  const effectiveFrom = new Date("2017-07-01");
-  await db.taxComponent.deleteMany({ where: { schemeId: scheme.id } });
-  await db.taxComponent.createMany({
-    data: [
-      { schemeId: scheme.id, name: "CGST", ratePercent: 9, effectiveFrom },
-      { schemeId: scheme.id, name: "SGST", ratePercent: 9, effectiveFrom },
-      { schemeId: scheme.id, name: "IGST", ratePercent: 18, effectiveFrom },
-    ],
-  });
-
-  const taxCodes: Record<string, { id: string }> = {};
+  console.log("Seeding HSN codes…");
+  const hsnCodes: Record<string, { id: string }> = {};
   for (const hsn of HSN_CODES) {
-    const taxCode = await db.taxCode.upsert({
-      where: { schemeId_code: { schemeId: scheme.id, code: hsn.code } },
+    const hsnCode = await db.hsnCode.upsert({
+      where: { hsnCode: hsn.code },
       update: {},
       create: {
-        schemeId: scheme.id,
-        code: hsn.code,
+        hsnCode: hsn.code,
         description: hsn.description,
-        componentGroup: hsn.ratePercent === 18 ? "IGST" : "CGST_SGST",
+        cgstRate: hsn.ratePercent / 2,
+        sgstRate: hsn.ratePercent / 2,
+        igstRate: hsn.ratePercent,
       },
     });
-    taxCodes[hsn.code] = taxCode;
+    hsnCodes[hsn.code] = hsnCode;
   }
 
   console.log("Seeding tax engines…");
@@ -282,7 +261,6 @@ async function main() {
       stateId: indiaStateIds.KA,
       currencyId: inrCurrency.id,
       timezoneId: kolkataTimezone.id,
-      taxRegionId: region.id,
       gstin: "29AAAAA0000A1Z5",
     },
   });
@@ -378,7 +356,7 @@ async function main() {
       id: IDS.product10,
       name: "Lays Chips 10 Rs Pack",
       categoryId: category.id,
-      taxCodeId: taxCodes["2106"].id,
+      hsnCodeId: hsnCodes["2106"].id,
       trackExpiry: true,
       uomId: uomPiece.id,
       systemBarcode: "2000000000001",
@@ -394,7 +372,7 @@ async function main() {
       id: IDS.product20,
       name: "Lays Chips 20 Rs Pack",
       categoryId: category.id,
-      taxCodeId: taxCodes["2106"].id,
+      hsnCodeId: hsnCodes["2106"].id,
       trackExpiry: true,
       uomId: uomPiece.id,
       systemBarcode: "2000000000002",

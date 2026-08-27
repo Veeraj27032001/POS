@@ -19,7 +19,7 @@ export default async function UnauthorizedPage({
         You need to be signed in to view{" "}
         {callbackUrl ? <span className="font-mono">{callbackUrl}</span> : "this page"}.
       </p>
-      <Button render={<Link href={loginHref}>Sign in</Link>} />
+      <Button nativeButton={false} render={<Link href={loginHref}>Sign in</Link>} />
     </main>
   );
 }

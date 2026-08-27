@@ -11,37 +11,6 @@ import {
   requiredString,
 } from "@/lib/validation/common";
 
-export const taxRegionCreateSchema = z.object({
-  countryCode: requiredString("Country code", 3),
-  name: requiredString("Name"),
-});
-export const taxRegionUpdateSchema = taxRegionCreateSchema.partial();
-
-export const taxSchemeCreateSchema = z.object({
-  regionId: opaqueIdSchema,
-  name: requiredString("Name"),
-  isActive: z.boolean().default(true),
-});
-export const taxSchemeUpdateSchema = taxSchemeCreateSchema.partial();
-
-export const taxComponentCreateSchema = z.object({
-  schemeId: opaqueIdSchema,
-  name: requiredString("Name"),
-  ratePercent: nonNegativeDecimal,
-  effectiveFrom: isoDateOnlySchema,
-  effectiveTo: isoDateOnlySchema.optional().nullable(),
-});
-export const taxComponentUpdateSchema = taxComponentCreateSchema.partial();
-
-export const taxCodeCreateSchema = z.object({
-  schemeId: opaqueIdSchema,
-  code: requiredString("Code", 32),
-  description: requiredString("Description"),
-  componentGroup: requiredString("Component group", 64),
-  isActive: z.boolean().default(true),
-});
-export const taxCodeUpdateSchema = taxCodeCreateSchema.partial();
-
 export const hsnCodeCreateSchema = z.object({
   hsnCode: requiredString("HSN code", 32),
   description: requiredString("Description"),
@@ -85,7 +54,7 @@ export const uomUpdateSchema = uomCreateSchema.partial();
 export const productCreateSchema = z.object({
   name: requiredString("Name"),
   categoryId: opaqueIdSchema.optional().nullable(),
-  taxCodeId: opaqueIdSchema,
+  hsnCodeId: opaqueIdSchema.optional().nullable(),
   trackExpiry: z.boolean().default(false),
   images: z.array(z.string()).default([]),
   videos: z.array(z.string()).default([]),

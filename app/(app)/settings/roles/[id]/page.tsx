@@ -38,7 +38,7 @@ const MODULE_LABELS: Record<string, string> = {
   numbering_series: "Numbering Series",
   reason_codes: "Reason Codes",
   payment_methods: "Payment Methods",
-  tax_settings: "Tax Settings",
+  tax_settings: "Tax Preferences",
   hsn_codes: "HSN Codes",
 };
 
