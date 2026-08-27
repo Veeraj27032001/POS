@@ -753,6 +753,22 @@ test("Numbering Series: store cards scope the list, a new store is auto-seeded, 
   await expect(page.getByText(/Copied \d+ series across \d+ store\(s\)\./)).toBeVisible();
 });
 
+test("Numbering Series: editing the current number corrects it without creating a new record", async ({
+  page,
+}) => {
+  await login(page);
+  await page.goto("/numbering-series");
+  await expect(page.locator("button[aria-pressed]").first()).toBeVisible();
+
+  const row = page.getByRole("row").filter({ hasText: "stock_retest" }).first();
+  await row.getByRole("button", { name: "Edit" }).click();
+
+  await page.locator("#edit-currentNumber").fill("42");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByText("Numbering series updated.")).toBeVisible();
+  await expect(row.getByRole("cell").nth(2)).toHaveText("42");
+});
+
 test("Roles: creating a role and saving its rights succeeds, and Super-Admin-only modules never appear", async ({
   page,
 }) => {

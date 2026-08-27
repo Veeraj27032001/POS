@@ -10,6 +10,7 @@ import { DataTable } from "@/components/data-table/data-table";
 import { StoreCardFilter } from "@/components/store-card-filter";
 import { useInvalidateResource } from "@/lib/pagination/useList";
 
+import { EditSeriesDialog } from "./edit-series-dialog";
 import { NewSeriesDialog } from "./new-series-dialog";
 
 interface SeriesRow {
@@ -141,6 +142,12 @@ export default function NumberingSeriesPage() {
                     variant="outline"
                     size="sm"
                     render={<Link href={`/numbering-series/${row.id}`}>View</Link>}
+                  />
+                  <EditSeriesDialog
+                    id={row.id}
+                    prefix={row.prefix}
+                    currentNumber={row.currentNumber}
+                    onSaved={() => invalidate("numbering-series")}
                   />
                   <Button
                     variant="outline"

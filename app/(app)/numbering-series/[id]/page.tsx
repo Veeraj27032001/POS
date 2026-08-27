@@ -11,6 +11,8 @@ import { useOptionsList } from "@/lib/masters/useOptionsList";
 import { useInvalidateResource } from "@/lib/pagination/useList";
 import { cn } from "@/lib/utils";
 
+import { EditSeriesDialog } from "../edit-series-dialog";
+
 interface SeriesRow {
   id: string;
   seriesType: string;
@@ -36,11 +38,13 @@ export default function SeriesViewPage() {
   const financialYears = useOptionsList("financial-years-admin", "label");
   const stores = useOptionsList("stores/options", "name");
 
-  useEffect(() => {
+  function refresh() {
     fetch(`/api/numbering-series/${id}`)
       .then((res) => (res.ok ? res.json() : null))
       .then(setRow);
-  }, [id]);
+  }
+
+  useEffect(refresh, [id]);
 
   async function handleToggleActive() {
     if (!row) return;
@@ -111,6 +115,12 @@ export default function SeriesViewPage() {
         </div>
         {row && (
           <div className="flex gap-2">
+            <EditSeriesDialog
+              id={id}
+              prefix={row.prefix}
+              currentNumber={row.currentNumber}
+              onSaved={refresh}
+            />
             <Button variant="outline" size="sm" disabled={toggling} onClick={handleToggleActive}>
               {toggling && <Loader2Icon className="size-3.5 animate-spin" />}
               {row.isActive ? "Deactivate" : "Activate"}
