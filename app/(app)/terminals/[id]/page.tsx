@@ -21,6 +21,13 @@ export default function TerminalViewPage() {
       title="Terminals"
       fields={[
         { name: "name", label: "Name", type: "text" },
+        {
+          name: "storeId",
+          label: "Store",
+          type: "select",
+          optionsResource: "stores/options",
+          placeholder: "Select store…",
+        },
         { name: "deviceIdentifier", label: "Device identifier", type: "text" },
       ]}
       updateSchema={terminalUpdateSchema}

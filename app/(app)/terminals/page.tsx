@@ -28,6 +28,13 @@ export default function TerminalsPage() {
       ]}
       fields={[
         { name: "name", label: "Name", type: "text" },
+        {
+          name: "storeId",
+          label: "Store",
+          type: "select",
+          optionsResource: "stores/options",
+          placeholder: "Select store…",
+        },
         { name: "deviceIdentifier", label: "Device identifier", type: "text" },
       ]}
       createSchema={terminalCreateSchema}

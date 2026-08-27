@@ -117,6 +117,7 @@ export const warehouseUpdateSchema = warehouseCreateSchema.partial();
 
 export const terminalCreateSchema = z.object({
   name: requiredString("Name"),
+  storeId: opaqueIdSchema,
   deviceIdentifier: optionalString(128),
   isActive: z.boolean().default(true),
 });

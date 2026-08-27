@@ -340,7 +340,8 @@ async function main() {
       email: seedAdminEmail,
       passwordHash,
       roleId: roleIds["Super Admin"],
-      storeId: store.id,
+      // Super Admin is cross-store by design — never scoped to one.
+      storeId: null,
     },
   });
 

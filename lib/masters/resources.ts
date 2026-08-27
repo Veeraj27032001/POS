@@ -179,6 +179,7 @@ export const terminalResource = defineResource({
   name: "terminal",
   module: "settings",
   scoping: "required",
+  explicitStoreId: true,
   createSchema: schemas.terminalCreateSchema,
   updateSchema: schemas.terminalUpdateSchema,
   searchFields: ["name"],

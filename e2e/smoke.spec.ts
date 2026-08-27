@@ -516,6 +516,7 @@ test("Admin: store picker is populated, Super Admin is hidden, and Manager/Cashi
   await page.getByLabel("Name").fill(testName);
   await page.getByLabel("Email").fill(`cashier-${Date.now()}@example.com`);
   await page.getByLabel("Temporary password").fill("TempPass123!");
+  await page.getByLabel("Confirm password").fill("TempPass123!");
   await page.getByRole("button", { name: "Save" }).click();
   await expect(page.getByText("must belong to a store")).toBeVisible();
 
@@ -608,4 +609,35 @@ test("Warehouse: store dropdown is scoped to the requester — Admin sees only t
   await page.getByText("Select store…").click();
   const options = page.getByRole("option");
   await expect(options).toHaveCount(1);
+});
+
+test("Super Admin (cross-store) sees every store in a store picker, not just one", async ({
+  page,
+}) => {
+  await login(page);
+  await page.goto("/warehouses");
+  await page.getByRole("button", { name: "New" }).click();
+
+  await page.getByText("Select store…").click();
+  await expect(page.getByRole("option").first()).toBeVisible();
+  const optionCount = await page.getByRole("option").count();
+  expect(optionCount).toBeGreaterThan(1);
+});
+
+test("Terminal: store selection is required", async ({ page }) => {
+  await login(page);
+  await page.goto("/terminals");
+  await page.getByRole("button", { name: "New" }).click();
+
+  const terminalName = `Test Terminal ${Date.now()}`;
+  await page.getByLabel("Name").fill(terminalName);
+  await page.getByRole("button", { name: "Save" }).click();
+  // No store chosen — client-side validation should block the save.
+  await expect(page.getByRole("dialog", { name: "New Terminal" })).toBeVisible();
+
+  await page.getByText("Select store…").click();
+  await page.getByRole("option").first().click();
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Terminal created.")).toBeVisible();
+  await expect(page.getByText(terminalName)).toBeVisible();
 });
