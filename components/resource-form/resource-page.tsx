@@ -40,6 +40,10 @@ export interface ResourcePageProps<
   updateSchema: ZodType<TUpdate>;
   getRowId: (row: TRow) => string;
   searchable?: boolean;
+  /** Extra server-side filters (column: value) merged into the list query. */
+  filters?: Record<string, string>;
+  /** Pre-filled values for the New dialog, e.g. the currently store-filtered view's store. */
+  createDefaultValues?: Partial<TCreate>;
 }
 
 export function ResourcePage<
@@ -55,6 +59,8 @@ export function ResourcePage<
   updateSchema,
   getRowId,
   searchable = true,
+  filters,
+  createDefaultValues,
 }: ResourcePageProps<TRow, TCreate, TUpdate>) {
   const [createOpen, setCreateOpen] = useState(false);
   const [editingRow, setEditingRow] = useState<TRow | null>(null);
@@ -193,7 +199,12 @@ export function ResourcePage<
             <DialogHeader>
               <DialogTitle>New {singular}</DialogTitle>
             </DialogHeader>
-            <ResourceForm schema={createSchema} fields={fields} onSubmit={handleCreate} />
+            <ResourceForm
+              schema={createSchema}
+              fields={fields}
+              defaultValues={createDefaultValues}
+              onSubmit={handleCreate}
+            />
           </DialogContent>
         </Dialog>
       </div>
@@ -203,6 +214,7 @@ export function ResourcePage<
         columns={columnsWithActions}
         getRowId={getRowId}
         searchable={searchable}
+        filters={filters}
       />
 
       <Dialog

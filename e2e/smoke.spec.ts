@@ -682,3 +682,36 @@ test("New User: a duplicate email gets a clear conflict message, not a generic f
   await expect(page.getByText("already exists")).toBeVisible();
   await expect(page.getByText("Failed to save.")).not.toBeVisible();
 });
+
+test("Warehouses: store cards filter the list, default to the first store", async ({ page }) => {
+  await login(page);
+  await page.goto("/warehouses");
+
+  const cards = page.locator("button[aria-pressed]");
+  await expect(cards.first()).toBeVisible();
+  const cardCount = await cards.count();
+  expect(cardCount).toBeGreaterThan(1);
+  await expect(cards.first()).toHaveAttribute("aria-pressed", "true");
+
+  // Create a warehouse from this store-filtered view — its Store field
+  // should already be pre-filled to the selected card, and the new row
+  // should show up without switching cards.
+  const warehouseName = `Test Warehouse ${Date.now()}`;
+  await page.getByRole("button", { name: "New" }).click();
+  await page.getByLabel("Name").fill(warehouseName);
+  await page.getByLabel("Address").fill("789 Test Road");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Warehouse created.")).toBeVisible();
+  await expect(page.getByText(warehouseName)).toBeVisible();
+});
+
+test("Warehouses: a store-scoped Admin sees only their own store card", async ({ page }) => {
+  test.skip(!ADMIN2_EMAIL || !ADMIN2_PASSWORD, "SEED_ADMIN2_EMAIL/PASSWORD not configured");
+  await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
+  await page.goto("/warehouses");
+
+  const cards = page.locator("button[aria-pressed]");
+  await expect(cards.first()).toBeVisible();
+  await expect(cards).toHaveCount(1);
+  await expect(cards.first()).toHaveAttribute("aria-pressed", "true");
+});
