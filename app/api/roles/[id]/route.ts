@@ -12,6 +12,7 @@ import { asAppSession } from "@/lib/auth/types";
 import { unscoped } from "@/lib/db";
 import { writeAuditLog } from "@/lib/security/audit";
 import { apiErrorResponse, parseJsonOrRespond } from "@/lib/validation/response";
+import { withStoreContext } from "@/middleware/scope";
 
 const rightsUpdateSchema = z.object({
   rights: z.array(
@@ -70,30 +71,32 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     (r) => !(SUPER_ADMIN_ONLY_MODULES as readonly string[]).includes(r.module),
   );
 
-  await unscoped().$transaction(
-    rights.map((r) =>
-      unscoped().roleRight.upsert({
-        where: { roleId_module_action: { roleId: id, module: r.module, action: r.action } },
-        update: { allowed: r.allowed },
-        create: { roleId: id, module: r.module, action: r.action, allowed: r.allowed },
-      }),
-    ),
-  );
+  return withStoreContext(async () => {
+    await unscoped().$transaction(
+      rights.map((r) =>
+        unscoped().roleRight.upsert({
+          where: { roleId_module_action: { roleId: id, module: r.module, action: r.action } },
+          update: { allowed: r.allowed },
+          create: { roleId: id, module: r.module, action: r.action, allowed: r.allowed },
+        }),
+      ),
+    );
 
-  const updated = await unscoped().role.findUnique({
-    where: { id },
-    include: { roleRights: { select: { module: true, action: true, allowed: true } } },
+    const updated = await unscoped().role.findUnique({
+      where: { id },
+      include: { roleRights: { select: { module: true, action: true, allowed: true } } },
+    });
+
+    await writeAuditLog({
+      userId: session.user.id,
+      storeId: session.user.storeId,
+      action: "update",
+      entityType: "role",
+      entityId: id,
+      beforeData: existing,
+      afterData: updated,
+    });
+
+    return Response.json(updated);
   });
-
-  await writeAuditLog({
-    userId: session.user.id,
-    storeId: session.user.storeId,
-    action: "update",
-    entityType: "role",
-    entityId: id,
-    beforeData: existing,
-    afterData: updated,
-  });
-
-  return Response.json(updated);
 }

@@ -12,6 +12,7 @@ import { asAppSession } from "@/lib/auth/types";
 import { unscoped } from "@/lib/db";
 import { writeAuditLog } from "@/lib/security/audit";
 import { apiErrorResponse, parseJsonOrRespond } from "@/lib/validation/response";
+import { withStoreContext } from "@/middleware/scope";
 
 const roleCreateSchema = z.object({
   name: z
@@ -66,32 +67,34 @@ export async function POST(request: Request) {
   const parsed = await parseJsonOrRespond(request, roleCreateSchema);
   if ("response" in parsed) return parsed.response;
 
-  const existing = await unscoped().role.findUnique({ where: { name: parsed.data.name } });
-  if (existing) {
-    return apiErrorResponse("conflict", "A role with that name already exists.", 409);
-  }
+  return withStoreContext(async () => {
+    const existing = await unscoped().role.findUnique({ where: { name: parsed.data.name } });
+    if (existing) {
+      return apiErrorResponse("conflict", "A role with that name already exists.", 409);
+    }
 
-  // Denies everything by default — the caller grants access module by
-  // module afterward via PATCH /api/roles/[id].
-  const role = await unscoped().role.create({
-    data: {
-      name: parsed.data.name,
-      roleRights: {
-        create: ALL_MODULES.flatMap((module) =>
-          RBAC_ACTIONS.map((action) => ({ module, action, allowed: false })),
-        ),
+    // Denies everything by default — the caller grants access module by
+    // module afterward via PATCH /api/roles/[id].
+    const role = await unscoped().role.create({
+      data: {
+        name: parsed.data.name,
+        roleRights: {
+          create: ALL_MODULES.flatMap((module) =>
+            RBAC_ACTIONS.map((action) => ({ module, action, allowed: false })),
+          ),
+        },
       },
-    },
-  });
+    });
 
-  await writeAuditLog({
-    userId: session.user.id,
-    storeId: session.user.storeId,
-    action: "create",
-    entityType: "role",
-    entityId: role.id,
-    afterData: role,
-  });
+    await writeAuditLog({
+      userId: session.user.id,
+      storeId: session.user.storeId,
+      action: "create",
+      entityType: "role",
+      entityId: role.id,
+      afterData: role,
+    });
 
-  return Response.json(role, { status: 201 });
+    return Response.json(role, { status: 201 });
+  });
 }
