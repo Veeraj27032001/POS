@@ -1,7 +1,6 @@
 "use client";
 
 import { Loader2Icon } from "lucide-react";
-import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -10,7 +9,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RBAC_ACTIONS, SUPER_ADMIN_ONLY_MODULES } from "@/lib/auth/rbac";
-import { asAppSession } from "@/lib/auth/types";
 
 interface Right {
   module: string;
@@ -45,9 +43,6 @@ const MODULE_LABELS: Record<string, string> = {
 
 export default function RoleDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { data } = useSession();
-  const session = asAppSession(data ?? null);
-  const isSuperAdmin = session?.user?.roleName === "Super Admin";
 
   const [role, setRole] = useState<RoleDetail | null>(null);
   const [grid, setGrid] = useState<Record<string, boolean>>({});
@@ -77,7 +72,7 @@ export default function RoleDetailPage() {
   }
 
   const modules = Array.from(new Set(role.roleRights.map((r) => r.module))).filter(
-    (module) => isSuperAdmin || !(SUPER_ADMIN_ONLY_MODULES as readonly string[]).includes(module),
+    (module) => !(SUPER_ADMIN_ONLY_MODULES as readonly string[]).includes(module),
   );
 
   async function handleSave() {

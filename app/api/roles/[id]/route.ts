@@ -62,17 +62,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const parsed = await parseJsonOrRespond(request, rightsUpdateSchema);
   if ("response" in parsed) return parsed.response;
 
-  // Only a Super Admin session may grant or revoke these three, on any
-  // role — this is the actual enforcement of "only Super Admin touches
-  // Stores/Numbering Series/Reason Codes access." An Admin submitting a row
-  // for one of these modules has it silently dropped, not just rejected as
-  // a whole request, so the rest of a legitimate edit still goes through.
-  const isSuperAdmin = session.user.roleName === SUPER_ADMIN_ROLE_NAME;
-  const rights = isSuperAdmin
-    ? parsed.data.rights
-    : parsed.data.rights.filter(
-        (r) => !(SUPER_ADMIN_ONLY_MODULES as readonly string[]).includes(r.module),
-      );
+  // This endpoint never touches the Super Admin role itself (blocked above),
+  // so every role it edits is structurally barred from these modules —
+  // silently drop any submitted row for one, regardless of who's submitting,
+  // rather than rejecting the whole request.
+  const rights = parsed.data.rights.filter(
+    (r) => !(SUPER_ADMIN_ONLY_MODULES as readonly string[]).includes(r.module),
+  );
 
   await unscoped().$transaction(
     rights.map((r) =>
