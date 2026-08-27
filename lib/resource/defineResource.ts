@@ -8,8 +8,17 @@ import { withStoreContext } from "@/middleware/scope";
 import { writeAuditLog } from "@/lib/security/audit";
 import { parseListQueryParams } from "@/lib/pagination/queryParams";
 import { apiErrorResponse, parseJsonOrRespond } from "@/lib/validation/response";
+import { Prisma } from "@/generated/prisma/client";
 
 import { isResourceHookRejection } from "./types";
+
+function uniqueConstraintResponse(error: unknown) {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2002") {
+    return null;
+  }
+  const fields = (error.meta?.target as string[] | undefined)?.join(", ") ?? "this value";
+  return apiErrorResponse("conflict", `A record with this ${fields} already exists.`, 409);
+}
 import type { ResourceConfig, ResourceDelegate } from "./types";
 
 async function requireSession(module: string, action: string) {
@@ -114,7 +123,8 @@ export function defineResource<TCreate, TUpdate>(config: ResourceConfig<TCreate,
 
     const run = async () => {
       const { delegate } = await resolveDelegate(session.user.storeId);
-      let data = parsed.data as Record<string, unknown>;
+      const originalData = parsed.data as Record<string, unknown>;
+      let data = originalData;
       if (config.scoping === "required" && !config.explicitStoreId) {
         data.storeId = session.user.storeId;
       }
@@ -125,7 +135,16 @@ export function defineResource<TCreate, TUpdate>(config: ResourceConfig<TCreate,
         }
         data = result;
       }
-      const created = await delegate.create({ data });
+
+      let created: Record<string, unknown>;
+      try {
+        created = await delegate.create({ data });
+      } catch (error) {
+        const conflict = uniqueConstraintResponse(error);
+        if (conflict) return conflict;
+        throw error;
+      }
+
       await writeAuditLog({
         userId: session.user.id,
         storeId: session.user.storeId,
@@ -134,6 +153,11 @@ export function defineResource<TCreate, TUpdate>(config: ResourceConfig<TCreate,
         entityId: String(created.id),
         afterData: created,
       });
+
+      if (config.afterCreate) {
+        await config.afterCreate(created, originalData, session);
+      }
+
       return NextResponse.json(created, { status: 201 });
     };
 

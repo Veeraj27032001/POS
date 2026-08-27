@@ -344,12 +344,16 @@ export const userResource = defineResource({
   beforeCreate: async (data, session) => {
     const guarded = await guardRoleAssignment(data, session);
     if (isResourceHookRejection(guarded)) return guarded;
-    const { password, email, name, ...rest } = guarded as {
-      password: string;
-      email: string;
-      name: string;
-      [key: string]: unknown;
-    };
+    const { password, ...rest } = guarded as { password: string; [key: string]: unknown };
+    return { ...rest, passwordHash: await hashSecret(password) };
+  },
+  beforeUpdate: async (data, existing, session) => guardRoleAssignment(data, session, existing),
+  // Runs only once the user really exists in the DB — a duplicate-email
+  // conflict (or any other create failure) now correctly never sends this.
+  afterCreate: (created, originalData) => {
+    const email = created.email as string;
+    const name = created.name as string;
+    const password = originalData.password as string;
     getNotifier()
       .send({
         to: email,
@@ -358,9 +362,7 @@ export const userResource = defineResource({
         body: `Hi ${name},\n\nAn account has been created for you.\n\nEmail: ${email}\nTemporary password: ${password}\n\nSign in and change this password as soon as possible.`,
       })
       .catch((error) => console.error(`Failed to send welcome email to ${email}.`, error));
-    return { ...rest, email, name, passwordHash: await hashSecret(password) };
   },
-  beforeUpdate: async (data, existing, session) => guardRoleAssignment(data, session, existing),
 });
 
 export const financialYearResource = defineResource({

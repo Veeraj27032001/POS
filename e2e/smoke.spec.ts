@@ -641,3 +641,37 @@ test("Terminal: store selection is required", async ({ page }) => {
   await expect(page.getByText("Terminal created.")).toBeVisible();
   await expect(page.getByText(terminalName)).toBeVisible();
 });
+
+test("New User: a duplicate email gets a clear conflict message, not a generic failure", async ({
+  page,
+}) => {
+  await login(page);
+  await page.goto("/users");
+
+  const duplicateEmail = `dup-${Date.now()}@example.com`;
+
+  await page.getByRole("button", { name: "New User" }).click();
+  await page.getByLabel("Name").fill("First User");
+  await page.getByLabel("Email").fill(duplicateEmail);
+  await page.getByLabel("Temporary password").fill("TempPass123!");
+  await page.getByLabel("Confirm password").fill("TempPass123!");
+  await page.getByText("Select role…").click();
+  await page.getByRole("option", { name: "Cashier" }).click();
+  await page.getByText("Select store…").click();
+  await page.getByRole("option").first().click();
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("User created.")).toBeVisible();
+
+  await page.getByRole("button", { name: "New User" }).click();
+  await page.getByLabel("Name").fill("Second User");
+  await page.getByLabel("Email").fill(duplicateEmail);
+  await page.getByLabel("Temporary password").fill("TempPass123!");
+  await page.getByLabel("Confirm password").fill("TempPass123!");
+  await page.getByText("Select role…").click();
+  await page.getByRole("option", { name: "Cashier" }).click();
+  await page.getByText("Select store…").click();
+  await page.getByRole("option").first().click();
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("already exists")).toBeVisible();
+  await expect(page.getByText("Failed to save.")).not.toBeVisible();
+});

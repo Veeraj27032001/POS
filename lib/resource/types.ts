@@ -53,6 +53,16 @@ export interface ResourceConfig<TCreate, TUpdate> {
     existing: Record<string, unknown>,
     session: AppSession,
   ) => ResourceHookResult | Promise<ResourceHookResult>;
+  /** Runs only after the record is actually created — the right place for
+   * side effects like sending an email, so a failed create (e.g. a
+   * duplicate-email conflict) never fires them. `originalData` is the
+   * create input before beforeCreate transformed it, e.g. to recover a
+   * plain password that beforeCreate replaced with its hash. */
+  afterCreate?: (
+    created: Record<string, unknown>,
+    originalData: Record<string, unknown>,
+    session: AppSession,
+  ) => void | Promise<void>;
   /** Extra `where` conditions merged into every read/write, e.g. to hide
    * higher-privilege rows from lower-privilege viewers (Users' role
    * hierarchy). Applied on top of, never instead of, store scoping. */
