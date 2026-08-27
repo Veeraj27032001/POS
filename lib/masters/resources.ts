@@ -67,7 +67,7 @@ function withStoreIds(
 
 export const taxRegionResource = defineResource({
   name: "tax_region",
-  module: "settings",
+  module: "tax_settings",
   scoping: "none",
   createSchema: schemas.taxRegionCreateSchema,
   updateSchema: schemas.taxRegionUpdateSchema,
@@ -78,7 +78,7 @@ export const taxRegionResource = defineResource({
 
 export const taxSchemeResource = defineResource({
   name: "tax_scheme",
-  module: "settings",
+  module: "tax_settings",
   scoping: "none",
   createSchema: schemas.taxSchemeCreateSchema,
   updateSchema: schemas.taxSchemeUpdateSchema,
@@ -88,7 +88,7 @@ export const taxSchemeResource = defineResource({
 
 export const taxComponentResource = defineResource({
   name: "tax_component",
-  module: "settings",
+  module: "tax_settings",
   scoping: "none",
   createSchema: schemas.taxComponentCreateSchema,
   updateSchema: schemas.taxComponentUpdateSchema,
@@ -99,7 +99,7 @@ export const taxComponentResource = defineResource({
 
 export const taxCodeResource = defineResource({
   name: "tax_code",
-  module: "settings",
+  module: "tax_settings",
   scoping: "none",
   createSchema: schemas.taxCodeCreateSchema,
   updateSchema: schemas.taxCodeUpdateSchema,
@@ -188,7 +188,7 @@ export const terminalResource = defineResource({
 
 export const paymentMethodResource = defineResource({
   name: "payment_method",
-  module: "settings",
+  module: "payment_methods",
   scoping: "none",
   createSchema: schemas.paymentMethodCreateSchema,
   updateSchema: schemas.paymentMethodUpdateSchema,

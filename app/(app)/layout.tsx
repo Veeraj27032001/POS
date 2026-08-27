@@ -57,11 +57,11 @@ const NAV_ITEM_MODULE: Record<string, string> = {
   "/stores": "stores",
   "/warehouses": "settings",
   "/terminals": "settings",
-  "/payment-methods": "settings",
+  "/payment-methods": "payment_methods",
   "/reason-codes": "reason_codes",
   "/cash-denominations": "settings",
   "/numbering-series": "numbering_series",
-  "/settings/tax": "settings",
+  "/settings/tax": "tax_settings",
   "/settings/roles": "roles",
 };
 

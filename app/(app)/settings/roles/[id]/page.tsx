@@ -9,6 +9,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { RBAC_ACTIONS, SUPER_ADMIN_ONLY_MODULES } from "@/lib/auth/rbac";
 import { asAppSession } from "@/lib/auth/types";
 
 interface Right {
@@ -22,9 +23,6 @@ interface RoleDetail {
   name: string;
   roleRights: Right[];
 }
-
-const ACTIONS = ["view", "create", "update", "delete"] as const;
-const SUPER_ADMIN_ONLY_MODULES = ["stores", "numbering_series", "reason_codes"];
 
 const MODULE_LABELS: Record<string, string> = {
   products: "Products",
@@ -41,6 +39,8 @@ const MODULE_LABELS: Record<string, string> = {
   stores: "Stores",
   numbering_series: "Numbering Series",
   reason_codes: "Reason Codes",
+  payment_methods: "Payment Methods",
+  tax_settings: "Tax Settings",
 };
 
 export default function RoleDetailPage() {
@@ -77,14 +77,14 @@ export default function RoleDetailPage() {
   }
 
   const modules = Array.from(new Set(role.roleRights.map((r) => r.module))).filter(
-    (module) => isSuperAdmin || !SUPER_ADMIN_ONLY_MODULES.includes(module),
+    (module) => isSuperAdmin || !(SUPER_ADMIN_ONLY_MODULES as readonly string[]).includes(module),
   );
 
   async function handleSave() {
     setSaving(true);
     try {
       const rights = modules.flatMap((module) =>
-        ACTIONS.map((action) => ({
+        RBAC_ACTIONS.map((action) => ({
           module,
           action,
           allowed: grid[`${module}:${action}`] ?? false,
@@ -121,7 +121,7 @@ export default function RoleDetailPage() {
           <thead>
             <tr className="border-b">
               <th className="p-3 text-left font-medium">Module</th>
-              {ACTIONS.map((action) => (
+              {RBAC_ACTIONS.map((action) => (
                 <th key={action} className="p-3 text-center font-medium capitalize">
                   {action}
                 </th>
@@ -132,7 +132,7 @@ export default function RoleDetailPage() {
             {modules.map((module) => (
               <tr key={module} className="border-b last:border-0">
                 <td className="p-3">{MODULE_LABELS[module] ?? module}</td>
-                {ACTIONS.map((action) => {
+                {RBAC_ACTIONS.map((action) => {
                   const key = `${module}:${action}`;
                   return (
                     <td key={action} className="p-3 text-center">

@@ -523,6 +523,13 @@ test("Admin: store picker is populated, Super Admin is hidden, and Manager/Cashi
   await page.getByText("Select store…").click();
   await page.getByRole("option").first().click();
   await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("User created.")).toBeVisible();
+
+  // Confirm it exists via search rather than assuming it's on the default
+  // page — this list has accumulated many test users across runs, so a
+  // freshly created row (no defaultSort on this resource) isn't guaranteed
+  // to land on the first page.
+  await page.getByPlaceholder("Search…").fill(testName);
   await expect(page.getByText(testName)).toBeVisible();
 });
 

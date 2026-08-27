@@ -24,7 +24,13 @@ export function roleRank(roleName: string): number {
 // Never assignable through the app — seeded once, promoted to by hand only.
 export const SUPER_ADMIN_ROLE_NAME = "Super Admin";
 
-export const SUPER_ADMIN_ONLY_MODULES = ["stores", "numbering_series", "reason_codes"] as const;
+export const SUPER_ADMIN_ONLY_MODULES = [
+  "stores",
+  "numbering_series",
+  "reason_codes",
+  "payment_methods",
+  "tax_settings",
+] as const;
 
 // Regular business modules — open to Admin (and Super Admin), denied to
 // Manager/Cashier by default. Shared between the seed data and the Roles
