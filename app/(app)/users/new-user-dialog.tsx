@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogFormActions,
+  DialogFormBody,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -64,61 +66,70 @@ export function NewUserDialog() {
         <DialogHeader>
           <DialogTitle>New User</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit(guardedSubmit)} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="name">Name</Label>
-            <Input id="name" {...register("name")} />
-            {errors.name && <p className="text-sm text-red-600">{errors.name.message}</p>}
-          </div>
+        <form
+          onSubmit={handleSubmit(guardedSubmit)}
+          className="flex min-h-0 flex-1 flex-col overflow-hidden"
+        >
+          <DialogFormBody>
+            <div className="space-y-1.5">
+              <Label htmlFor="name">Name</Label>
+              <Input id="name" {...register("name")} />
+              {errors.name && <p className="text-sm text-red-600">{errors.name.message}</p>}
+            </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" {...register("email")} />
-            {errors.email && <p className="text-sm text-red-600">{errors.email.message}</p>}
-          </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" type="email" {...register("email")} />
+              {errors.email && <p className="text-sm text-red-600">{errors.email.message}</p>}
+            </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="password">Temporary password</Label>
-            <Input id="password" type="password" {...register("password")} />
-            {errors.password && <p className="text-sm text-red-600">{errors.password.message}</p>}
-          </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="password">Temporary password</Label>
+              <Input id="password" type="password" {...register("password")} />
+              {errors.password && <p className="text-sm text-red-600">{errors.password.message}</p>}
+            </div>
 
-          <div className="space-y-1.5">
-            <Label>Role</Label>
-            <Controller
-              name="roleId"
-              control={control}
-              render={({ field }) => (
-                <SearchableSelect
-                  options={roles}
-                  value={field.value ?? null}
-                  onChange={(v) => field.onChange(v ?? "")}
-                  placeholder="Select role…"
-                />
-              )}
-            />
-            {errors.roleId && <p className="text-sm text-red-600">{errors.roleId.message}</p>}
-          </div>
+            <div className="space-y-1.5">
+              <Label>Role</Label>
+              <Controller
+                name="roleId"
+                control={control}
+                render={({ field }) => (
+                  <SearchableSelect
+                    options={roles}
+                    value={field.value ?? null}
+                    onChange={(v) => field.onChange(v ?? "")}
+                    placeholder="Select role…"
+                  />
+                )}
+              />
+              {errors.roleId && <p className="text-sm text-red-600">{errors.roleId.message}</p>}
+            </div>
 
-          <div className="space-y-1.5">
-            <Label>Store (required for Manager/Cashier; leave blank for cross-store access)</Label>
-            <Controller
-              name="storeId"
-              control={control}
-              render={({ field }) => (
-                <SearchableSelect
-                  options={stores}
-                  value={field.value ?? null}
-                  onChange={field.onChange}
-                  placeholder="Select store…"
-                />
-              )}
-            />
-          </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label>
+                Store (required for Manager/Cashier; leave blank for cross-store access)
+              </Label>
+              <Controller
+                name="storeId"
+                control={control}
+                render={({ field }) => (
+                  <SearchableSelect
+                    options={stores}
+                    value={field.value ?? null}
+                    onChange={field.onChange}
+                    placeholder="Select store…"
+                  />
+                )}
+              />
+            </div>
+          </DialogFormBody>
 
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Saving…" : "Save"}
-          </Button>
+          <DialogFormActions>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Saving…" : "Save"}
+            </Button>
+          </DialogFormActions>
         </form>
       </DialogContent>
     </Dialog>

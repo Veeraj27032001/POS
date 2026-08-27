@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogFormActions,
+  DialogFormBody,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -69,65 +71,69 @@ export function NewSeriesDialog() {
         </DialogHeader>
         <form
           onSubmit={handleSubmit(guardedSubmit)}
-          className="max-h-[70vh] space-y-4 overflow-y-auto"
+          className="flex min-h-0 flex-1 flex-col overflow-hidden"
         >
-          <div className="space-y-1.5">
-            <Label>Document type</Label>
-            <Controller
-              name="seriesType"
-              control={control}
-              render={({ field }) => (
-                <SearchableSelect
-                  options={SERIES_TYPE_OPTIONS}
-                  value={field.value ?? null}
-                  onChange={(v) => field.onChange(v ?? "")}
-                  placeholder="Select document type…"
-                />
+          <DialogFormBody>
+            <div className="space-y-1.5">
+              <Label>Document type</Label>
+              <Controller
+                name="seriesType"
+                control={control}
+                render={({ field }) => (
+                  <SearchableSelect
+                    options={SERIES_TYPE_OPTIONS}
+                    value={field.value ?? null}
+                    onChange={(v) => field.onChange(v ?? "")}
+                    placeholder="Select document type…"
+                  />
+                )}
+              />
+              {errors.seriesType && (
+                <p className="text-sm text-red-600">{errors.seriesType.message}</p>
               )}
-            />
-            {errors.seriesType && (
-              <p className="text-sm text-red-600">{errors.seriesType.message}</p>
-            )}
-          </div>
+            </div>
 
-          <div className="space-y-1.5">
-            <Label>Financial year</Label>
-            <Controller
-              name="financialYearId"
-              control={control}
-              render={({ field }) => (
-                <SearchableSelect
-                  options={financialYears}
-                  value={field.value ?? null}
-                  onChange={(v) => field.onChange(v ?? "")}
-                  placeholder="Select financial year…"
-                />
+            <div className="space-y-1.5">
+              <Label>Financial year</Label>
+              <Controller
+                name="financialYearId"
+                control={control}
+                render={({ field }) => (
+                  <SearchableSelect
+                    options={financialYears}
+                    value={field.value ?? null}
+                    onChange={(v) => field.onChange(v ?? "")}
+                    placeholder="Select financial year…"
+                  />
+                )}
+              />
+              {errors.financialYearId && (
+                <p className="text-sm text-red-600">{errors.financialYearId.message}</p>
               )}
-            />
-            {errors.financialYearId && (
-              <p className="text-sm text-red-600">{errors.financialYearId.message}</p>
-            )}
-          </div>
+            </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="prefix">Prefix</Label>
-            <Input id="prefix" placeholder="e.g. CB" {...register("prefix")} />
-          </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="prefix">Prefix</Label>
+              <Input id="prefix" placeholder="e.g. CB" {...register("prefix")} />
+            </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="currentNumber">Starting number</Label>
-            <Input
-              id="currentNumber"
-              type="number"
-              {...register("currentNumber", {
-                setValueAs: (v) => (v === "" || v === null ? 0 : Number(v)),
-              })}
-            />
-          </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="currentNumber">Starting number</Label>
+              <Input
+                id="currentNumber"
+                type="number"
+                {...register("currentNumber", {
+                  setValueAs: (v) => (v === "" || v === null ? 0 : Number(v)),
+                })}
+              />
+            </div>
+          </DialogFormBody>
 
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Saving…" : "Save"}
-          </Button>
+          <DialogFormActions>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Saving…" : "Save"}
+            </Button>
+          </DialogFormActions>
         </form>
       </DialogContent>
     </Dialog>

@@ -12,6 +12,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
+  DialogFormActions,
+  DialogFormBody,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -71,130 +73,136 @@ export function NewProductDialog() {
         </DialogHeader>
         <form
           onSubmit={handleSubmit(guardedSubmit)}
-          className="max-h-[70vh] space-y-4 overflow-y-auto"
+          className="flex min-h-0 flex-1 flex-col overflow-hidden"
         >
-          <div className="space-y-1.5">
-            <Label htmlFor="name">Name</Label>
-            <Input id="name" placeholder="e.g. Maggi 10rs Pack" {...register("name")} />
-            {errors.name && <p className="text-sm text-red-600">{errors.name.message}</p>}
-          </div>
+          <DialogFormBody>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label htmlFor="name">Name</Label>
+              <Input id="name" placeholder="e.g. Maggi 10rs Pack" {...register("name")} />
+              {errors.name && <p className="text-sm text-red-600">{errors.name.message}</p>}
+            </div>
 
-          <div className="space-y-1.5">
-            <Label>Category</Label>
+            <div className="space-y-1.5">
+              <Label>Category</Label>
+              <Controller
+                name="categoryId"
+                control={control}
+                render={({ field }) => (
+                  <SearchableSelect
+                    options={categories}
+                    value={field.value ?? null}
+                    onChange={field.onChange}
+                    placeholder="Select category…"
+                  />
+                )}
+              />
+              {errors.categoryId && (
+                <p className="text-sm text-red-600">{errors.categoryId.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Tax code (HSN)</Label>
+              <Controller
+                name="taxCodeId"
+                control={control}
+                render={({ field }) => (
+                  <SearchableSelect
+                    options={taxCodes}
+                    value={field.value ?? null}
+                    onChange={(v) => field.onChange(v ?? "")}
+                    placeholder="Select tax code…"
+                  />
+                )}
+              />
+              {errors.taxCodeId && (
+                <p className="text-sm text-red-600">{errors.taxCodeId.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Unit of measure</Label>
+              <Controller
+                name="uomId"
+                control={control}
+                render={({ field }) => (
+                  <SearchableSelect
+                    options={uoms}
+                    value={field.value ?? null}
+                    onChange={(v) => field.onChange(v ?? "")}
+                    placeholder="Select UOM…"
+                  />
+                )}
+              />
+              {errors.uomId && <p className="text-sm text-red-600">{errors.uomId.message}</p>}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="price">Price</Label>
+              <Input
+                id="price"
+                type="number"
+                step="0.01"
+                {...register("price", { valueAsNumber: true })}
+              />
+              {errors.price && <p className="text-sm text-red-600">{errors.price.message}</p>}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="skuBarcode">Manufacturer barcode (optional)</Label>
+              <Input id="skuBarcode" {...register("skuBarcode")} />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="reorderLevel">Reorder level (optional)</Label>
+              <Input
+                id="reorderLevel"
+                type="number"
+                {...register("reorderLevel", {
+                  setValueAs: (v) => (v === "" || v === null ? undefined : Number(v)),
+                })}
+              />
+              {errors.reorderLevel && (
+                <p className="text-sm text-red-600">{errors.reorderLevel.message}</p>
+              )}
+            </div>
+
             <Controller
-              name="categoryId"
+              name="trackExpiry"
               control={control}
               render={({ field }) => (
-                <SearchableSelect
-                  options={categories}
-                  value={field.value ?? null}
-                  onChange={field.onChange}
-                  placeholder="Select category…"
-                />
+                <div className="flex items-center gap-2 sm:col-span-2">
+                  <Checkbox
+                    id="trackExpiry"
+                    checked={Boolean(field.value)}
+                    onCheckedChange={(checked) => field.onChange(checked)}
+                  />
+                  <Label htmlFor="trackExpiry">Track expiry</Label>
+                </div>
               )}
             />
-            {errors.categoryId && (
-              <p className="text-sm text-red-600">{errors.categoryId.message}</p>
-            )}
-          </div>
 
-          <div className="space-y-1.5">
-            <Label>Tax code (HSN)</Label>
             <Controller
-              name="taxCodeId"
+              name="stockTracked"
               control={control}
               render={({ field }) => (
-                <SearchableSelect
-                  options={taxCodes}
-                  value={field.value ?? null}
-                  onChange={(v) => field.onChange(v ?? "")}
-                  placeholder="Select tax code…"
-                />
+                <div className="flex items-center gap-2 sm:col-span-2">
+                  <Checkbox
+                    id="stockTracked"
+                    checked={Boolean(field.value)}
+                    onCheckedChange={(checked) => field.onChange(checked)}
+                  />
+                  <Label htmlFor="stockTracked">Track stock</Label>
+                </div>
               )}
             />
-            {errors.taxCodeId && <p className="text-sm text-red-600">{errors.taxCodeId.message}</p>}
-          </div>
+          </DialogFormBody>
 
-          <div className="space-y-1.5">
-            <Label>Unit of measure</Label>
-            <Controller
-              name="uomId"
-              control={control}
-              render={({ field }) => (
-                <SearchableSelect
-                  options={uoms}
-                  value={field.value ?? null}
-                  onChange={(v) => field.onChange(v ?? "")}
-                  placeholder="Select UOM…"
-                />
-              )}
-            />
-            {errors.uomId && <p className="text-sm text-red-600">{errors.uomId.message}</p>}
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="price">Price</Label>
-            <Input
-              id="price"
-              type="number"
-              step="0.01"
-              {...register("price", { valueAsNumber: true })}
-            />
-            {errors.price && <p className="text-sm text-red-600">{errors.price.message}</p>}
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="skuBarcode">Manufacturer barcode (optional)</Label>
-            <Input id="skuBarcode" {...register("skuBarcode")} />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="reorderLevel">Reorder level (optional)</Label>
-            <Input
-              id="reorderLevel"
-              type="number"
-              {...register("reorderLevel", {
-                setValueAs: (v) => (v === "" || v === null ? undefined : Number(v)),
-              })}
-            />
-            {errors.reorderLevel && (
-              <p className="text-sm text-red-600">{errors.reorderLevel.message}</p>
-            )}
-          </div>
-
-          <Controller
-            name="trackExpiry"
-            control={control}
-            render={({ field }) => (
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="trackExpiry"
-                  checked={Boolean(field.value)}
-                  onCheckedChange={(checked) => field.onChange(checked)}
-                />
-                <Label htmlFor="trackExpiry">Track expiry</Label>
-              </div>
-            )}
-          />
-
-          <Controller
-            name="stockTracked"
-            control={control}
-            render={({ field }) => (
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="stockTracked"
-                  checked={Boolean(field.value)}
-                  onCheckedChange={(checked) => field.onChange(checked)}
-                />
-                <Label htmlFor="stockTracked">Track stock</Label>
-              </div>
-            )}
-          />
-
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Saving…" : "Save"}
-          </Button>
+          <DialogFormActions>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Saving…" : "Save"}
+            </Button>
+          </DialogFormActions>
         </form>
       </DialogContent>
     </Dialog>

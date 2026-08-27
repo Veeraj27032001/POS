@@ -50,7 +50,7 @@ function DialogContent({
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "bg-popover text-popover-foreground ring-foreground/10 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 fixed top-1/2 left-1/2 z-50 grid max-h-[85vh] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto rounded-2xl p-4 text-sm ring-1 backdrop-blur-xl duration-100 outline-none sm:max-w-lg",
+          "bg-popover text-popover-foreground ring-foreground/10 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 fixed top-1/2 left-1/2 z-50 flex max-h-[85vh] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col gap-4 overflow-hidden rounded-2xl p-4 text-sm ring-1 backdrop-blur-xl duration-100 outline-none sm:max-w-lg",
           className,
         )}
         {...props}
@@ -72,7 +72,11 @@ function DialogContent({
 
 function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
-    <div data-slot="dialog-header" className={cn("flex flex-col gap-2", className)} {...props} />
+    <div
+      data-slot="dialog-header"
+      className={cn("flex shrink-0 flex-col gap-2", className)}
+      {...props}
+    />
   );
 }
 
@@ -88,7 +92,7 @@ function DialogFooter({
     <div
       data-slot="dialog-footer"
       className={cn(
-        "bg-muted/50 -mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-2xl border-t p-4 sm:flex-row sm:justify-end",
+        "bg-muted/50 -mx-4 -mb-4 flex shrink-0 flex-col-reverse gap-2 rounded-b-2xl border-t p-4 sm:flex-row sm:justify-end",
         className,
       )}
       {...props}
@@ -98,6 +102,32 @@ function DialogFooter({
         <DialogPrimitive.Close render={<Button variant="outline" />}>Close</DialogPrimitive.Close>
       )}
     </div>
+  );
+}
+
+/** Wraps a <form>'s scrollable field list — grid layout, own scroll region,
+ * so header/footer stay pinned within DialogContent's fixed height. */
+function DialogFormBody({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="dialog-form-body"
+      className={cn(
+        "grid min-h-0 flex-1 grid-cols-1 gap-x-4 gap-y-4 overflow-x-hidden overflow-y-auto py-1 sm:grid-cols-2",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+/** Pinned spot for a form's submit button, below DialogFormBody. */
+function DialogFormActions({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="dialog-form-actions"
+      className={cn("mt-3 shrink-0 border-t pt-3", className)}
+      {...props}
+    />
   );
 }
 
@@ -130,6 +160,8 @@ export {
   DialogContent,
   DialogDescription,
   DialogFooter,
+  DialogFormActions,
+  DialogFormBody,
   DialogHeader,
   DialogOverlay,
   DialogPortal,

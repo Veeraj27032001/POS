@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogFormActions,
+  DialogFormBody,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -56,15 +58,24 @@ function NewRoleDialog({ onCreated }: { onCreated: () => void }) {
         <DialogHeader>
           <DialogTitle>New Role</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="role-name">Name</Label>
-            <Input id="role-name" value={name} onChange={(e) => setName(e.target.value)} required />
-          </div>
-          <Button type="submit" disabled={submitting}>
-            {submitting && <Loader2Icon className="size-3.5 animate-spin" />}
-            Save
-          </Button>
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <DialogFormBody>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label htmlFor="role-name">Name</Label>
+              <Input
+                id="role-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
+            </div>
+          </DialogFormBody>
+          <DialogFormActions>
+            <Button type="submit" disabled={submitting}>
+              {submitting && <Loader2Icon className="size-3.5 animate-spin" />}
+              Save
+            </Button>
+          </DialogFormActions>
         </form>
       </DialogContent>
     </Dialog>

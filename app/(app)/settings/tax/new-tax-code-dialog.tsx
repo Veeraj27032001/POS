@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogFormActions,
+  DialogFormBody,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -65,53 +67,60 @@ export function NewTaxCodeDialog() {
         <DialogHeader>
           <DialogTitle>New Tax Code</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit(guardedSubmit)} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label>Scheme</Label>
-            <Controller
-              name="schemeId"
-              control={control}
-              render={({ field }) => (
-                <SearchableSelect
-                  options={schemes}
-                  value={field.value ?? null}
-                  onChange={(v) => field.onChange(v ?? "")}
-                  placeholder="Select scheme…"
-                />
+        <form
+          onSubmit={handleSubmit(guardedSubmit)}
+          className="flex min-h-0 flex-1 flex-col overflow-hidden"
+        >
+          <DialogFormBody>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label>Scheme</Label>
+              <Controller
+                name="schemeId"
+                control={control}
+                render={({ field }) => (
+                  <SearchableSelect
+                    options={schemes}
+                    value={field.value ?? null}
+                    onChange={(v) => field.onChange(v ?? "")}
+                    placeholder="Select scheme…"
+                  />
+                )}
+              />
+              {errors.schemeId && <p className="text-sm text-red-600">{errors.schemeId.message}</p>}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="code">Code (HSN)</Label>
+              <Input id="code" {...register("code")} />
+              {errors.code && <p className="text-sm text-red-600">{errors.code.message}</p>}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="description">Description</Label>
+              <Input id="description" {...register("description")} />
+              {errors.description && (
+                <p className="text-sm text-red-600">{errors.description.message}</p>
               )}
-            />
-            {errors.schemeId && <p className="text-sm text-red-600">{errors.schemeId.message}</p>}
-          </div>
+            </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="code">Code (HSN)</Label>
-            <Input id="code" {...register("code")} />
-            {errors.code && <p className="text-sm text-red-600">{errors.code.message}</p>}
-          </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label htmlFor="componentGroup">Component group</Label>
+              <Input
+                id="componentGroup"
+                placeholder="CGST_SGST or IGST"
+                {...register("componentGroup")}
+              />
+              {errors.componentGroup && (
+                <p className="text-sm text-red-600">{errors.componentGroup.message}</p>
+              )}
+            </div>
+          </DialogFormBody>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="description">Description</Label>
-            <Input id="description" {...register("description")} />
-            {errors.description && (
-              <p className="text-sm text-red-600">{errors.description.message}</p>
-            )}
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="componentGroup">Component group</Label>
-            <Input
-              id="componentGroup"
-              placeholder="CGST_SGST or IGST"
-              {...register("componentGroup")}
-            />
-            {errors.componentGroup && (
-              <p className="text-sm text-red-600">{errors.componentGroup.message}</p>
-            )}
-          </div>
-
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Saving…" : "Save"}
-          </Button>
+          <DialogFormActions>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Saving…" : "Save"}
+            </Button>
+          </DialogFormActions>
         </form>
       </DialogContent>
     </Dialog>
