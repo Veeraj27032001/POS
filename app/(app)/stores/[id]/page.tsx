@@ -23,9 +23,37 @@ export default function StoreViewPage() {
       fields={[
         { name: "name", label: "Name", type: "text" },
         { name: "address", label: "Address", type: "text" },
+        {
+          name: "countryId",
+          label: "Country",
+          type: "select",
+          optionsResource: "countries",
+          placeholder: "Select country…",
+        },
+        {
+          name: "stateId",
+          label: "State",
+          type: "select",
+          optionsResource: "states",
+          dependsOn: "countryId",
+          placeholder: "Select state…",
+        },
         { name: "gstin", label: "GSTIN", type: "text" },
-        { name: "timezone", label: "Timezone", type: "text" },
-        { name: "defaultCurrency", label: "Currency", type: "text" },
+        {
+          name: "currencyId",
+          label: "Currency",
+          type: "select",
+          optionsResource: "currencies",
+          optionsLabelField: "code",
+          placeholder: "Select currency…",
+        },
+        {
+          name: "timezoneId",
+          label: "Timezone",
+          type: "select",
+          optionsResource: "timezones",
+          placeholder: "Select timezone…",
+        },
         { name: "logoUrl", label: "Logo", type: "file" },
       ]}
       updateSchema={storeUpdateSchema}

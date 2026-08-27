@@ -4,12 +4,20 @@ import { useEffect, useState } from "react";
 
 import type { SearchableSelectOption } from "@/components/searchable-select";
 
-export function useOptionsList(resource: string, labelField: string): SearchableSelectOption[] {
+export function useOptionsList(
+  resource: string,
+  labelField: string,
+  extraQuery?: string,
+): SearchableSelectOption[] {
   const [options, setOptions] = useState<SearchableSelectOption[]>([]);
 
   useEffect(() => {
+    if (!resource) {
+      setOptions([]);
+      return;
+    }
     let cancelled = false;
-    fetch(`/api/${resource}?pageSize=200`)
+    fetch(`/api/${resource}?pageSize=200${extraQuery ? `&${extraQuery}` : ""}`)
       .then((res) => res.json())
       .then((json: { data: Record<string, unknown>[] }) => {
         if (cancelled) return;
@@ -26,7 +34,7 @@ export function useOptionsList(resource: string, labelField: string): Searchable
     return () => {
       cancelled = true;
     };
-  }, [resource, labelField]);
+  }, [resource, labelField, extraQuery]);
 
   return options;
 }

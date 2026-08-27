@@ -16,6 +16,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { useOptionsList } from "@/lib/masters/useOptionsList";
 import { useInvalidateResource } from "@/lib/pagination/useList";
 import { cn } from "@/lib/utils";
 
@@ -35,6 +36,25 @@ function formatValue(value: unknown, field: ResourceFieldConfig): string {
     return match?.label ?? String(value);
   }
   return String(value);
+}
+
+function DynamicFieldValue({
+  field,
+  value,
+  dependsOnValue,
+}: {
+  field: ResourceFieldConfig;
+  value: unknown;
+  dependsOnValue?: unknown;
+}) {
+  const ready = !field.dependsOn || Boolean(dependsOnValue);
+  const options = useOptionsList(
+    ready ? field.optionsResource! : "",
+    field.optionsLabelField ?? "name",
+    field.dependsOn && dependsOnValue ? `${field.dependsOn}=${dependsOnValue}` : undefined,
+  );
+  if (value === null || value === undefined || value === "") return <>—</>;
+  return <>{options.find((option) => option.value === value)?.label ?? String(value)}</>;
 }
 
 export interface ResourceViewPageProps<TUpdate extends FieldValues> {
@@ -203,7 +223,19 @@ export function ResourceViewPage<
             <div key={field.name} className="bg-card flex flex-col gap-1 p-4 text-sm">
               <dt className="text-muted-foreground">{field.label}</dt>
               <dd className="font-medium break-words">
-                {formatValue((row as Record<string, unknown>)[field.name], field)}
+                {field.optionsResource ? (
+                  <DynamicFieldValue
+                    field={field}
+                    value={(row as Record<string, unknown>)[field.name]}
+                    dependsOnValue={
+                      field.dependsOn
+                        ? (row as Record<string, unknown>)[field.dependsOn]
+                        : undefined
+                    }
+                  />
+                ) : (
+                  formatValue((row as Record<string, unknown>)[field.name], field)
+                )}
               </dd>
             </div>
           ))}
