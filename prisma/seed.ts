@@ -152,15 +152,12 @@ async function main() {
     taxCodes[hsn.code] = taxCode;
   }
 
-  console.log("Seeding cash denominations…");
-  for (const [i, denom] of DENOMINATIONS.entries()) {
-    const id = fixedId(100 + i);
-    await db.cashDenomination.upsert({
-      where: { id },
-      update: {},
-      create: { id, value: denom.value, type: denom.type, currency: "INR" },
-    });
-  }
+  console.log("Seeding tax engines…");
+  await db.taxEngine.upsert({
+    where: { code: "india_standard" },
+    update: {},
+    create: { code: "india_standard", name: "India Standard" },
+  });
 
   console.log("Seeding reason codes…");
   for (const reason of REASON_CODES) {
@@ -289,6 +286,22 @@ async function main() {
       gstin: "29AAAAA0000A1Z5",
     },
   });
+
+  console.log("Seeding cash denominations…");
+  for (const [i, denom] of DENOMINATIONS.entries()) {
+    const id = fixedId(100 + i);
+    await db.cashDenomination.upsert({
+      where: { id },
+      update: {},
+      create: {
+        id,
+        value: denom.value,
+        type: denom.type,
+        storeId: store.id,
+        currencyId: inrCurrency.id,
+      },
+    });
+  }
 
   const warehouse = await db.warehouse.upsert({
     where: { id: IDS.warehouse },

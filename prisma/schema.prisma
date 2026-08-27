@@ -75,7 +75,8 @@ model Currency {
   symbol   String
   isActive Boolean @default(true) @map("is_active")
 
-  stores Store[]
+  stores            Store[]
+  cashDenominations CashDenomination[]
 
   @@map("currencies")
 }
@@ -100,6 +101,8 @@ model Store {
   state             State?     @relation(fields: [stateId], references: [id])
   taxRegionId       String?    @map("tax_region_id")
   taxRegion         TaxRegion? @relation(fields: [taxRegionId], references: [id])
+  taxEngineId       String?    @map("tax_engine_id")
+  taxEngine         TaxEngine? @relation(fields: [taxEngineId], references: [id])
   timezoneId        String?    @map("timezone_id")
   storeTimezone     Timezone?  @relation(fields: [timezoneId], references: [id])
   currencyId        String?    @map("currency_id")
@@ -114,16 +117,17 @@ model Store {
   createdAt         DateTime   @default(now()) @map("created_at")
   updatedAt         DateTime   @updatedAt @map("updated_at")
 
-  users           User[]
-  numberingSeries NumberingSeries[]
-  auditLogs       AuditLog[]
-  warehouses      Warehouse[]
-  terminals       Terminal[]
-  priceLists      PriceList[]
-  loyaltyRules    LoyaltyRule[]
-  apiCredentials  ApiCredential[]
-  customers       Customer[]
-  suppliers       Supplier[]
+  users             User[]
+  numberingSeries   NumberingSeries[]
+  auditLogs         AuditLog[]
+  warehouses        Warehouse[]
+  terminals         Terminal[]
+  priceLists        PriceList[]
+  loyaltyRules      LoyaltyRule[]
+  apiCredentials    ApiCredential[]
+  customers         Customer[]
+  suppliers         Supplier[]
+  cashDenominations CashDenomination[]
 
   @@map("stores")
 }
@@ -252,6 +256,30 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([storeId])
   @@map("audit_logs")
+}
+
+model TaxEngine {
+  id       String  @id @default(uuid())
+  code     String  @unique
+  name     String
+  isActive Boolean @default(true) @map("is_active")
+
+  stores Store[]
+
+  @@map("tax_engines")
+}
+
+model HsnCode {
+  id          String  @id @default(uuid())
+  hsnCode     String  @unique @map("hsn_code")
+  description String
+  cgstRate    Decimal @map("cgst_rate") @db.Decimal(5, 2)
+  sgstRate    Decimal @map("sgst_rate") @db.Decimal(5, 2)
+  igstRate    Decimal @map("igst_rate") @db.Decimal(5, 2)
+  isActive    Boolean @default(true) @map("is_active")
+  isDeleted   Boolean @default(false) @map("is_deleted")
+
+  @@map("hsn_codes")
 }
 
 model TaxRegion {
@@ -558,12 +586,15 @@ enum DenominationType {
 }
 
 model CashDenomination {
-  id        String           @id @default(uuid())
-  value     Decimal          @db.Decimal(12, 2)
-  type      DenominationType
-  currency  String
-  isActive  Boolean          @default(true) @map("is_active")
-  isDeleted Boolean          @default(false) @map("is_deleted")
+  id         String           @id @default(uuid())
+  value      Decimal          @db.Decimal(12, 2)
+  type       DenominationType
+  storeId    String           @map("store_id")
+  store      Store            @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  currencyId String           @map("currency_id")
+  currency   Currency         @relation(fields: [currencyId], references: [id])
+  isActive   Boolean          @default(true) @map("is_active")
+  isDeleted  Boolean          @default(false) @map("is_deleted")
 
   @@map("cash_denominations")
 }

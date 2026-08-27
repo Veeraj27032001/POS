@@ -4,4 +4,5 @@ export const STORE_SCOPED_MODELS = new Set<string>([
   "AuditLog",
   "Terminal",
   "ApiCredential",
+  "CashDenomination",
 ]);

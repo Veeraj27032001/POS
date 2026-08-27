@@ -342,6 +342,8 @@ const NAV_HREFS = [
   "/barcodes/system",
   "/barcodes/product",
   "/settings/tax",
+  "/settings/hsn-codes",
+  "/settings/tax-engine",
   "/settings/security",
   "/settings/preferences",
 ];
@@ -751,6 +753,32 @@ test("Numbering Series: store cards scope the list, a new store is auto-seeded, 
   await expect(page.getByText(/Copied \d+ series across \d+ store\(s\)\./)).toBeVisible();
 });
 
+test("Roles: creating a role and saving its rights succeeds, and Super-Admin-only modules never appear", async ({
+  page,
+}) => {
+  await login(page);
+  await page.goto("/settings/roles");
+
+  const roleName = `Test Role ${Date.now()}`;
+  await page.getByRole("button", { name: "New Role" }).click();
+  await page.getByLabel("Name").fill(roleName);
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByText("Role created.")).toBeVisible();
+
+  await page.getByRole("link", { name: roleName }).click();
+  await expect(page).toHaveURL(/\/settings\/roles\/[0-9a-f-]+$/);
+
+  const rightsTable = page.getByRole("table");
+  await expect(rightsTable.getByText("Numbering Series")).not.toBeVisible();
+  await expect(rightsTable.getByText("Tax Settings")).not.toBeVisible();
+  await expect(rightsTable.getByText("Payment Methods")).not.toBeVisible();
+
+  await page.getByRole("row", { name: "Products" }).getByRole("checkbox").first().click();
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Role updated.")).toBeVisible();
+  await expect(page.getByText("Failed to save.")).not.toBeVisible();
+});
+
 test("Numbering Series: the store filter wraps instead of overflowing the page body", async ({
   page,
 }) => {
@@ -762,4 +790,156 @@ test("Numbering Series: the store filter wraps instead of overflowing the page b
     () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
   );
   expect(overflowsBody).toBe(false);
+});
+
+test("HSN Codes: create a code, see its rates, and import a CSV that updates it in place", async ({
+  page,
+}) => {
+  await login(page);
+  await page.goto("/settings/hsn-codes");
+
+  const hsnCode = `TST${Date.now() % 100000}`;
+  await page.getByRole("button", { name: "New", exact: true }).click();
+  // The dialog title "New HSN Code" contains the "HSN code" label text, so
+  // getByLabel is ambiguous here even with exact matching — target the
+  // inputs by their field ids instead.
+  await page.locator("#hsnCode").fill(hsnCode);
+  await page.locator("#description").fill("Test HSN description");
+  await page.locator("#cgstRate").fill("9");
+  await page.locator("#sgstRate").fill("9");
+  await page.locator("#igstRate").fill("18");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByText("HSN Code created.")).toBeVisible();
+
+  const row = page.getByRole("row").filter({ hasText: hsnCode });
+  await expect(row).toBeVisible();
+  await expect(row.getByRole("cell").nth(2)).toContainText("9");
+
+  // Fetch the real id for this row via the API, then import a CSV row
+  // carrying that id with a changed CGST rate — this must update the
+  // existing record, not create a duplicate.
+  const listRes = await page.request.get("/api/hsn-codes?pageSize=1000&search=" + hsnCode);
+  const listBody = (await listRes.json()) as { data: { id: string; hsnCode: string }[] };
+  const existing = listBody.data.find((r) => r.hsnCode === hsnCode);
+  expect(existing).toBeTruthy();
+
+  const csv = `id,hsnCode,description,cgstRate,sgstRate,igstRate\n${existing!.id},${hsnCode},Updated via import,6,6,12\n`;
+
+  await page.getByRole("button", { name: "Import" }).click();
+  const fileInput = page.locator('input[type="file"]');
+  await fileInput.setInputFiles({
+    name: "hsn-import.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from(csv),
+  });
+  await expect(page.getByText(/Imported: \d+ created, \d+ updated\./)).toBeVisible();
+
+  await page.getByPlaceholder("Search…").fill(hsnCode);
+  const updatedRow = page.getByRole("row").filter({ hasText: hsnCode });
+  await expect(updatedRow).toHaveCount(1);
+  await expect(updatedRow).toContainText("Updated via import");
+});
+
+test("Tax Engine: store cards, no create button, and selecting an engine persists", async ({
+  page,
+}) => {
+  await login(page);
+
+  // Reset first so this test is idempotent across repeated runs — an
+  // earlier run (this test or another) may have already configured the
+  // default (first) store's tax engine.
+  const storesRes = await page.request.get("/api/stores/options");
+  const stores = (await storesRes.json()) as { data: { id: string; name: string }[] };
+  await page.request.patch(`/api/stores/${stores.data[0].id}`, {
+    data: { taxEngineId: null },
+  });
+
+  await page.goto("/settings/tax-engine");
+
+  await expect(page.getByRole("button", { name: "New", exact: true })).not.toBeVisible();
+
+  const cards = page.locator("button[aria-pressed]");
+  await expect(cards.first()).toBeVisible();
+  expect(await cards.count()).toBeGreaterThan(1);
+
+  await page.getByText("Select tax engine…").click();
+  await page.getByRole("option", { name: "India Standard" }).click();
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByText("Tax engine updated.")).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByText("India Standard")).toBeVisible();
+});
+
+test("Cash Denominations: store filter present, currency is a dropdown, and a new store starts empty", async ({
+  page,
+}) => {
+  await login(page);
+
+  await page.goto("/stores");
+  await page.getByRole("button", { name: "New" }).click();
+  const storeName = `Test Denom Store ${Date.now()}`;
+  await page.getByLabel("Name").fill(storeName);
+  await page.getByLabel("Address").fill("1 Test Denom Road");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Store created.")).toBeVisible();
+
+  await page.goto("/cash-denominations");
+  const cards = page.locator("button[aria-pressed]");
+  await expect(cards.first()).toBeVisible();
+  await page.getByRole("button", { name: storeName }).click();
+
+  await expect(page.getByText("No records found.")).toBeVisible();
+
+  await page.getByRole("button", { name: "New" }).click();
+  await page.getByLabel("Value").fill("500");
+  await page.getByText("Select type…").click();
+  await page.getByRole("option", { name: "Note" }).click();
+  await page.getByText("Select currency…").click();
+  await page.getByRole("option", { name: "INR" }).click();
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByText("Cash denomination created.")).toBeVisible();
+  await expect(page.getByText("INR")).toBeVisible();
+});
+
+test("Cash Denominations: a store-scoped Admin sees only their own store card", async ({
+  page,
+}) => {
+  test.skip(!ADMIN2_EMAIL || !ADMIN2_PASSWORD, "SEED_ADMIN2_EMAIL/PASSWORD not configured");
+  await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
+  await page.goto("/cash-denominations");
+
+  const cards = page.locator("button[aria-pressed]");
+  await expect(cards.first()).toBeVisible();
+  await expect(cards).toHaveCount(1);
+  await expect(cards.first()).toHaveAttribute("aria-pressed", "true");
+});
+
+test("Tax status banner: shown for an unconfigured store, dismissible for the session", async ({
+  page,
+}) => {
+  test.skip(!ADMIN2_EMAIL || !ADMIN2_PASSWORD, "SEED_ADMIN2_EMAIL/PASSWORD not configured");
+
+  // Reset the demo store's tax engine first, as Super Admin — another test
+  // in this suite (Tax Engine page) may have already configured it, and
+  // this test needs it unconfigured to exercise the banner.
+  await login(page);
+  const storesRes = await page.request.get("/api/stores/options");
+  const stores = (await storesRes.json()) as { data: { id: string; name: string }[] };
+  const demoStore = stores.data.find((s) => s.name === "Demo Store") ?? stores.data[0];
+  await page.request.patch(`/api/stores/${demoStore.id}`, { data: { taxEngineId: null } });
+  await page.getByRole("button", { name: "Account menu" }).click();
+  await page.getByRole("button", { name: "Sign out" }).click();
+  await expect(page).toHaveURL(/\/login/);
+
+  await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
+
+  const banner = page.getByText("Tax rules aren't configured for your store yet.");
+  await expect(banner).toBeVisible();
+
+  await page.getByRole("button", { name: "Dismiss" }).click();
+  await expect(banner).not.toBeVisible();
+
+  await page.reload();
+  await expect(banner).not.toBeVisible();
 });

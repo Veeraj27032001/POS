@@ -108,6 +108,16 @@ export const taxCodeResource = defineResource({
   getDelegate: delegateOf("taxCode"),
 });
 
+export const hsnCodeResource = defineResource({
+  name: "hsn_code",
+  module: "hsn_codes",
+  scoping: "none",
+  createSchema: schemas.hsnCodeCreateSchema,
+  updateSchema: schemas.hsnCodeUpdateSchema,
+  searchFields: ["hsnCode", "description"],
+  getDelegate: delegateOf("hsnCode"),
+});
+
 export const categoryResource = defineResource({
   name: "category",
   module: "categories",
@@ -241,7 +251,8 @@ export const reasonCodeResource = defineResource({
 export const cashDenominationResource = defineResource({
   name: "cash_denomination",
   module: "settings",
-  scoping: "none",
+  scoping: "required",
+  explicitStoreId: true,
   createSchema: schemas.cashDenominationCreateSchema,
   updateSchema: schemas.cashDenominationUpdateSchema,
   getDelegate: delegateOf("cashDenomination"),

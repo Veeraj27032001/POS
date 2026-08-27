@@ -3,6 +3,7 @@
 import { Loader2Icon } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import type { ReactNode } from "react";
 import type { FieldValues } from "react-hook-form";
 import { toast } from "sonner";
 import type { ZodType } from "zod";
@@ -44,6 +45,8 @@ export interface ResourcePageProps<
   filters?: Record<string, string>;
   /** Pre-filled values for the New dialog, e.g. the currently store-filtered view's store. */
   createDefaultValues?: Partial<TCreate>;
+  /** Extra actions rendered next to the New button, e.g. an Import trigger. */
+  headerExtra?: ReactNode;
 }
 
 export function ResourcePage<
@@ -61,6 +64,7 @@ export function ResourcePage<
   searchable = true,
   filters,
   createDefaultValues,
+  headerExtra,
 }: ResourcePageProps<TRow, TCreate, TUpdate>) {
   const [createOpen, setCreateOpen] = useState(false);
   const [editingRow, setEditingRow] = useState<TRow | null>(null);
@@ -193,20 +197,23 @@ export function ResourcePage<
     <div className="space-y-4 p-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">{title}</h1>
-        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-          <DialogTrigger render={<Button>New</Button>} />
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>New {singular}</DialogTitle>
-            </DialogHeader>
-            <ResourceForm
-              schema={createSchema}
-              fields={fields}
-              defaultValues={createDefaultValues}
-              onSubmit={handleCreate}
-            />
-          </DialogContent>
-        </Dialog>
+        <div className="flex gap-2">
+          {headerExtra}
+          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+            <DialogTrigger render={<Button>New</Button>} />
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>New {singular}</DialogTitle>
+              </DialogHeader>
+              <ResourceForm
+                schema={createSchema}
+                fields={fields}
+                defaultValues={createDefaultValues}
+                onSubmit={handleCreate}
+              />
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       <DataTable<TRow>

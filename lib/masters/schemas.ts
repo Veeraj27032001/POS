@@ -42,6 +42,31 @@ export const taxCodeCreateSchema = z.object({
 });
 export const taxCodeUpdateSchema = taxCodeCreateSchema.partial();
 
+export const hsnCodeCreateSchema = z.object({
+  hsnCode: requiredString("HSN code", 32),
+  description: requiredString("Description"),
+  cgstRate: nonNegativeDecimal,
+  sgstRate: nonNegativeDecimal,
+  igstRate: nonNegativeDecimal,
+  isActive: z.boolean().default(true),
+});
+export const hsnCodeUpdateSchema = hsnCodeCreateSchema.partial();
+
+export const hsnCodeImportSchema = z.object({
+  rows: z
+    .array(
+      z.object({
+        id: opaqueIdSchema.optional(),
+        hsnCode: requiredString("HSN code", 32),
+        description: requiredString("Description"),
+        cgstRate: nonNegativeDecimal,
+        sgstRate: nonNegativeDecimal,
+        igstRate: nonNegativeDecimal,
+      }),
+    )
+    .min(1, "The file has no rows to import."),
+});
+
 export const categoryCreateSchema = z.object({
   name: requiredString("Name"),
   parentCategoryId: opaqueIdSchema.optional().nullable(),
@@ -190,7 +215,8 @@ export const denominationTypeSchema = z.enum(["note", "coin"]);
 export const cashDenominationCreateSchema = z.object({
   value: nonNegativeDecimal,
   type: denominationTypeSchema,
-  currency: requiredString("Currency", 3),
+  storeId: opaqueIdSchema,
+  currencyId: opaqueIdSchema,
   isActive: z.boolean().default(true),
 });
 export const cashDenominationUpdateSchema = cashDenominationCreateSchema.partial();
@@ -220,6 +246,7 @@ export const storeCreateSchema = z.object({
   countryId: opaqueIdSchema.optional().nullable(),
   stateId: opaqueIdSchema.optional().nullable(),
   taxRegionId: opaqueIdSchema.optional().nullable(),
+  taxEngineId: opaqueIdSchema.optional().nullable(),
   timezoneId: opaqueIdSchema.optional().nullable(),
   currencyId: opaqueIdSchema.optional().nullable(),
   gstin: optionalString(15),

@@ -29,6 +29,7 @@ import { Breadcrumbs } from "@/components/breadcrumbs";
 import { FinancialYearSwitcher } from "@/components/financial-year-switcher";
 import { HeaderSearch } from "@/components/header-search";
 import { SignOutButton } from "@/components/sign-out-button";
+import { TaxStatusBanner } from "@/components/tax-status-banner";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import {
@@ -62,6 +63,8 @@ const NAV_ITEM_MODULE: Record<string, string> = {
   "/cash-denominations": "settings",
   "/numbering-series": "numbering_series",
   "/settings/tax": "tax_settings",
+  "/settings/hsn-codes": "hsn_codes",
+  "/settings/tax-engine": "stores",
   "/settings/roles": "roles",
 };
 
@@ -120,6 +123,12 @@ const NAV_GROUPS: AppNavGroup[] = [
     label: "Settings",
     items: [
       { href: "/settings/tax", label: "Tax Settings", icon: <Landmark className="h-4 w-4" /> },
+      { href: "/settings/hsn-codes", label: "HSN Codes", icon: <Landmark className="h-4 w-4" /> },
+      {
+        href: "/settings/tax-engine",
+        label: "Tax Engine",
+        icon: <Landmark className="h-4 w-4" />,
+      },
       { href: "/settings/roles", label: "Roles", icon: <Shield className="h-4 w-4" /> },
       { href: "/settings/security", label: "Security", icon: <ShieldCheck className="h-4 w-4" /> },
       {
@@ -256,6 +265,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="border-b px-6 py-2.5">
           <Breadcrumbs />
         </div>
+
+        <TaxStatusBanner />
 
         {children}
       </div>

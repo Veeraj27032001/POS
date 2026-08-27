@@ -10,7 +10,8 @@ interface CashDenominationRow {
   id: string;
   value: string;
   type: string;
-  currency: string;
+  storeId: string;
+  currencyId: string;
   isActive: boolean;
 }
 
@@ -26,12 +27,27 @@ export default function CashDenominationViewPage() {
           name: "type",
           label: "Type",
           type: "select",
+          placeholder: "Select type…",
           options: [
             { value: "note", label: "Note" },
             { value: "coin", label: "Coin" },
           ],
         },
-        { name: "currency", label: "Currency", type: "text" },
+        {
+          name: "storeId",
+          label: "Store",
+          type: "select",
+          optionsResource: "stores/options",
+          placeholder: "Select store…",
+        },
+        {
+          name: "currencyId",
+          label: "Currency",
+          type: "select",
+          optionsResource: "currencies",
+          optionsLabelField: "code",
+          placeholder: "Select currency…",
+        },
       ]}
       updateSchema={cashDenominationUpdateSchema}
       id={id}

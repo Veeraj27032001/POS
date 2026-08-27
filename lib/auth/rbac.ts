@@ -30,6 +30,7 @@ export const SUPER_ADMIN_ONLY_MODULES = [
   "reason_codes",
   "payment_methods",
   "tax_settings",
+  "hsn_codes",
 ] as const;
 
 // Regular business modules — open to Admin (and Super Admin), denied to
