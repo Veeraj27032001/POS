@@ -28,7 +28,7 @@ import { useInvalidateResource } from "@/lib/pagination/useList";
 type SeriesCreateInput = z.infer<typeof numberingSeriesCreateSchema>;
 const SERIES_TYPE_OPTIONS = seriesTypeSchema.options.map((value) => ({ value, label: value }));
 
-export function NewSeriesDialog() {
+export function NewSeriesDialog({ storeId }: { storeId: string }) {
   const [open, setOpen] = useState(false);
   const invalidate = useInvalidateResource();
   const financialYears = useOptionsList("financial-years-admin", "label");
@@ -41,14 +41,14 @@ export function NewSeriesDialog() {
     formState: { errors, isSubmitting },
   } = useForm<SeriesCreateInput>({
     resolver: zodResolver(numberingSeriesCreateSchema) as never,
-    defaultValues: { currentNumber: 0 },
+    defaultValues: { currentNumber: 0, storeId },
   });
 
   async function onSubmit(values: SeriesCreateInput) {
     const res = await fetch("/api/numbering-series", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(values),
+      body: JSON.stringify({ ...values, storeId }),
     });
     if (!res.ok) {
       const body = await res.json().catch(() => null);

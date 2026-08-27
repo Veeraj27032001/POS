@@ -715,3 +715,47 @@ test("Warehouses: a store-scoped Admin sees only their own store card", async ({
   await expect(cards).toHaveCount(1);
   await expect(cards.first()).toHaveAttribute("aria-pressed", "true");
 });
+
+test("Numbering Series: store tabs scope creation, and copy propagates to every other store", async ({
+  page,
+}) => {
+  await login(page);
+
+  // A brand-new store starts with zero numbering series — the cleanest
+  // source to prove creation is scoped to the active tab and that "Copy
+  // to All Stores" actually reaches other stores.
+  await page.goto("/stores");
+  await page.getByRole("button", { name: "New" }).click();
+  const storeName = `Test NS Store ${Date.now()}`;
+  await page.getByLabel("Name").fill(storeName);
+  await page.getByLabel("Address").fill("1 Test Series Road");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Store created.")).toBeVisible();
+
+  await page.goto("/numbering-series");
+  await expect(page.getByRole("tab").first()).toBeVisible();
+  const tabCount = await page.getByRole("tab").count();
+  expect(tabCount).toBeGreaterThan(1);
+
+  await page.getByRole("tab", { name: storeName }).click();
+  await expect(page.getByRole("tab", { name: storeName })).toHaveAttribute("aria-selected", "true");
+
+  await page.getByRole("button", { name: "New Series" }).click();
+  await page.getByText("Select document type…").click();
+  await page.getByRole("option", { name: "stock_retest" }).click();
+  await page.getByText("Select financial year…").click();
+  await page.getByRole("option").first().click();
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByText("Numbering series created.")).toBeVisible();
+  await expect(page.getByText("stock_retest")).toBeVisible();
+
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "Copy to All Stores" }).click();
+  await expect(page.getByText(/Copied \d+ series across \d+ store\(s\)\./)).toBeVisible();
+
+  // Switch to a different store's tab — the copied series must show up
+  // there too, proving the copy reached beyond the source store.
+  const otherTab = page.getByRole("tab").filter({ hasNotText: storeName }).first();
+  await otherTab.click();
+  await expect(page.getByText("stock_retest")).toBeVisible();
+});

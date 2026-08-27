@@ -2,11 +2,13 @@
 
 import { Loader2Icon } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/data-table/data-table";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useOptionsList } from "@/lib/masters/useOptionsList";
 import { useInvalidateResource } from "@/lib/pagination/useList";
 
 import { NewSeriesDialog } from "./new-series-dialog";
@@ -23,6 +25,43 @@ export default function NumberingSeriesPage() {
   const invalidate = useInvalidateResource();
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [copying, setCopying] = useState(false);
+  const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
+  const stores = useOptionsList("stores/options", "name");
+
+  useEffect(() => {
+    if (!selectedStoreId && stores.length > 0) setSelectedStoreId(stores[0].value);
+  }, [stores, selectedStoreId]);
+
+  async function handleCopyToAllStores() {
+    if (!selectedStoreId) return;
+    const sourceLabel = stores.find((s) => s.value === selectedStoreId)?.label ?? "this store";
+    if (
+      !window.confirm(
+        `Copy every numbering series from ${sourceLabel} to all other stores that don't already have it?`,
+      )
+    ) {
+      return;
+    }
+
+    setCopying(true);
+    try {
+      const res = await fetch("/api/numbering-series/copy-to-all-stores", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sourceStoreId: selectedStoreId }),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        toast.error(body?.error?.message ?? "Failed to copy series.");
+        return;
+      }
+      invalidate("numbering-series");
+      toast.success(`Copied ${body.copiedCount} series across ${body.targetStoreCount} store(s).`);
+    } finally {
+      setCopying(false);
+    }
+  }
 
   async function handleToggleActive(row: SeriesRow) {
     const activating = !row.isActive;
@@ -71,50 +110,79 @@ export default function NumberingSeriesPage() {
     <div className="space-y-4 p-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Numbering Series</h1>
-        <NewSeriesDialog />
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            disabled={!selectedStoreId || copying}
+            onClick={handleCopyToAllStores}
+          >
+            {copying && <Loader2Icon className="size-3.5 animate-spin" />}
+            Copy to All Stores
+          </Button>
+          {selectedStoreId && <NewSeriesDialog storeId={selectedStoreId} />}
+        </div>
       </div>
 
-      <DataTable<SeriesRow>
-        resource="numbering-series"
-        getRowId={(row) => row.id}
-        columns={[
-          { key: "seriesType", header: "Document type" },
-          { key: "prefix", header: "Prefix", render: (row) => row.prefix ?? "—" },
-          { key: "currentNumber", header: "Current number" },
-          { key: "isActive", header: "Active", render: (row) => (row.isActive ? "Yes" : "No") },
-          {
-            key: "actions",
-            header: "",
-            render: (row) => (
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  render={<Link href={`/numbering-series/${row.id}`}>View</Link>}
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={togglingId === row.id}
-                  onClick={() => handleToggleActive(row)}
-                >
-                  {togglingId === row.id && <Loader2Icon className="size-3.5 animate-spin" />}
-                  {row.isActive ? "Deactivate" : "Activate"}
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  disabled={deletingId === row.id}
-                  onClick={() => handleDelete(row)}
-                >
-                  {deletingId === row.id && <Loader2Icon className="size-3.5 animate-spin" />}
-                  Delete
-                </Button>
-              </div>
-            ),
-          },
-        ]}
-      />
+      {stores.length > 0 && selectedStoreId && (
+        <Tabs value={selectedStoreId} onValueChange={(v) => setSelectedStoreId(v as string)}>
+          <TabsList>
+            {stores.map((store) => (
+              <TabsTrigger key={store.value} value={store.value}>
+                {store.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+      )}
+
+      {selectedStoreId && (
+        <DataTable<SeriesRow>
+          resource="numbering-series"
+          getRowId={(row) => row.id}
+          filters={{ storeId: selectedStoreId }}
+          columns={[
+            { key: "seriesType", header: "Document type" },
+            { key: "prefix", header: "Prefix", render: (row) => row.prefix ?? "—" },
+            { key: "currentNumber", header: "Current number" },
+            {
+              key: "isActive",
+              header: "Active",
+              render: (row) => (row.isActive ? "Yes" : "No"),
+            },
+            {
+              key: "actions",
+              header: "",
+              render: (row) => (
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    render={<Link href={`/numbering-series/${row.id}`}>View</Link>}
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={togglingId === row.id}
+                    onClick={() => handleToggleActive(row)}
+                  >
+                    {togglingId === row.id && <Loader2Icon className="size-3.5 animate-spin" />}
+                    {row.isActive ? "Deactivate" : "Activate"}
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    disabled={deletingId === row.id}
+                    onClick={() => handleDelete(row)}
+                  >
+                    {deletingId === row.id && <Loader2Icon className="size-3.5 animate-spin" />}
+                    Delete
+                  </Button>
+                </div>
+              ),
+            },
+          ]}
+        />
+      )}
     </div>
   );
 }

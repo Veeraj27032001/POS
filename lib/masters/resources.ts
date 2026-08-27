@@ -377,8 +377,9 @@ export const financialYearResource = defineResource({
 
 export const numberingSeriesResource = defineResource({
   name: "numbering_series",
-  module: "settings",
+  module: "numbering_series",
   scoping: "required",
+  explicitStoreId: true,
   createSchema: schemas.numberingSeriesCreateSchema,
   updateSchema: schemas.numberingSeriesUpdateSchema,
   getDelegate: delegateOf("numberingSeries"),

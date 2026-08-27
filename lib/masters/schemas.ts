@@ -275,10 +275,14 @@ export const seriesTypeSchema = z.enum([
 ]);
 export const numberingSeriesCreateSchema = z.object({
   seriesType: seriesTypeSchema,
+  storeId: opaqueIdSchema,
   financialYearId: opaqueIdSchema,
   prefix: optionalString(16),
   currentNumber: nonNegativeInt.default(0),
   isActive: z.boolean().default(true),
+});
+export const numberingSeriesCopyToAllStoresSchema = z.object({
+  sourceStoreId: opaqueIdSchema,
 });
 export const numberingSeriesUpdateSchema = z.object({
   prefix: optionalString(16),

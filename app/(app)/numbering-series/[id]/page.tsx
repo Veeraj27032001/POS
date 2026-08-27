@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 interface SeriesRow {
   id: string;
   seriesType: string;
+  storeId: string;
   financialYearId: string;
   prefix: string | null;
   currentNumber: number;
@@ -33,6 +34,7 @@ export default function SeriesViewPage() {
   const [deleting, setDeleting] = useState(false);
   const invalidate = useInvalidateResource();
   const financialYears = useOptionsList("financial-years-admin", "label");
+  const stores = useOptionsList("stores/options", "name");
 
   useEffect(() => {
     fetch(`/api/numbering-series/${id}`)
@@ -128,6 +130,7 @@ export default function SeriesViewPage() {
         <dl className="bg-border grid grid-cols-1 gap-px overflow-hidden rounded-lg border sm:grid-cols-2">
           {[
             ["Document type", row.seriesType],
+            ["Store", lookupLabel(stores, row.storeId)],
             ["Financial year", lookupLabel(financialYears, row.financialYearId)],
             ["Prefix", row.prefix ?? "—"],
             ["Current number", String(row.currentNumber)],
