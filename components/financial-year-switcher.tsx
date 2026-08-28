@@ -41,6 +41,9 @@ export function FinancialYearSwitcher() {
       });
       if (!res.ok) return;
       await update({ financialYearId });
+      if (window.confirm("Financial year switched. Reload the page to see updated data?")) {
+        window.location.reload();
+      }
     } finally {
       setSwitching(false);
     }
