@@ -2,6 +2,7 @@ import { getNotifier } from "@/lib/adapters/notifier";
 import { ROLE_RANK, roleRank, SUPER_ADMIN_ROLE_NAME } from "@/lib/auth/rbac";
 import type { AppSession } from "@/lib/auth/types";
 import { unscoped } from "@/lib/db";
+import { dateOnlyToUtcMidnight, toDateOnly } from "@/lib/datetime/dateOnly";
 import { defineResource, isResourceHookRejection } from "@/lib/resource";
 import type { ResourceDelegate, ResourceHookResult } from "@/lib/resource";
 import { hashSecret } from "@/lib/security/hash";
@@ -373,6 +374,17 @@ export const userResource = defineResource({
   },
 });
 
+function withFinancialYearDatesConverted(data: Record<string, unknown>) {
+  const converted = { ...data };
+  if (typeof converted.startDate === "string") {
+    converted.startDate = dateOnlyToUtcMidnight(toDateOnly(converted.startDate));
+  }
+  if (typeof converted.endDate === "string") {
+    converted.endDate = dateOnlyToUtcMidnight(toDateOnly(converted.endDate));
+  }
+  return converted;
+}
+
 export const financialYearResource = defineResource({
   name: "financial_year",
   module: "financial_years",
@@ -381,6 +393,8 @@ export const financialYearResource = defineResource({
   updateSchema: schemas.financialYearUpdateSchema,
   searchFields: ["label"],
   getDelegate: delegateOf("financialYear"),
+  beforeCreate: (data) => withFinancialYearDatesConverted(data),
+  beforeUpdate: (data) => withFinancialYearDatesConverted(data),
   afterCreate: async (created) => {
     await createNumberingSeriesForNewFinancialYear(created.id as string);
   },
