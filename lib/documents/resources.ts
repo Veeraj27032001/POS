@@ -190,3 +190,49 @@ export const stockQualityCheckResource = defineDocumentResource({
     return null;
   },
 });
+
+export const stockPositiveAdjustmentResource = defineDocumentResource({
+  name: "stock_positive_adjustment",
+  module: "stock",
+  seriesType: "positive_adjustment",
+  createSchema: schemas.stockPositiveAdjustmentCreateSchema,
+  getMainDelegate: mainDelegateOf("stockPositiveAdjustmentMain"),
+  getItemDelegate: itemDelegateOf("stockPositiveAdjustmentItem"),
+  buildMainData: (data) => ({
+    warehouseId: data.warehouseId,
+    adjustmentDate: dateOnlyToUtcMidnight(toDateOnly(data.adjustmentDate)),
+    notes: data.notes ?? null,
+  }),
+  buildItemData: (item) => ({
+    quantity: item.quantity,
+    reasonCodeId: item.reasonCodeId,
+  }),
+});
+
+export const stockNegativeAdjustmentResource = defineDocumentResource({
+  name: "stock_negative_adjustment",
+  module: "stock",
+  seriesType: "negative_adjustment",
+  createSchema: schemas.stockNegativeAdjustmentCreateSchema,
+  getMainDelegate: mainDelegateOf("stockNegativeAdjustmentMain"),
+  getItemDelegate: itemDelegateOf("stockNegativeAdjustmentItem"),
+  buildMainData: (data) => ({
+    warehouseId: data.warehouseId,
+    adjustmentDate: dateOnlyToUtcMidnight(toDateOnly(data.adjustmentDate)),
+    notes: data.notes ?? null,
+  }),
+  buildItemData: (item) => ({
+    quantity: item.quantity,
+    reasonCodeId: item.reasonCodeId,
+  }),
+  validateItem: async (item, data) => {
+    const { available } = await getStockLevels({
+      productId: item.productId,
+      warehouseId: data.warehouseId,
+    });
+    if (item.quantity > available) {
+      return `Cannot reduce ${item.quantity} — only ${available} available at this warehouse.`;
+    }
+    return null;
+  },
+});

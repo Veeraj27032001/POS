@@ -127,3 +127,29 @@ export const stockQualityCheckCreateSchema = z.object({
   items: z.array(stockQualityCheckItemSchema).min(1, "At least one item is required."),
 });
 export const stockQualityCheckEditSchema = stockQualityCheckCreateSchema;
+
+export const stockPositiveAdjustmentItemSchema = z.object({
+  productId: opaqueIdSchema,
+  quantity: positiveInt,
+  reasonCodeId: opaqueIdSchema,
+});
+export const stockPositiveAdjustmentCreateSchema = z.object({
+  warehouseId: opaqueIdSchema,
+  adjustmentDate: isoDateOnlySchema,
+  notes: optionalString(1000),
+  items: z.array(stockPositiveAdjustmentItemSchema).min(1, "At least one item is required."),
+});
+export const stockPositiveAdjustmentEditSchema = stockPositiveAdjustmentCreateSchema;
+
+export const stockNegativeAdjustmentItemSchema = z.object({
+  productId: opaqueIdSchema,
+  quantity: positiveInt,
+  reasonCodeId: opaqueIdSchema,
+});
+export const stockNegativeAdjustmentCreateSchema = z.object({
+  warehouseId: opaqueIdSchema,
+  adjustmentDate: isoDateOnlySchema,
+  notes: optionalString(1000),
+  items: z.array(stockNegativeAdjustmentItemSchema).min(1, "At least one item is required."),
+});
+export const stockNegativeAdjustmentEditSchema = stockNegativeAdjustmentCreateSchema;

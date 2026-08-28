@@ -504,6 +504,7 @@ model StockPositiveAdjustmentMain {
   store           Store         @relation(fields: [storeId], references: [id])
   warehouseId     String        @map("warehouse_id")
   warehouse       Warehouse     @relation(fields: [warehouseId], references: [id])
+  adjustmentDate  DateTime      @map("adjustment_date") @db.Date
   notes           String?
   createdByUserId String        @map("created_by_user_id")
   createdByUser   User          @relation(fields: [createdByUserId], references: [id])
@@ -540,6 +541,7 @@ model StockOpeningMain {
   store           Store         @relation(fields: [storeId], references: [id])
   warehouseId     String        @map("warehouse_id")
   warehouse       Warehouse     @relation(fields: [warehouseId], references: [id])
+  openingDate     DateTime      @map("opening_date") @db.Date
   notes           String?
   createdByUserId String        @map("created_by_user_id")
   createdByUser   User          @relation(fields: [createdByUserId], references: [id])
@@ -574,6 +576,7 @@ model StockNegativeAdjustmentMain {
   store           Store         @relation(fields: [storeId], references: [id])
   warehouseId     String        @map("warehouse_id")
   warehouse       Warehouse     @relation(fields: [warehouseId], references: [id])
+  adjustmentDate  DateTime      @map("adjustment_date") @db.Date
   notes           String?
   createdByUserId String        @map("created_by_user_id")
   createdByUser   User          @relation(fields: [createdByUserId], references: [id])
