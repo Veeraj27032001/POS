@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { SERIES_TYPES } from "@/lib/numbering/seriesDefaults";
 import {
   emailSchema,
   isoDateOnlySchema,
@@ -251,28 +252,7 @@ export const financialYearCreateSchema = z.object({
 });
 export const financialYearUpdateSchema = financialYearCreateSchema.partial();
 
-export const seriesTypeSchema = z.enum([
-  "cash_bill",
-  "credit_bill",
-  "stock_inward",
-  "credit_note",
-  "stock_damage",
-  "stock_block",
-  "stock_transfer",
-  "positive_adjustment",
-  "negative_adjustment",
-  "opening_balance",
-  "entry_correction",
-  "payment_request",
-  "refund",
-  "bill_cancellation",
-  "bill_return",
-  "bill_payment",
-  "shift",
-  "online_bill",
-  "quality_check",
-  "product_request",
-]);
+export const seriesTypeSchema = z.enum(SERIES_TYPES);
 export const numberingSeriesCreateSchema = z.object({
   seriesType: seriesTypeSchema,
   storeId: opaqueIdSchema,

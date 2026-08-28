@@ -1,5 +1,6 @@
 import { ROLE_SEED_DATA } from "@/lib/auth/rbacSeedData";
 import { unscoped } from "@/lib/db";
+import { SERIES_PREFIXES, SERIES_TYPES } from "@/lib/numbering/seriesDefaults";
 import { hashSecret } from "@/lib/security/hash";
 
 import { COUNTRIES } from "./seedData/countries";
@@ -24,52 +25,6 @@ const IDS = {
   uom: fixedId(8),
   product10: fixedId(9),
   product20: fixedId(10),
-};
-
-const SERIES_TYPES = [
-  "cash_bill",
-  "credit_bill",
-  "stock_inward",
-  "credit_note",
-  "stock_damage",
-  "stock_block",
-  "stock_transfer",
-  "positive_adjustment",
-  "negative_adjustment",
-  "opening_balance",
-  "entry_correction",
-  "payment_request",
-  "refund",
-  "bill_cancellation",
-  "bill_return",
-  "bill_payment",
-  "shift",
-  "online_bill",
-  "quality_check",
-  "product_request",
-] as const;
-
-const SERIES_PREFIXES: Record<(typeof SERIES_TYPES)[number], string> = {
-  cash_bill: "CB",
-  credit_bill: "CR",
-  stock_inward: "SI",
-  credit_note: "CN",
-  stock_damage: "SD",
-  stock_block: "SB",
-  stock_transfer: "ST",
-  positive_adjustment: "PA",
-  negative_adjustment: "NA",
-  opening_balance: "OB",
-  entry_correction: "EC",
-  payment_request: "PR",
-  refund: "RF",
-  bill_cancellation: "BX",
-  bill_return: "BR",
-  bill_payment: "BP",
-  shift: "SH",
-  online_bill: "OB2",
-  quality_check: "QC",
-  product_request: "PQ",
 };
 
 const DENOMINATIONS: Array<{ value: number; type: "note" | "coin" }> = [

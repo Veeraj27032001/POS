@@ -1,4 +1,29 @@
 import { unscoped } from "@/lib/db";
+import { SERIES_PREFIXES, SERIES_TYPES } from "@/lib/numbering/seriesDefaults";
+
+export async function createDefaultNumberingSeries(storeId: string) {
+  const db = unscoped();
+  const financialYears = await db.financialYear.findMany({
+    where: { isActive: true, isDeleted: false },
+    select: { id: true },
+  });
+  if (financialYears.length === 0) return { createdCount: 0 };
+
+  const result = await db.numberingSeries.createMany({
+    data: financialYears.flatMap((fy) =>
+      SERIES_TYPES.map((seriesType) => ({
+        seriesType,
+        storeId,
+        financialYearId: fy.id,
+        prefix: SERIES_PREFIXES[seriesType],
+        currentNumber: 0,
+      })),
+    ),
+    skipDuplicates: true,
+  });
+
+  return { createdCount: result.count };
+}
 
 export async function copyNumberingSeriesToStores(sourceStoreId: string, targetStoreIds: string[]) {
   if (targetStoreIds.length === 0) return { copiedCount: 0 };
