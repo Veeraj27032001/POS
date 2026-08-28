@@ -3,6 +3,9 @@ import { unscoped } from "@/lib/db";
 
 import { PrintAllButton } from "../print-all-button";
 
+// Without this, Next.js statically bakes this list at build time.
+export const dynamic = "force-dynamic";
+
 export default async function SystemBarcodesPage() {
   const products = await unscoped().product.findMany({
     where: { isActive: true, isDeleted: false },
