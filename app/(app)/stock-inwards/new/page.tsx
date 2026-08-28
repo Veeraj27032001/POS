@@ -139,8 +139,6 @@ export default function NewStockInwardPage() {
             <StockInwardPickupDialog onPicked={handlePicked} />
           </CardHeader>
           <CardContent className="space-y-6">
-            <input type="hidden" {...register("purchaseOrderId")} />
-
             {linkedDocumentNumber && (
               <div className="bg-primary/5 border-primary/30 flex items-center justify-between rounded-lg border px-3 py-2 text-sm">
                 <span>

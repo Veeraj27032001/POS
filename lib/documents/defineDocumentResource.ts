@@ -41,8 +41,16 @@ export interface DocumentResourceConfig<TCreate extends DocumentCreateInput> {
   createSchema: ZodType<TCreate>;
   getMainDelegate: (client: unknown) => DocumentMainDelegate;
   getItemDelegate: (client: unknown) => DocumentItemDelegate;
-  /** Fields for the _main row, minus id/documentNumber/financialYearId/storeId/createdByUserId/createdAt/items — those are added automatically. */
+  /** Fields for the _main row, minus id/documentNumber/financialYearId/storeId/[mainUserField]/createdAt/items — those are added automatically. */
   buildMainData: (data: TCreate) => Record<string, unknown>;
+  /** The main row's "who did this" column, set to the session user's id on
+   * create. Defaults to "createdByUserId" — override for a document whose
+   * header uses a different name (e.g. Stock Block's "blockedByUserId"). */
+  mainUserField?: string;
+  /** The main row's "when did this happen" column, used to sort the list
+   * newest-first. Defaults to "createdAt" — override for a document whose
+   * header uses a different name (e.g. Stock Block's "blockedAt"). */
+  mainTimestampField?: string;
   /** Fields for one _item row, minus id/product snapshot fields/the FK back to _main — those are added automatically. */
   buildItemData: (item: TCreate["items"][number]) => Record<string, unknown>;
   /** Returns an error message to reject the whole create, or null to allow it. */
@@ -109,7 +117,7 @@ export function defineDocumentResource<TCreate extends DocumentCreateInput>(
       const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
       const data = await mainDelegate.findMany({
         where,
-        orderBy: { createdAt: "desc" },
+        orderBy: { [config.mainTimestampField ?? "createdAt"]: "desc" },
         skip: (page - 1) * pageSize,
         take: pageSize,
       });
@@ -120,12 +128,16 @@ export function defineDocumentResource<TCreate extends DocumentCreateInput>(
   async function getOne(_request: Request, id: string) {
     const authResult = await requireSession(config.module, "view");
     if ("error" in authResult) return authResult.error;
+    const { session } = authResult;
 
     return withStoreContext(async () => {
       const mainDelegate = config.getMainDelegate(unscoped());
       const itemDelegate = config.getItemDelegate(unscoped());
       const main = await mainDelegate.findUnique({ where: { id } });
       if (!main) return apiErrorResponse("not_found", "Record not found.", 404);
+      if (session.user.storeId && main.storeId !== session.user.storeId) {
+        return apiErrorResponse("not_found", "Record not found.", 404);
+      }
 
       const items = await itemDelegate.findMany({
         where: { [mainIdField]: id },
@@ -185,7 +197,7 @@ export function defineDocumentResource<TCreate extends DocumentCreateInput>(
               documentNumber,
               financialYearId: session.user.financialYearId,
               storeId: session.user.storeId,
-              createdByUserId: session.user.id,
+              [config.mainUserField ?? "createdByUserId"]: session.user.id,
             },
           });
 

@@ -48,3 +48,35 @@ export const stockInwardCreateSchema = z.object({
   notes: optionalString(1000),
   items: z.array(stockInwardItemSchema).min(1, "At least one item is required."),
 });
+export const stockInwardEditSchema = z.object({
+  warehouseId: opaqueIdSchema,
+  supplierId: opaqueIdSchema.optional().nullable(),
+  inwardDate: isoDateOnlySchema,
+  notes: optionalString(1000),
+  items: z.array(stockInwardItemSchema).min(1, "At least one item is required."),
+});
+
+export const stockDamageItemSchema = z.object({
+  productId: opaqueIdSchema,
+  quantity: positiveInt,
+  reasonCodeId: opaqueIdSchema,
+});
+export const stockDamageCreateSchema = z.object({
+  warehouseId: opaqueIdSchema,
+  notes: optionalString(1000),
+  items: z.array(stockDamageItemSchema).min(1, "At least one item is required."),
+});
+export const stockDamageEditSchema = stockDamageCreateSchema;
+
+export const stockBlockItemSchema = z.object({
+  productId: opaqueIdSchema,
+  quantityBlocked: positiveInt,
+  reasonCodeId: opaqueIdSchema,
+});
+export const stockBlockCreateSchema = z.object({
+  warehouseId: opaqueIdSchema,
+  blockedDate: isoDateOnlySchema,
+  reviewByDate: isoDateOnlySchema.optional().nullable(),
+  items: z.array(stockBlockItemSchema).min(1, "At least one item is required."),
+});
+export const stockBlockEditSchema = stockBlockCreateSchema;

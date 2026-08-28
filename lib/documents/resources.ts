@@ -1,5 +1,6 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { dateOnlyToUtcMidnight, toDateOnly } from "@/lib/datetime/dateOnly";
+import { getStockLevels } from "@/lib/stock/getStockLevels";
 
 import type { DocumentItemDelegate, DocumentMainDelegate } from "./defineDocumentResource";
 import { defineDocumentResource } from "./defineDocumentResource";
@@ -112,4 +113,52 @@ export const stockInwardResource = defineDocumentResource({
       });
     }
   },
+});
+
+export const stockDamageResource = defineDocumentResource({
+  name: "stock_damage",
+  module: "stock",
+  seriesType: "stock_damage",
+  createSchema: schemas.stockDamageCreateSchema,
+  getMainDelegate: mainDelegateOf("stockDamageMain"),
+  getItemDelegate: itemDelegateOf("stockDamageItem"),
+  buildMainData: (data) => ({
+    warehouseId: data.warehouseId,
+    notes: data.notes ?? null,
+  }),
+  buildItemData: (item) => ({
+    quantity: item.quantity,
+    reasonCodeId: item.reasonCodeId,
+  }),
+  validateItem: async (item, data) => {
+    const { available } = await getStockLevels({
+      productId: item.productId,
+      warehouseId: data.warehouseId,
+    });
+    if (item.quantity > available) {
+      return `Cannot damage ${item.quantity} — only ${available} available at this warehouse.`;
+    }
+    return null;
+  },
+});
+
+export const stockBlockResource = defineDocumentResource({
+  name: "stock_block",
+  module: "stock",
+  seriesType: "stock_block",
+  mainUserField: "blockedByUserId",
+  mainTimestampField: "blockedAt",
+  createSchema: schemas.stockBlockCreateSchema,
+  getMainDelegate: mainDelegateOf("stockBlockMain"),
+  getItemDelegate: itemDelegateOf("stockBlockItem"),
+  buildMainData: (data) => ({
+    warehouseId: data.warehouseId,
+    sourceType: "manual",
+    blockedAt: dateOnlyToUtcMidnight(toDateOnly(data.blockedDate)),
+    reviewByDate: data.reviewByDate ? dateOnlyToUtcMidnight(toDateOnly(data.reviewByDate)) : null,
+  }),
+  buildItemData: (item) => ({
+    quantityBlocked: item.quantityBlocked,
+    reasonCodeId: item.reasonCodeId,
+  }),
 });

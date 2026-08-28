@@ -1160,6 +1160,285 @@ test("Stock Inward: pickup from a Product Request marks it received", async ({ p
   await expect(page.locator("span").filter({ hasText: "Received" })).toBeVisible();
 });
 
+test("Stock Inward: direct entry without pickup saves with no linked purchase order", async ({
+  page,
+}) => {
+  test.skip(!ADMIN2_EMAIL || !ADMIN2_PASSWORD, "SEED_ADMIN2_EMAIL/PASSWORD not configured");
+  await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
+
+  await page.goto("/stock-inwards/new");
+  await page.getByText("Select warehouse…").click();
+  await page.getByRole("option").first().click();
+  await page.getByText("Select product…").click();
+  await page.getByRole("option").first().click();
+  await page.getByPlaceholder("Accepted").fill("3");
+  const [response] = await Promise.all([
+    page.waitForResponse(
+      (res) => res.url().endsWith("/api/stock-inwards") && res.request().method() === "POST",
+    ),
+    page.getByRole("button", { name: "Save" }).click(),
+  ]);
+  await expect(page.getByText("Stock inward recorded.")).toBeVisible();
+  const created = (await response.json()) as { main: { purchaseOrderId: string | null } };
+  expect(created.main.purchaseOrderId).toBeNull();
+});
+
+test("Stock Inward: edit and delete a direct entry", async ({ page }) => {
+  test.skip(!ADMIN2_EMAIL || !ADMIN2_PASSWORD, "SEED_ADMIN2_EMAIL/PASSWORD not configured");
+  await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
+
+  await page.goto("/stock-inwards/new");
+  await page.getByText("Select warehouse…").click();
+  await page.getByRole("option").first().click();
+  await page.getByText("Select product…").click();
+  await page.getByRole("option").first().click();
+  await page.getByPlaceholder("Accepted").fill("5");
+  const [response] = await Promise.all([
+    page.waitForResponse(
+      (res) => res.url().endsWith("/api/stock-inwards") && res.request().method() === "POST",
+    ),
+    page.getByRole("button", { name: "Save" }).click(),
+  ]);
+  await expect(page.getByText("Stock inward recorded.")).toBeVisible();
+  const created = (await response.json()) as { main: { id: string } };
+
+  await page.goto(`/stock-inwards/${created.main.id}`);
+  await page.getByRole("link", { name: "Edit" }).click();
+  await expect(page.getByPlaceholder("Accepted")).toHaveValue("5");
+  await page.getByPlaceholder("Accepted").fill("7");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Stock inward updated.")).toBeVisible();
+  await expect(page.getByRole("cell", { name: "7", exact: true })).toBeVisible();
+
+  page.on("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "Delete" }).click();
+  await expect(page.getByText("Stock inward deleted.")).toBeVisible();
+  await expect(page).toHaveURL("/stock-inwards");
+
+  const res = await page.request.get(`/api/stock-inwards/${created.main.id}`);
+  expect(res.status()).toBe(404);
+});
+
+test("Stock Inward: cannot reduce quantity below what damage/blocks already consumed", async ({
+  page,
+}) => {
+  test.skip(!ADMIN2_EMAIL || !ADMIN2_PASSWORD, "SEED_ADMIN2_EMAIL/PASSWORD not configured");
+  await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
+
+  await page.goto("/stock-inwards/new");
+  await page.getByText("Select warehouse…").click();
+  const warehouseName = (await page.getByRole("option").first().textContent())!.trim();
+  await page.getByRole("option").first().click();
+  await page.getByText("Select product…").click();
+  const productName = (await page.getByRole("option").first().textContent())!.trim();
+  await page.getByRole("option").first().click();
+  await page.getByPlaceholder("Accepted").fill("10");
+  const [inwardResponse] = await Promise.all([
+    page.waitForResponse(
+      (res) => res.url().endsWith("/api/stock-inwards") && res.request().method() === "POST",
+    ),
+    page.getByRole("button", { name: "Save" }).click(),
+  ]);
+  await expect(page.getByText("Stock inward recorded.")).toBeVisible();
+  const createdInward = (await inwardResponse.json()) as { main: { id: string } };
+
+  await page.goto("/stock-damages/new");
+  await page.getByText("Select warehouse…").click();
+  await page.getByRole("option", { name: warehouseName, exact: true }).click();
+  await page.getByText("Select product…").click();
+  await page.getByRole("option", { name: productName, exact: true }).click();
+  await page.getByPlaceholder("Qty").fill("8");
+  await page.getByText("Select reason…").click();
+  await page.getByRole("option").first().click();
+  const [damageResponse] = await Promise.all([
+    page.waitForResponse(
+      (res) => res.url().endsWith("/api/stock-damages") && res.request().method() === "POST",
+    ),
+    page.getByRole("button", { name: "Save" }).click(),
+  ]);
+  await expect(page.getByText("Stock damage recorded.")).toBeVisible();
+  console.log("inward id:", createdInward.main.id, "damage body:", await damageResponse.text());
+
+  await page.goto(`/stock-inwards/${createdInward.main.id}/edit`);
+  await page.getByPlaceholder("Accepted").fill("1");
+  const [putResponse] = await Promise.all([
+    page.waitForResponse(
+      (res) =>
+        res.url().endsWith(`/api/stock-inwards/${createdInward.main.id}`) &&
+        res.request().method() === "PUT",
+    ),
+    page.getByRole("button", { name: "Save" }).click(),
+  ]);
+  console.log("PUT status:", putResponse.status(), "body:", await putResponse.text());
+  await expect(page.getByText(/would leave -?\d+ available/)).toBeVisible();
+});
+
+test("Stock Damage: succeeds within available stock, rejected beyond it", async ({ page }) => {
+  test.skip(!ADMIN2_EMAIL || !ADMIN2_PASSWORD, "SEED_ADMIN2_EMAIL/PASSWORD not configured");
+  await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
+
+  await page.goto("/stock-inwards/new");
+  await page.getByText("Select warehouse…").click();
+  const warehouseName = (await page.getByRole("option").first().textContent())!.trim();
+  await page.getByRole("option").first().click();
+  await page.getByText("Select product…").click();
+  const productName = (await page.getByRole("option").first().textContent())!.trim();
+  await page.getByRole("option").first().click();
+  await page.getByPlaceholder("Accepted").fill("10");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Stock inward recorded.")).toBeVisible();
+
+  await page.goto("/stock-damages/new");
+  await page.getByText("Select warehouse…").click();
+  await page.getByRole("option", { name: warehouseName, exact: true }).click();
+  await page.getByText("Select product…").click();
+  await page.getByRole("option", { name: productName, exact: true }).click();
+  await page.getByPlaceholder("Qty").fill("5");
+  await page.getByText("Select reason…").click();
+  await page.getByRole("option").first().click();
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Stock damage recorded.")).toBeVisible();
+  await expect(page).toHaveURL(/\/stock-damages$/);
+
+  await page.goto("/stock-damages/new");
+  await page.getByText("Select warehouse…").click();
+  await page.getByRole("option", { name: warehouseName, exact: true }).click();
+  await page.getByText("Select product…").click();
+  await page.getByRole("option", { name: productName, exact: true }).click();
+  await page.getByPlaceholder("Qty").fill("999999");
+  await page.getByText("Select reason…").click();
+  await page.getByRole("option").first().click();
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText(/only \d+ available/)).toBeVisible();
+  await expect(page).toHaveURL(/\/stock-damages\/new$/);
+});
+
+test("Stock Damage: edit and delete", async ({ page }) => {
+  test.skip(!ADMIN2_EMAIL || !ADMIN2_PASSWORD, "SEED_ADMIN2_EMAIL/PASSWORD not configured");
+  await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
+
+  await page.goto("/stock-inwards/new");
+  await page.getByText("Select warehouse…").click();
+  await page.getByRole("option").first().click();
+  await page.getByText("Select product…").click();
+  await page.getByRole("option").first().click();
+  await page.getByPlaceholder("Accepted").fill("10");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Stock inward recorded.")).toBeVisible();
+
+  await page.goto("/stock-damages/new");
+  await page.getByText("Select warehouse…").click();
+  await page.getByRole("option").first().click();
+  await page.getByText("Select product…").click();
+  await page.getByRole("option").first().click();
+  await page.getByPlaceholder("Qty").fill("2");
+  await page.getByText("Select reason…").click();
+  await page.getByRole("option").first().click();
+  const [response] = await Promise.all([
+    page.waitForResponse(
+      (res) => res.url().endsWith("/api/stock-damages") && res.request().method() === "POST",
+    ),
+    page.getByRole("button", { name: "Save" }).click(),
+  ]);
+  await expect(page.getByText("Stock damage recorded.")).toBeVisible();
+  const created = (await response.json()) as { main: { id: string } };
+
+  await page.goto(`/stock-damages/${created.main.id}`);
+  await page.getByRole("link", { name: "Edit" }).click();
+  await expect(page.getByPlaceholder("Qty")).toHaveValue("2");
+  await page.getByPlaceholder("Qty").fill("4");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Stock damage updated.")).toBeVisible();
+  await expect(page.getByRole("cell", { name: "4", exact: true })).toBeVisible();
+
+  page.on("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "Delete" }).click();
+  await expect(page.getByText("Stock damage deleted.")).toBeVisible();
+  await expect(page).toHaveURL("/stock-damages");
+
+  const res = await page.request.get(`/api/stock-damages/${created.main.id}`);
+  expect(res.status()).toBe(404);
+});
+
+test("Stock Block: create, appears in Stale Blocks when overdue, then release", async ({
+  page,
+}) => {
+  test.skip(!ADMIN2_EMAIL || !ADMIN2_PASSWORD, "SEED_ADMIN2_EMAIL/PASSWORD not configured");
+  await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
+
+  await page.goto("/stock-blocks/new");
+  await page.getByText("Select warehouse…").click();
+  await page.getByRole("option").first().click();
+  await page.getByLabel("Review by date").fill("2020-01-01");
+  await page.getByText("Select product…").click();
+  await page.getByRole("option").first().click();
+  await page.getByPlaceholder("Qty").fill("2");
+  await page.getByText("Select reason…").click();
+  await page.getByRole("option").first().click();
+  const [response] = await Promise.all([
+    page.waitForResponse(
+      (res) => res.url().endsWith("/api/stock-blocks") && res.request().method() === "POST",
+    ),
+    page.getByRole("button", { name: "Save" }).click(),
+  ]);
+  await expect(page.getByText("Stock block recorded.")).toBeVisible();
+  const created = (await response.json()) as { main: { id: string; documentNumber: string } };
+
+  await page.goto("/stock-blocks");
+  await expect(page.getByRole("cell", { name: created.main.documentNumber })).toBeVisible();
+
+  await page.goto("/stock-blocks/stale");
+  await expect(page.getByRole("cell", { name: created.main.documentNumber })).toBeVisible();
+
+  await page.goto(`/stock-blocks/${created.main.id}`);
+  await page.getByRole("button", { name: "Release" }).click();
+  await expect(page.getByText("Item released.")).toBeVisible();
+  await expect(page.getByText("released", { exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Edit" })).not.toBeVisible();
+  await expect(page.getByRole("button", { name: "Delete" })).not.toBeVisible();
+
+  await page.goto("/stock-blocks/stale");
+  await expect(page.getByRole("cell", { name: created.main.documentNumber })).not.toBeVisible();
+});
+
+test("Stock Block: edit and delete while all items are still active", async ({ page }) => {
+  test.skip(!ADMIN2_EMAIL || !ADMIN2_PASSWORD, "SEED_ADMIN2_EMAIL/PASSWORD not configured");
+  await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
+
+  await page.goto("/stock-blocks/new");
+  await page.getByText("Select warehouse…").click();
+  await page.getByRole("option").first().click();
+  await page.getByText("Select product…").click();
+  await page.getByRole("option").first().click();
+  await page.getByPlaceholder("Qty").fill("3");
+  await page.getByText("Select reason…").click();
+  await page.getByRole("option").first().click();
+  const [response] = await Promise.all([
+    page.waitForResponse(
+      (res) => res.url().endsWith("/api/stock-blocks") && res.request().method() === "POST",
+    ),
+    page.getByRole("button", { name: "Save" }).click(),
+  ]);
+  await expect(page.getByText("Stock block recorded.")).toBeVisible();
+  const created = (await response.json()) as { main: { id: string } };
+
+  await page.goto(`/stock-blocks/${created.main.id}`);
+  await page.getByRole("link", { name: "Edit" }).click();
+  await expect(page.getByPlaceholder("Qty")).toHaveValue("3");
+  await page.getByPlaceholder("Qty").fill("9");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Stock block updated.")).toBeVisible();
+  await expect(page.getByRole("cell", { name: "9", exact: true })).toBeVisible();
+
+  page.on("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "Delete" }).click();
+  await expect(page.getByText("Stock block deleted.")).toBeVisible();
+  await expect(page).toHaveURL("/stock-blocks");
+
+  const res = await page.request.get(`/api/stock-blocks/${created.main.id}`);
+  expect(res.status()).toBe(404);
+});
+
 test("Product supplier pricing: adding a price auto-fills cost on a Product Request", async ({
   page,
 }) => {
