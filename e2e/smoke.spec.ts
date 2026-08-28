@@ -1072,3 +1072,114 @@ test("Tax status banner: shown for an unconfigured store, dismissible for the se
   await page.reload();
   await expect(banner).not.toBeVisible();
 });
+
+test("Product Requests: create with two line items, view, and mark as sent", async ({ page }) => {
+  test.skip(!ADMIN2_EMAIL || !ADMIN2_PASSWORD, "SEED_ADMIN2_EMAIL/PASSWORD not configured");
+  await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
+
+  await page.goto("/product-requests");
+  await page.getByRole("link", { name: "New Product Request" }).click();
+  await expect(page).toHaveURL(/\/product-requests\/new$/);
+
+  await page.getByText("Select supplier…").click();
+  await page.getByRole("option").first().click();
+
+  const productSelects = page.getByText("Select product…");
+  await productSelects.first().click();
+  await page.getByRole("option").first().click();
+  await page.getByRole("button", { name: "Add item" }).click();
+  await page.getByText("Select product…").click();
+  await page.getByRole("option").last().click();
+
+  const qtyInputs = page.getByPlaceholder("Qty");
+  await qtyInputs.nth(0).fill("5");
+  await qtyInputs.nth(1).fill("3");
+
+  const [createResponse] = await Promise.all([
+    page.waitForResponse(
+      (res) => res.url().endsWith("/api/product-requests") && res.request().method() === "POST",
+    ),
+    page.getByRole("button", { name: "Save" }).click(),
+  ]);
+  await expect(page.getByText("Product request created.")).toBeVisible();
+  const created = (await createResponse.json()) as { main: { id: string } };
+
+  await page.goto(`/product-requests/${created.main.id}`);
+  await expect(page.getByText("draft")).toBeVisible();
+  await expect(page.getByRole("cell", { name: "5", exact: true })).toBeVisible();
+  await expect(page.getByRole("cell", { name: "3", exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Mark as Sent" }).click();
+  await expect(page.getByText("Request marked as sent.")).toBeVisible();
+  await expect(page.getByText("sent", { exact: true })).toBeVisible();
+});
+
+test("Stock Inward: pickup from a Product Request marks it received", async ({ page }) => {
+  test.skip(!ADMIN2_EMAIL || !ADMIN2_PASSWORD, "SEED_ADMIN2_EMAIL/PASSWORD not configured");
+  await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
+
+  await page.goto("/product-requests/new");
+  await page.getByText("Select supplier…").click();
+  await page.getByRole("option").first().click();
+  await page.getByText("Select product…").click();
+  await page.getByRole("option").first().click();
+  await page.getByPlaceholder("Qty").fill("4");
+  const [prCreateResponse] = await Promise.all([
+    page.waitForResponse(
+      (res) => res.url().endsWith("/api/product-requests") && res.request().method() === "POST",
+    ),
+    page.getByRole("button", { name: "Save" }).click(),
+  ]);
+  await expect(page.getByText("Product request created.")).toBeVisible();
+  const createdPr = (await prCreateResponse.json()) as {
+    main: { id: string; documentNumber: string };
+  };
+
+  await page.goto(`/product-requests/${createdPr.main.id}`);
+  await page.getByRole("button", { name: "Mark as Sent" }).click();
+  await expect(page.getByText("Request marked as sent.")).toBeVisible();
+
+  await page.goto("/stock-inwards/new");
+  await page.getByRole("button", { name: "Pickup" }).click();
+  await page.getByText(createdPr.main.documentNumber, { exact: true }).click();
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await page.getByRole("button", { name: "Add to inward" }).click();
+  await expect(page.getByText(`Picked up from ${createdPr.main.documentNumber}`)).toBeVisible();
+
+  await page.getByText("Select warehouse…").click();
+  await page.getByRole("option").first().click();
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Stock inward recorded.")).toBeVisible();
+  await expect(page).toHaveURL(/\/stock-inwards$/);
+
+  await page.goto(`/product-requests/${createdPr.main.id}`);
+  await expect(page.getByText("received", { exact: true })).toBeVisible();
+});
+
+test("Product supplier pricing: adding a price auto-fills cost on a Product Request", async ({
+  page,
+}) => {
+  test.skip(!ADMIN2_EMAIL || !ADMIN2_PASSWORD, "SEED_ADMIN2_EMAIL/PASSWORD not configured");
+  await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
+
+  await page.goto("/products");
+  await page.locator("[data-navcard]").first().click();
+  await expect(page).toHaveURL(/\/products\/[0-9a-f-]+$/);
+  const productName = (await page.locator("dd").first().textContent())!.trim();
+
+  await page.getByRole("button", { name: "Add price" }).click();
+  await page.getByText("Select supplier…").click();
+  const supplierName = (await page.getByRole("option").first().textContent())!.trim();
+  await page.getByRole("option").first().click();
+  await page.getByLabel("Cost").fill("123.45");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByText("Supplier price added.")).toBeVisible();
+  await expect(page.getByRole("cell", { name: "123.45" })).toBeVisible();
+
+  await page.goto("/product-requests/new");
+  await page.getByText("Select supplier…").click();
+  await page.getByRole("option", { name: supplierName, exact: true }).click();
+  await page.getByText("Select product…").click();
+  await page.getByRole("option", { name: productName, exact: true }).click();
+  await expect(page.getByPlaceholder("Optional")).toHaveValue("123.45");
+});

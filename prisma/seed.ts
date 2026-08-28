@@ -188,7 +188,7 @@ async function main() {
       isActive: true,
     },
   });
-  await db.financialYear.upsert({
+  const fy2627 = await db.financialYear.upsert({
     where: { id: IDS.fy2627 },
     update: {},
     create: {
@@ -299,24 +299,26 @@ async function main() {
   });
 
   console.log("Seeding numbering series…");
-  for (const seriesType of SERIES_TYPES) {
-    await db.numberingSeries.upsert({
-      where: {
-        seriesType_storeId_financialYearId: {
+  for (const financialYear of [fy2526, fy2627]) {
+    for (const seriesType of SERIES_TYPES) {
+      await db.numberingSeries.upsert({
+        where: {
+          seriesType_storeId_financialYearId: {
+            seriesType,
+            storeId: store.id,
+            financialYearId: financialYear.id,
+          },
+        },
+        update: {},
+        create: {
           seriesType,
           storeId: store.id,
-          financialYearId: fy2526.id,
+          financialYearId: financialYear.id,
+          prefix: SERIES_PREFIXES[seriesType],
+          currentNumber: 0,
         },
-      },
-      update: {},
-      create: {
-        seriesType,
-        storeId: store.id,
-        financialYearId: fy2526.id,
-        prefix: SERIES_PREFIXES[seriesType],
-        currentNumber: 0,
-      },
-    });
+      });
+    }
   }
 
   console.log("Seeding demo admin user…");

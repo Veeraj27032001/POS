@@ -8,6 +8,8 @@ import { toast } from "sonner";
 
 import { ProductHsnTaxDetails } from "@/components/product-hsn-tax-details";
 import { ProductMediaManager } from "@/components/product-media-manager";
+import { ProductPriceHistory } from "@/components/product-price-history";
+import { ProductSupplierPricing } from "@/components/product-supplier-pricing";
 import { Button } from "@/components/ui/button";
 import { getPrintBridge } from "@/lib/adapters/print";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
@@ -216,6 +218,9 @@ export default function ProductViewPage() {
       )}
 
       {row && <ProductHsnTaxDetails hsnCodeId={row.hsnCodeId} />}
+
+      {row && <ProductSupplierPricing productId={row.id} />}
+      {row && <ProductPriceHistory productId={row.id} />}
     </div>
   );
 }

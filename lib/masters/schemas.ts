@@ -70,6 +70,11 @@ export const productCreateSchema = z.object({
 });
 export const productUpdateSchema = productCreateSchema.partial();
 
+export const productSupplierPriceCreateSchema = z.object({
+  supplierId: opaqueIdSchema,
+  cost: nonNegativeDecimal,
+});
+
 export const customerCreateSchema = z.object({
   name: requiredString("Name"),
   phone: phoneSchema,

@@ -113,6 +113,16 @@ export const productResource = defineResource({
     }
     return { ...data, systemBarcode: generateSystemBarcode() };
   },
+  afterUpdate: async (updated, existing, session) => {
+    if (String(updated.price) === String(existing.price)) return;
+    await unscoped().productPriceHistory.create({
+      data: {
+        productId: String(updated.id),
+        price: updated.price as never,
+        changedByUserId: session.user.id,
+      },
+    });
+  },
   defaultSort: { createdAt: "desc" },
 });
 

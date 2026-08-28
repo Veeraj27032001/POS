@@ -63,6 +63,14 @@ export interface ResourceConfig<TCreate, TUpdate> {
     originalData: Record<string, unknown>,
     session: AppSession,
   ) => void | Promise<void>;
+  /** Runs only after an update actually commits — the right place for side
+   * effects like logging a change, so a rejected/failed update never fires
+   * them. `existing` is the record as it was before this update. */
+  afterUpdate?: (
+    updated: Record<string, unknown>,
+    existing: Record<string, unknown>,
+    session: AppSession,
+  ) => void | Promise<void>;
   /** Extra `where` conditions merged into every read/write, e.g. to hide
    * higher-privilege rows from lower-privilege viewers (Users' role
    * hierarchy). Applied on top of, never instead of, store scoping. */

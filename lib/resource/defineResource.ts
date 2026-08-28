@@ -218,6 +218,11 @@ export function defineResource<TCreate, TUpdate>(config: ResourceConfig<TCreate,
         beforeData: existing as never,
         afterData: updated as never,
       });
+
+      if (config.afterUpdate) {
+        await config.afterUpdate(updated, existing, session);
+      }
+
       return NextResponse.json(updated);
     };
 
