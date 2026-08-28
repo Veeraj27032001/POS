@@ -40,6 +40,7 @@ const MODULE_LABELS: Record<string, string> = {
   payment_methods: "Payment Methods",
   tax_settings: "Tax Preferences",
   hsn_codes: "HSN Codes",
+  financial_years: "Financial Years",
 };
 
 export default function RoleDetailPage() {

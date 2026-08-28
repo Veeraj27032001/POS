@@ -107,11 +107,14 @@ export function defineDocumentResource<TCreate extends DocumentCreateInput>(
 
     return withStoreContext(async () => {
       const mainDelegate = config.getMainDelegate(unscoped());
-      const where = storeIdFilter
-        ? { storeId: storeIdFilter }
-        : session.user.storeId
-          ? { storeId: session.user.storeId }
-          : {};
+      const where = {
+        ...(storeIdFilter
+          ? { storeId: storeIdFilter }
+          : session.user.storeId
+            ? { storeId: session.user.storeId }
+            : {}),
+        ...(session.user.financialYearId ? { financialYearId: session.user.financialYearId } : {}),
+      };
 
       const totalRecords = await mainDelegate.count({ where });
       const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));

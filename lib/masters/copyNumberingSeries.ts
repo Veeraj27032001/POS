@@ -25,6 +25,30 @@ export async function createDefaultNumberingSeries(storeId: string) {
   return { createdCount: result.count };
 }
 
+export async function createNumberingSeriesForNewFinancialYear(financialYearId: string) {
+  const db = unscoped();
+  const stores = await db.store.findMany({
+    where: { isActive: true, isDeleted: false },
+    select: { id: true },
+  });
+  if (stores.length === 0) return { createdCount: 0 };
+
+  const result = await db.numberingSeries.createMany({
+    data: stores.flatMap((store) =>
+      SERIES_TYPES.map((seriesType) => ({
+        seriesType,
+        storeId: store.id,
+        financialYearId,
+        prefix: SERIES_PREFIXES[seriesType],
+        currentNumber: 0,
+      })),
+    ),
+    skipDuplicates: true,
+  });
+
+  return { createdCount: result.count };
+}
+
 export async function copyNumberingSeriesToStores(sourceStoreId: string, targetStoreIds: string[]) {
   if (targetStoreIds.length === 0) return { copiedCount: 0 };
 

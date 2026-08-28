@@ -5,6 +5,7 @@ import {
   Banknote,
   Barcode,
   Boxes,
+  CalendarRange,
   ClipboardCheck,
   ClipboardList,
   CreditCard,
@@ -80,6 +81,7 @@ const NAV_ITEM_MODULE: Record<string, string> = {
   "/stock-negative-adjustments": "stock",
   "/settings/hsn-codes": "hsn_codes",
   "/settings/tax-engine": "stores",
+  "/settings/financial-years": "financial_years",
   "/settings/roles": "roles",
 };
 
@@ -187,6 +189,11 @@ const NAV_GROUPS: AppNavGroup[] = [
         href: "/settings/tax-engine",
         label: "Tax Engine",
         icon: <Landmark className="h-4 w-4" />,
+      },
+      {
+        href: "/settings/financial-years",
+        label: "Financial Years",
+        icon: <CalendarRange className="h-4 w-4" />,
       },
       { href: "/settings/roles", label: "Roles", icon: <Shield className="h-4 w-4" /> },
       { href: "/settings/security", label: "Security", icon: <ShieldCheck className="h-4 w-4" /> },

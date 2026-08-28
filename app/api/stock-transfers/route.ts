@@ -36,7 +36,10 @@ export async function GET(request: Request) {
 
   return withStoreContext(async () => {
     const db = unscoped();
-    const where = session.user.storeId ? { storeId: session.user.storeId } : {};
+    const where = {
+      ...(session.user.storeId ? { storeId: session.user.storeId } : {}),
+      ...(session.user.financialYearId ? { financialYearId: session.user.financialYearId } : {}),
+    };
 
     const totalRecords = await db.stockTransferMain.count({ where });
     const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));

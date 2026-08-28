@@ -9,6 +9,7 @@ import { hashSecret } from "@/lib/security/hash";
 import {
   copyNumberingSeriesToStores,
   createDefaultNumberingSeries,
+  createNumberingSeriesForNewFinancialYear,
   findReferenceStoreId,
 } from "./copyNumberingSeries";
 import { generateSystemBarcode } from "./generateSystemBarcode";
@@ -374,12 +375,15 @@ export const userResource = defineResource({
 
 export const financialYearResource = defineResource({
   name: "financial_year",
-  module: "settings",
+  module: "financial_years",
   scoping: "none",
   createSchema: schemas.financialYearCreateSchema,
   updateSchema: schemas.financialYearUpdateSchema,
   searchFields: ["label"],
   getDelegate: delegateOf("financialYear"),
+  afterCreate: async (created) => {
+    await createNumberingSeriesForNewFinancialYear(created.id as string);
+  },
 });
 
 export const numberingSeriesResource = defineResource({
