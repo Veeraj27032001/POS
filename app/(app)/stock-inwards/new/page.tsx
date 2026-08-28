@@ -9,6 +9,7 @@ import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import type { z } from "zod";
 
+import { ProductSelectWithStock } from "@/components/product-select-with-stock";
 import { RequiredMark } from "@/components/required-mark";
 import { SearchableSelect } from "@/components/searchable-select";
 import type { PickedItem } from "@/components/stock-inward-pickup-dialog";
@@ -49,6 +50,7 @@ export default function NewStockInwardPage() {
   });
   const { fields, append, remove, replace } = useFieldArray({ control, name: "items" });
   const watchedItems = useWatch({ control, name: "items" });
+  const warehouseId = useWatch({ control, name: "warehouseId" });
 
   function handleAddItem() {
     append({ productId: "", quantityAccepted: 1 });
@@ -219,11 +221,11 @@ export default function NewStockInwardPage() {
                           name={`items.${index}.productId`}
                           control={control}
                           render={({ field: f }) => (
-                            <SearchableSelect
-                              options={products}
-                              value={f.value ?? null}
-                              onChange={(v) => f.onChange(v ?? "")}
-                              placeholder="Select product…"
+                            <ProductSelectWithStock
+                              value={f.value}
+                              onChange={f.onChange}
+                              products={products}
+                              warehouseId={warehouseId}
                             />
                           )}
                         />

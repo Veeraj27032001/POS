@@ -9,8 +9,8 @@ import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import type { z } from "zod";
 
+import { ProductSelectWithStock } from "@/components/product-select-with-stock";
 import { RequiredMark } from "@/components/required-mark";
-import { SearchableSelect } from "@/components/searchable-select";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -26,6 +26,7 @@ type StockTransferEditInput = z.infer<typeof stockTransferEditSchema>;
 
 interface ExistingStockTransfer {
   status: string;
+  sourceWarehouseId: string;
   requestedAt: string;
   notes: string | null;
   items: { productId: string; quantity: number }[];
@@ -39,6 +40,7 @@ export default function EditStockTransferPage() {
   const [loaded, setLoaded] = useState<"pending" | "ready" | "not_editable" | "not_found">(
     "pending",
   );
+  const [sourceWarehouseId, setSourceWarehouseId] = useState<string | null>(null);
 
   const {
     register,
@@ -64,6 +66,7 @@ export default function EditStockTransferPage() {
           setLoaded("not_editable");
           return;
         }
+        setSourceWarehouseId(body.sourceWarehouseId);
         reset({
           transferDate: toDateOnly(body.requestedAt),
           notes: body.notes ?? undefined,
@@ -169,11 +172,11 @@ export default function EditStockTransferPage() {
                           name={`items.${index}.productId`}
                           control={control}
                           render={({ field: f }) => (
-                            <SearchableSelect
-                              options={products}
-                              value={f.value ?? null}
-                              onChange={(v) => f.onChange(v ?? "")}
-                              placeholder="Select product…"
+                            <ProductSelectWithStock
+                              value={f.value}
+                              onChange={f.onChange}
+                              products={products}
+                              warehouseId={sourceWarehouseId}
                             />
                           )}
                         />

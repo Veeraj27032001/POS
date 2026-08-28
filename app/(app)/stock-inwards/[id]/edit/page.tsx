@@ -9,6 +9,7 @@ import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import type { z } from "zod";
 
+import { ProductSelectWithStock } from "@/components/product-select-with-stock";
 import { RequiredMark } from "@/components/required-mark";
 import { SearchableSelect } from "@/components/searchable-select";
 import { Button } from "@/components/ui/button";
@@ -223,11 +224,11 @@ export default function EditStockInwardPage() {
                             name={`items.${index}.productId`}
                             control={control}
                             render={({ field: f }) => (
-                              <SearchableSelect
-                                options={products}
-                                value={f.value ?? null}
-                                onChange={(v) => f.onChange(v ?? "")}
-                                placeholder="Select product…"
+                              <ProductSelectWithStock
+                                value={f.value}
+                                onChange={f.onChange}
+                                products={products}
+                                warehouseId={warehouseId}
                               />
                             )}
                           />
