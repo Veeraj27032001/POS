@@ -18,7 +18,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const { id } = await params;
   return withStoreContext(async () => {
     const prices = await unscoped().productSupplierPrice.findMany({
-      where: { productId: id },
+      where: { productId: id, isDeleted: false },
       orderBy: { createdAt: "desc" },
     });
     return Response.json({ data: prices });
@@ -39,14 +39,21 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if ("response" in parsed) return parsed.response;
 
   return withStoreContext(async () => {
-    const created = await unscoped().productSupplierPrice.create({
-      data: {
-        productId: id,
-        supplierId: parsed.data.supplierId,
-        cost: parsed.data.cost,
-        createdByUserId: session.user.id,
-      },
-    });
+    const db = unscoped();
+    const [, created] = await db.$transaction([
+      db.productSupplierPrice.updateMany({
+        where: { productId: id, supplierId: parsed.data.supplierId, isDeleted: false },
+        data: { isDeleted: true },
+      }),
+      db.productSupplierPrice.create({
+        data: {
+          productId: id,
+          supplierId: parsed.data.supplierId,
+          cost: parsed.data.cost,
+          createdByUserId: session.user.id,
+        },
+      }),
+    ]);
     return Response.json(created, { status: 201 });
   });
 }

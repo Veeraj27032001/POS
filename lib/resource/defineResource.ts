@@ -12,12 +12,39 @@ import { Prisma } from "@/generated/prisma/client";
 
 import { isResourceHookRejection } from "./types";
 
-function uniqueConstraintResponse(error: unknown) {
+/** P2002's `meta` shape differs by Prisma version/driver: classic engines
+ * populate `meta.target` directly, while the driver-adapter path (in use
+ * here) instead nests the DB's own constraint info under
+ * `meta.driverAdapterError.cause.constraint.fields`. Check both. */
+function extractUniqueFields(meta: Record<string, unknown> | undefined): string[] {
+  if (!meta) return [];
+  const target = meta.target;
+  if (Array.isArray(target)) return target as string[];
+  if (typeof target === "string") return [target];
+
+  const driverAdapterError = meta.driverAdapterError as
+    { cause?: { constraint?: { fields?: unknown } } } | undefined;
+  const driverFields = driverAdapterError?.cause?.constraint?.fields;
+  return Array.isArray(driverFields) ? (driverFields as string[]) : [];
+}
+
+function uniqueConstraintResponse(error: unknown, uniqueFieldLabels?: Record<string, string>) {
   if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2002") {
     return null;
   }
-  const fields = (error.meta?.target as string[] | undefined)?.join(", ") ?? "this value";
-  return apiErrorResponse("conflict", `A record with this ${fields} already exists.`, 409);
+  const rawFields = extractUniqueFields(error.meta);
+  const labels = rawFields.map((raw) => {
+    if (uniqueFieldLabels?.[raw]) return uniqueFieldLabels[raw];
+    const camel = raw.replace(/_([a-z])/g, (_match: string, letter: string) =>
+      letter.toUpperCase(),
+    );
+    return uniqueFieldLabels?.[camel] ?? null;
+  });
+  const message =
+    labels.length > 0 && labels.every((label): label is string => label !== null)
+      ? `A record with this ${labels.join(", ")} already exists.`
+      : "A record with this value already exists.";
+  return apiErrorResponse("conflict", message, 409);
 }
 import type { ResourceConfig, ResourceDelegate } from "./types";
 
@@ -140,7 +167,7 @@ export function defineResource<TCreate, TUpdate>(config: ResourceConfig<TCreate,
       try {
         created = await delegate.create({ data });
       } catch (error) {
-        const conflict = uniqueConstraintResponse(error);
+        const conflict = uniqueConstraintResponse(error, config.uniqueFieldLabels);
         if (conflict) return conflict;
         throw error;
       }
@@ -205,10 +232,14 @@ export function defineResource<TCreate, TUpdate>(config: ResourceConfig<TCreate,
         data = result;
       }
 
-      const updated = await delegate.update({
-        where: { id },
-        data,
-      });
+      let updated: Record<string, unknown>;
+      try {
+        updated = await delegate.update({ where: { id }, data });
+      } catch (error) {
+        const conflict = uniqueConstraintResponse(error, config.uniqueFieldLabels);
+        if (conflict) return conflict;
+        throw error;
+      }
       await writeAuditLog({
         userId: session.user.id,
         storeId: session.user.storeId,

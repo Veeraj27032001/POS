@@ -28,8 +28,10 @@ export const productRequestStatusSchema = z.enum([
   "cancelled",
 ]);
 export const productRequestUpdateStatusSchema = z.object({
-  status: z.enum(["sent", "cancelled"]),
+  status: z.enum(["sent", "cancelled", "draft"]),
 });
+
+export const productRequestEditSchema = productRequestCreateSchema;
 
 export const stockInwardItemSchema = z.object({
   productId: opaqueIdSchema,

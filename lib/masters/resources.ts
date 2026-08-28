@@ -73,6 +73,7 @@ export const hsnCodeResource = defineResource({
   createSchema: schemas.hsnCodeCreateSchema,
   updateSchema: schemas.hsnCodeUpdateSchema,
   searchFields: ["hsnCode", "description"],
+  uniqueFieldLabels: { hsnCode: "HSN code", hsn_code: "HSN code" },
   getDelegate: delegateOf("hsnCode"),
 });
 
@@ -105,6 +106,12 @@ export const productResource = defineResource({
   createSchema: schemas.productCreateSchema,
   updateSchema: schemas.productUpdateSchema,
   searchFields: ["name", "skuBarcode", "systemBarcode"],
+  uniqueFieldLabels: {
+    skuBarcode: "Manufacturer barcode",
+    sku_barcode: "Manufacturer barcode",
+    systemBarcode: "System barcode",
+    system_barcode: "System barcode",
+  },
   getDelegate: delegateOf("product"),
   beforeCreate: async (data) => {
     const preferences = await unscoped().taxPreferences.findFirst();
@@ -326,6 +333,7 @@ export const userResource = defineResource({
   createSchema: schemas.userCreateSchema,
   updateSchema: schemas.userUpdateSchema,
   searchFields: ["name", "email"],
+  uniqueFieldLabels: { email: "Email" },
   getDelegate: userDelegateWithRole,
   extraWhere: (session) => {
     const viewerRank = roleRank(session.user.roleName);

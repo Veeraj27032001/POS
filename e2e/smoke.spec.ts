@@ -1109,9 +1109,9 @@ test("Product Requests: create with two line items, view, and mark as sent", asy
   await expect(page.getByRole("cell", { name: "5", exact: true })).toBeVisible();
   await expect(page.getByRole("cell", { name: "3", exact: true })).toBeVisible();
 
-  await page.getByRole("button", { name: "Mark as Sent" }).click();
-  await expect(page.getByText("Request marked as sent.")).toBeVisible();
-  await expect(page.getByText("sent", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Approve" }).click();
+  await expect(page.getByText("Request approved.")).toBeVisible();
+  await expect(page.getByText("Approved", { exact: true })).toBeVisible();
 });
 
 test("Stock Inward: pickup from a Product Request marks it received", async ({ page }) => {
@@ -1120,6 +1120,7 @@ test("Stock Inward: pickup from a Product Request marks it received", async ({ p
 
   await page.goto("/product-requests/new");
   await page.getByText("Select supplier…").click();
+  const supplierName = (await page.getByRole("option").first().textContent())!.trim();
   await page.getByRole("option").first().click();
   await page.getByText("Select product…").click();
   await page.getByRole("option").first().click();
@@ -1136,8 +1137,8 @@ test("Stock Inward: pickup from a Product Request marks it received", async ({ p
   };
 
   await page.goto(`/product-requests/${createdPr.main.id}`);
-  await page.getByRole("button", { name: "Mark as Sent" }).click();
-  await expect(page.getByText("Request marked as sent.")).toBeVisible();
+  await page.getByRole("button", { name: "Approve" }).click();
+  await expect(page.getByText("Request approved.")).toBeVisible();
 
   await page.goto("/stock-inwards/new");
   await page.getByRole("button", { name: "Pickup" }).click();
@@ -1146,6 +1147,9 @@ test("Stock Inward: pickup from a Product Request marks it received", async ({ p
   await page.getByRole("button", { name: "Add to inward" }).click();
   await expect(page.getByText(`Picked up from ${createdPr.main.documentNumber}`)).toBeVisible();
 
+  // The Product Request already had a supplier — the pickup should carry it over.
+  await expect(page.getByRole("button", { name: supplierName, exact: true })).toBeVisible();
+
   await page.getByText("Select warehouse…").click();
   await page.getByRole("option").first().click();
   await page.getByRole("button", { name: "Save" }).click();
@@ -1153,7 +1157,7 @@ test("Stock Inward: pickup from a Product Request marks it received", async ({ p
   await expect(page).toHaveURL(/\/stock-inwards$/);
 
   await page.goto(`/product-requests/${createdPr.main.id}`);
-  await expect(page.getByText("received", { exact: true })).toBeVisible();
+  await expect(page.locator("span").filter({ hasText: "Received" })).toBeVisible();
 });
 
 test("Product supplier pricing: adding a price auto-fills cost on a Product Request", async ({
@@ -1182,4 +1186,51 @@ test("Product supplier pricing: adding a price auto-fills cost on a Product Requ
   await page.getByText("Select product…").click();
   await page.getByRole("option", { name: productName, exact: true }).click();
   await expect(page.getByPlaceholder("Optional")).toHaveValue("123.45");
+});
+
+test("Product Requests: edit while draft, approve, revert, then delete", async ({ page }) => {
+  test.skip(!ADMIN2_EMAIL || !ADMIN2_PASSWORD, "SEED_ADMIN2_EMAIL/PASSWORD not configured");
+  await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
+  page.on("dialog", (dialog) => dialog.accept());
+
+  await page.goto("/product-requests/new");
+  await page.getByText("Select supplier…").click();
+  await page.getByRole("option").first().click();
+  await page.getByText("Select product…").click();
+  await page.getByRole("option").first().click();
+  await page.getByPlaceholder("Qty").fill("2");
+  const [createResponse] = await Promise.all([
+    page.waitForResponse(
+      (res) => res.url().endsWith("/api/product-requests") && res.request().method() === "POST",
+    ),
+    page.getByRole("button", { name: "Save" }).click(),
+  ]);
+  await expect(page.getByText("Product request created.")).toBeVisible();
+  const created = (await createResponse.json()) as { main: { id: string } };
+
+  await page.goto(`/product-requests/${created.main.id}`);
+  await page.getByRole("link", { name: "Edit" }).click();
+  await expect(page).toHaveURL(new RegExp(`/product-requests/${created.main.id}/edit$`));
+  await expect(page.getByPlaceholder("Qty")).toHaveValue("2");
+  await page.getByPlaceholder("Qty").fill("6");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Product request updated.")).toBeVisible();
+  await expect(page).toHaveURL(`/product-requests/${created.main.id}`);
+  await expect(page.getByRole("cell", { name: "6", exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Approve" }).click();
+  await expect(page.getByText("Request approved.")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Edit" })).not.toBeVisible();
+  await expect(page.getByRole("button", { name: "Delete" })).not.toBeVisible();
+
+  await page.getByRole("button", { name: "Revert to Draft" }).click();
+  await expect(page.getByText("Request reverted to draft.")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Edit" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Delete" }).click();
+  await expect(page.getByText("Product request deleted.")).toBeVisible();
+  await expect(page).toHaveURL("/product-requests");
+
+  const res = await page.request.get(`/api/product-requests/${created.main.id}`);
+  expect(res.status()).toBe(404);
 });

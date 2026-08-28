@@ -12,6 +12,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { PRODUCT_REQUEST_STATUS_LABELS } from "@/lib/documents/productRequestStatus";
 import { cn } from "@/lib/utils";
 
 interface ProductRequestSummary {
@@ -50,6 +51,7 @@ export function StockInwardPickupDialog({
   onPicked: (result: {
     purchaseOrderId: string;
     documentNumber: string;
+    supplierId: string;
     items: PickedItem[];
   }) => void;
 }) {
@@ -110,6 +112,7 @@ export function StockInwardPickupDialog({
     onPicked({
       purchaseOrderId: selectedRequest.id,
       documentNumber: selectedRequest.documentNumber,
+      supplierId: selectedRequest.supplierId,
       items: picked,
     });
     setOpen(false);
@@ -147,8 +150,8 @@ export function StockInwardPickupDialog({
                 )}
               >
                 <span className="font-medium">{r.documentNumber}</span>
-                <span className="text-muted-foreground capitalize">
-                  {r.status.replace(/_/g, " ")}
+                <span className="text-muted-foreground">
+                  {PRODUCT_REQUEST_STATUS_LABELS[r.status] ?? r.status}
                 </span>
               </button>
             ))}

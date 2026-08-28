@@ -5,6 +5,7 @@ import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { DataTable } from "@/components/data-table/data-table";
 import { formatDateOnly, toDateOnly } from "@/lib/datetime/dateOnly";
+import { PRODUCT_REQUEST_STATUS_LABELS } from "@/lib/documents/productRequestStatus";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 
 interface ProductRequestRow {
@@ -42,7 +43,11 @@ export default function ProductRequestsPage() {
             header: "Request date",
             render: (row) => formatDateOnly(toDateOnly(row.requestDate)),
           },
-          { key: "status", header: "Status" },
+          {
+            key: "status",
+            header: "Status",
+            render: (row) => PRODUCT_REQUEST_STATUS_LABELS[row.status] ?? row.status,
+          },
           {
             key: "actions",
             header: "",

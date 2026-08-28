@@ -40,6 +40,11 @@ export interface ResourceConfig<TCreate, TUpdate> {
   createSchema: ZodType<TCreate>;
   updateSchema: ZodType<TUpdate>;
   searchFields?: string[];
+  /** Maps a unique field's Prisma name (and/or its snake_case DB column
+   * name) to a human-friendly label, used to turn a raw P2002 conflict into
+   * "A record with this Manufacturer barcode already exists." instead of a
+   * generic or DB-internal message. */
+  uniqueFieldLabels?: Record<string, string>;
   getDelegate: (client: unknown) => ResourceDelegate;
   hasIsActive?: boolean;
   explicitStoreId?: boolean;

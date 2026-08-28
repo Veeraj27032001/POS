@@ -2,12 +2,13 @@
 
 import { Loader2Icon } from "lucide-react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { formatDateOnly, toDateOnly } from "@/lib/datetime/dateOnly";
+import { PRODUCT_REQUEST_STATUS_LABELS } from "@/lib/documents/productRequestStatus";
 import {
   Table,
   TableBody,
@@ -54,8 +55,10 @@ const STATUS_STYLES: Record<string, string> = {
 
 export default function ProductRequestViewPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const [row, setRow] = useState<ProductRequestRow | null | undefined>(undefined);
   const [updating, setUpdating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const invalidate = useInvalidateResource();
   const suppliers = useOptionsList("suppliers", "name");
 
@@ -67,7 +70,7 @@ export default function ProductRequestViewPage() {
 
   useEffect(refresh, [id]);
 
-  async function updateStatus(status: "sent" | "cancelled") {
+  async function updateStatus(status: "sent" | "cancelled" | "draft") {
     setUpdating(true);
     try {
       const res = await fetch(`/api/product-requests/${id}`, {
@@ -82,11 +85,39 @@ export default function ProductRequestViewPage() {
       }
       refresh();
       invalidate("product-requests");
-      toast.success(`Request marked as ${status}.`);
+      const messages = {
+        sent: "Request approved.",
+        cancelled: "Request cancelled.",
+        draft: "Request reverted to draft.",
+      };
+      toast.success(messages[status]);
     } finally {
       setUpdating(false);
     }
   }
+
+  async function handleDelete() {
+    if (!window.confirm("Delete this product request? This cannot be undone.")) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/product-requests/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        toast.error(body?.error?.message ?? "Failed to delete.");
+        return;
+      }
+      invalidate("product-requests");
+      toast.success("Product request deleted.");
+      router.push("/product-requests");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  const canRevert =
+    row &&
+    (row.status === "sent" || row.status === "cancelled") &&
+    row.items.every((item) => item.quantityReceived === 0);
 
   return (
     <div className="max-w-4xl space-y-4 p-8">
@@ -104,14 +135,22 @@ export default function ProductRequestViewPage() {
               <h1 className="text-2xl font-semibold">{row.documentNumber}</h1>
               <span
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold capitalize",
+                  "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold",
                   STATUS_STYLES[row.status] ?? "bg-muted text-muted-foreground",
                 )}
               >
-                {row.status.replace(/_/g, " ")}
+                {PRODUCT_REQUEST_STATUS_LABELS[row.status] ?? row.status}
               </span>
             </div>
             <div className="flex gap-2">
+              {row.status === "draft" && (
+                <Link
+                  href={`/product-requests/${row.id}/edit`}
+                  className={buttonVariants({ variant: "outline", size: "sm" })}
+                >
+                  Edit
+                </Link>
+              )}
               {row.status === "draft" && (
                 <Button
                   variant="outline"
@@ -120,7 +159,18 @@ export default function ProductRequestViewPage() {
                   onClick={() => updateStatus("sent")}
                 >
                   {updating && <Loader2Icon className="size-3.5 animate-spin" />}
-                  Mark as Sent
+                  Approve
+                </Button>
+              )}
+              {canRevert && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={updating}
+                  onClick={() => updateStatus("draft")}
+                >
+                  {updating && <Loader2Icon className="size-3.5 animate-spin" />}
+                  Revert to Draft
                 </Button>
               )}
               {(row.status === "draft" ||
@@ -134,6 +184,12 @@ export default function ProductRequestViewPage() {
                 >
                   {updating && <Loader2Icon className="size-3.5 animate-spin" />}
                   Cancel
+                </Button>
+              )}
+              {row.status === "draft" && (
+                <Button variant="destructive" size="sm" disabled={deleting} onClick={handleDelete}>
+                  {deleting && <Loader2Icon className="size-3.5 animate-spin" />}
+                  Delete
                 </Button>
               )}
             </div>

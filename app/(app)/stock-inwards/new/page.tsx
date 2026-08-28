@@ -81,9 +81,11 @@ export default function NewStockInwardPage() {
   function handlePicked(result: {
     purchaseOrderId: string;
     documentNumber: string;
+    supplierId: string;
     items: PickedItem[];
   }) {
     setValue("purchaseOrderId", result.purchaseOrderId);
+    setValue("supplierId", result.supplierId);
     setLinkedDocumentNumber(result.documentNumber);
     replace(
       result.items.map((item) => ({
