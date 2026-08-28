@@ -32,8 +32,8 @@ interface StockQualityCheckRow {
   id: string;
   documentNumber: string;
   warehouseId: string;
+  checkDate: string;
   notes: string | null;
-  createdAt: string;
   items: StockQualityCheckItemRow[];
 }
 
@@ -105,7 +105,7 @@ export default function StockQualityCheckViewPage() {
           <dl className="bg-border grid grid-cols-1 gap-px overflow-hidden rounded-lg border sm:grid-cols-2">
             {[
               ["Warehouse", lookupLabel(warehouses, row.warehouseId)],
-              ["Date", formatDateOnly(toDateOnly(row.createdAt))],
+              ["Check date", formatDateOnly(toDateOnly(row.checkDate))],
               ["Notes", row.notes ?? "—"],
             ].map(([label, value]) => (
               <div key={label} className="bg-card flex flex-col gap-1 p-4 text-sm">

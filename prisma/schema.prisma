@@ -379,6 +379,7 @@ model StockDamageMain {
   store           Store         @relation(fields: [storeId], references: [id])
   warehouseId     String        @map("warehouse_id")
   warehouse       Warehouse     @relation(fields: [warehouseId], references: [id])
+  damageDate      DateTime      @map("damage_date") @db.Date
   notes           String?
   createdByUserId String        @map("created_by_user_id")
   createdByUser   User          @relation(fields: [createdByUserId], references: [id])
@@ -629,6 +630,7 @@ model StockQualityCheckMain {
   store           Store         @relation(fields: [storeId], references: [id])
   warehouseId     String        @map("warehouse_id")
   warehouse       Warehouse     @relation(fields: [warehouseId], references: [id])
+  checkDate       DateTime      @map("check_date") @db.Date
   notes           String?
   createdByUserId String        @map("created_by_user_id")
   createdByUser   User          @relation(fields: [createdByUserId], references: [id])

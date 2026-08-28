@@ -5,28 +5,107 @@ import { PlusIcon, TrashIcon } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Controller, useFieldArray, useForm } from "react-hook-form";
+import type { Control, UseFormRegister } from "react-hook-form";
+import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import type { z } from "zod";
 
 import { RequiredMark } from "@/components/required-mark";
+import type { SearchableSelectOption } from "@/components/searchable-select";
 import { SearchableSelect } from "@/components/searchable-select";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { toDateOnly } from "@/lib/datetime/dateOnly";
 import { stockQualityCheckEditSchema } from "@/lib/documents/schemas";
 import { useSubmitGuard } from "@/lib/forms/useSubmitGuard";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 import { useInvalidateResource } from "@/lib/pagination/useList";
+import { useAvailableStock } from "@/lib/stock/useAvailableStock";
 
 type StockQualityCheckEditInput = z.infer<typeof stockQualityCheckEditSchema>;
 
 interface ExistingStockQualityCheck {
   warehouseId: string;
+  checkDate: string;
   notes: string | null;
   items: { productId: string; quantity: number; reasonCodeId: string }[];
+}
+
+function QualityCheckItemRow({
+  control,
+  register,
+  index,
+  products,
+  reasonCodes,
+  warehouseId,
+  onRemove,
+  removeDisabled,
+}: {
+  control: Control<StockQualityCheckEditInput>;
+  register: UseFormRegister<StockQualityCheckEditInput>;
+  index: number;
+  products: SearchableSelectOption[];
+  reasonCodes: SearchableSelectOption[];
+  warehouseId: string | undefined;
+  onRemove: () => void;
+  removeDisabled: boolean;
+}) {
+  const productId = useWatch({ control, name: `items.${index}.productId` });
+  const available = useAvailableStock(warehouseId, productId);
+
+  return (
+    <div className="grid grid-cols-[1fr_100px_1fr_auto] items-center gap-2 p-3">
+      <div className="space-y-0.5">
+        <Controller
+          name={`items.${index}.productId`}
+          control={control}
+          render={({ field: f }) => (
+            <SearchableSelect
+              options={products}
+              value={f.value ?? null}
+              onChange={(v) => f.onChange(v ?? "")}
+              placeholder="Select product…"
+            />
+          )}
+        />
+        {productId && (
+          <p className="text-muted-foreground text-xs">
+            {available === null ? "Loading stock…" : `In stock: ${available}`}
+          </p>
+        )}
+      </div>
+      <Input
+        type="number"
+        min={0}
+        placeholder="Qty"
+        {...register(`items.${index}.quantity`, { valueAsNumber: true, min: 0 })}
+      />
+      <Controller
+        name={`items.${index}.reasonCodeId`}
+        control={control}
+        render={({ field: f }) => (
+          <SearchableSelect
+            options={reasonCodes}
+            value={f.value ?? null}
+            onChange={(v) => f.onChange(v ?? "")}
+            placeholder="Select reason…"
+          />
+        )}
+      />
+      <Button
+        type="button"
+        variant="destructive"
+        size="icon-sm"
+        disabled={removeDisabled}
+        onClick={onRemove}
+      >
+        <TrashIcon className="size-3.5" />
+      </Button>
+    </div>
+  );
 }
 
 export default function EditStockQualityCheckPage() {
@@ -49,6 +128,7 @@ export default function EditStockQualityCheckPage() {
     defaultValues: { items: [{ productId: "", quantity: 1, reasonCodeId: "" }] },
   });
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
+  const warehouseId = useWatch({ control, name: "warehouseId" });
 
   useEffect(() => {
     fetch(`/api/stock-quality-checks/${id}`)
@@ -58,7 +138,12 @@ export default function EditStockQualityCheckPage() {
           setLoaded("not_found");
           return;
         }
-        reset({ warehouseId: body.warehouseId, notes: body.notes ?? undefined, items: body.items });
+        reset({
+          warehouseId: body.warehouseId,
+          checkDate: toDateOnly(body.checkDate),
+          notes: body.notes ?? undefined,
+          items: body.items,
+        });
         setLoaded("ready");
       });
   }, [id, reset]);
@@ -123,6 +208,17 @@ export default function EditStockQualityCheckPage() {
                   )}
                 </div>
 
+                <div className="space-y-1.5">
+                  <Label htmlFor="checkDate">
+                    Check date
+                    <RequiredMark />
+                  </Label>
+                  <Input id="checkDate" type="date" {...register("checkDate")} />
+                  {errors.checkDate && (
+                    <p className="text-sm text-red-600">{errors.checkDate.message}</p>
+                  )}
+                </div>
+
                 <div className="space-y-1.5 sm:col-span-2">
                   <Label htmlFor="notes">Notes</Label>
                   <Textarea id="notes" {...register("notes")} />
@@ -155,53 +251,17 @@ export default function EditStockQualityCheckPage() {
                   </div>
                   <div className="divide-y">
                     {fields.map((field, index) => (
-                      <div
+                      <QualityCheckItemRow
                         key={field.id}
-                        className="grid grid-cols-[1fr_100px_1fr_auto] items-center gap-2 p-3"
-                      >
-                        <Controller
-                          name={`items.${index}.productId`}
-                          control={control}
-                          render={({ field: f }) => (
-                            <SearchableSelect
-                              options={products}
-                              value={f.value ?? null}
-                              onChange={(v) => f.onChange(v ?? "")}
-                              placeholder="Select product…"
-                            />
-                          )}
-                        />
-                        <Input
-                          type="number"
-                          min={0}
-                          placeholder="Qty"
-                          {...register(`items.${index}.quantity`, {
-                            valueAsNumber: true,
-                            min: 0,
-                          })}
-                        />
-                        <Controller
-                          name={`items.${index}.reasonCodeId`}
-                          control={control}
-                          render={({ field: f }) => (
-                            <SearchableSelect
-                              options={reasonCodes}
-                              value={f.value ?? null}
-                              onChange={(v) => f.onChange(v ?? "")}
-                              placeholder="Select reason…"
-                            />
-                          )}
-                        />
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="icon-sm"
-                          disabled={fields.length === 1}
-                          onClick={() => remove(index)}
-                        >
-                          <TrashIcon className="size-3.5" />
-                        </Button>
-                      </div>
+                        control={control}
+                        register={register}
+                        index={index}
+                        products={products}
+                        reasonCodes={reasonCodes}
+                        warehouseId={warehouseId}
+                        onRemove={() => remove(index)}
+                        removeDisabled={fields.length === 1}
+                      />
                     ))}
                   </div>
                 </div>

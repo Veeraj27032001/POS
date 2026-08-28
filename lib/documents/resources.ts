@@ -123,6 +123,7 @@ export const stockDamageResource = defineDocumentResource({
   getItemDelegate: itemDelegateOf("stockDamageItem"),
   buildMainData: (data) => ({
     warehouseId: data.warehouseId,
+    damageDate: dateOnlyToUtcMidnight(toDateOnly(data.damageDate)),
     notes: data.notes ?? null,
   }),
   buildItemData: (item) => ({
@@ -171,6 +172,7 @@ export const stockQualityCheckResource = defineDocumentResource({
   getItemDelegate: itemDelegateOf("stockQualityCheckItem"),
   buildMainData: (data) => ({
     warehouseId: data.warehouseId,
+    checkDate: dateOnlyToUtcMidnight(toDateOnly(data.checkDate)),
     notes: data.notes ?? null,
   }),
   buildItemData: (item) => ({

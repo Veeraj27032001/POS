@@ -11,7 +11,7 @@ interface StockQualityCheckRow {
   id: string;
   documentNumber: string;
   warehouseId: string;
-  createdAt: string;
+  checkDate: string;
 }
 
 export default function StockQualityChecksPage() {
@@ -37,9 +37,9 @@ export default function StockQualityChecksPage() {
             render: (row) => warehouses.find((w) => w.value === row.warehouseId)?.label ?? "—",
           },
           {
-            key: "createdAt",
-            header: "Date",
-            render: (row) => formatDateOnly(toDateOnly(row.createdAt)),
+            key: "checkDate",
+            header: "Check date",
+            render: (row) => formatDateOnly(toDateOnly(row.checkDate)),
           },
           {
             key: "actions",

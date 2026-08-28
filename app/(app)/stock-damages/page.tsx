@@ -11,7 +11,7 @@ interface StockDamageRow {
   id: string;
   documentNumber: string;
   warehouseId: string;
-  createdAt: string;
+  damageDate: string;
 }
 
 export default function StockDamagesPage() {
@@ -37,9 +37,9 @@ export default function StockDamagesPage() {
             render: (row) => warehouses.find((w) => w.value === row.warehouseId)?.label ?? "—",
           },
           {
-            key: "createdAt",
-            header: "Date",
-            render: (row) => formatDateOnly(toDateOnly(row.createdAt)),
+            key: "damageDate",
+            header: "Damage date",
+            render: (row) => formatDateOnly(toDateOnly(row.damageDate)),
           },
           {
             key: "actions",

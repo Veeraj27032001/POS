@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { hasPermission } from "@/lib/auth/rbac";
 import { asAppSession } from "@/lib/auth/types";
 import { unscoped } from "@/lib/db";
+import { dateOnlyToUtcMidnight, toDateOnly } from "@/lib/datetime/dateOnly";
 import { stockQualityCheckEditSchema } from "@/lib/documents/schemas";
 import { stockQualityCheckResource } from "@/lib/documents/resources";
 import { getStockLevels } from "@/lib/stock/getStockLevels";
@@ -55,7 +56,11 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
         const updated = await tx.stockQualityCheckMain.update({
           where: { id },
-          data: { warehouseId: parsed.data.warehouseId, notes: parsed.data.notes ?? null },
+          data: {
+            warehouseId: parsed.data.warehouseId,
+            checkDate: dateOnlyToUtcMidnight(toDateOnly(parsed.data.checkDate)),
+            notes: parsed.data.notes ?? null,
+          },
         });
 
         const products = await tx.product.findMany({

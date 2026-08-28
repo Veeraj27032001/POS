@@ -32,8 +32,8 @@ interface StockDamageRow {
   id: string;
   documentNumber: string;
   warehouseId: string;
+  damageDate: string;
   notes: string | null;
-  createdAt: string;
   items: StockDamageItemRow[];
 }
 
@@ -105,7 +105,7 @@ export default function StockDamageViewPage() {
           <dl className="bg-border grid grid-cols-1 gap-px overflow-hidden rounded-lg border sm:grid-cols-2">
             {[
               ["Warehouse", lookupLabel(warehouses, row.warehouseId)],
-              ["Date", formatDateOnly(toDateOnly(row.createdAt))],
+              ["Damage date", formatDateOnly(toDateOnly(row.damageDate))],
               ["Notes", row.notes ?? "—"],
             ].map(([label, value]) => (
               <div key={label} className="bg-card flex flex-col gap-1 p-4 text-sm">

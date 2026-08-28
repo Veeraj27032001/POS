@@ -62,6 +62,7 @@ export const stockDamageItemSchema = z.object({
 });
 export const stockDamageCreateSchema = z.object({
   warehouseId: opaqueIdSchema,
+  damageDate: isoDateOnlySchema,
   notes: optionalString(1000),
   items: z.array(stockDamageItemSchema).min(1, "At least one item is required."),
 });
@@ -121,6 +122,7 @@ export const stockQualityCheckItemSchema = z.object({
 });
 export const stockQualityCheckCreateSchema = z.object({
   warehouseId: opaqueIdSchema,
+  checkDate: isoDateOnlySchema,
   notes: optionalString(1000),
   items: z.array(stockQualityCheckItemSchema).min(1, "At least one item is required."),
 });
