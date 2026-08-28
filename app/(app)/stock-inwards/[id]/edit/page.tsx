@@ -57,6 +57,8 @@ export default function EditStockInwardPage() {
     handleSubmit,
     control,
     reset,
+    setValue,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<StockInwardEditInput>({
     resolver: zodResolver(stockInwardEditSchema) as never,
@@ -93,6 +95,20 @@ export default function EditStockInwardPage() {
         setLoaded("ready");
       });
   }, [id, reset]);
+
+  async function applySupplierCost(index: number, productId: string) {
+    const supplierId = getValues("supplierId");
+    if (!supplierId || !productId) return;
+    if (getValues(`items.${index}.unitCost`)) return;
+
+    const res = await fetch(`/api/products/${productId}/supplier-prices`);
+    if (!res.ok) return;
+    const body = (await res.json()) as { data: { supplierId: string; cost: string }[] };
+    const match = body.data.find((p) => p.supplierId === supplierId);
+    if (match) {
+      setValue(`items.${index}.unitCost`, Number(match.cost));
+    }
+  }
 
   async function onSubmit(values: StockInwardEditInput) {
     const res = await fetch(`/api/stock-inwards/${id}`, {
@@ -226,7 +242,10 @@ export default function EditStockInwardPage() {
                             render={({ field: f }) => (
                               <ProductSelectWithStock
                                 value={f.value}
-                                onChange={f.onChange}
+                                onChange={(v) => {
+                                  f.onChange(v);
+                                  if (v) void applySupplierCost(index, v);
+                                }}
                                 products={products}
                                 warehouseId={warehouseId}
                               />
