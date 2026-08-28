@@ -54,7 +54,6 @@ export const stockInwardResource = defineDocumentResource({
   buildItemData: (item) => ({
     quantityAccepted: item.quantityAccepted,
     quantityRejected: item.quantityRejected ?? null,
-    expiryDate: item.expiryDate ? dateOnlyToUtcMidnight(toDateOnly(item.expiryDate)) : null,
     unitCost: item.unitCost ?? null,
   }),
   validateItem: async (item, data, tx) => {
@@ -161,4 +160,31 @@ export const stockBlockResource = defineDocumentResource({
     quantityBlocked: item.quantityBlocked,
     reasonCodeId: item.reasonCodeId,
   }),
+});
+
+export const stockQualityCheckResource = defineDocumentResource({
+  name: "stock_quality_check",
+  module: "stock",
+  seriesType: "quality_check",
+  createSchema: schemas.stockQualityCheckCreateSchema,
+  getMainDelegate: mainDelegateOf("stockQualityCheckMain"),
+  getItemDelegate: itemDelegateOf("stockQualityCheckItem"),
+  buildMainData: (data) => ({
+    warehouseId: data.warehouseId,
+    notes: data.notes ?? null,
+  }),
+  buildItemData: (item) => ({
+    quantity: item.quantity,
+    reasonCodeId: item.reasonCodeId,
+  }),
+  validateItem: async (item, data) => {
+    const { available } = await getStockLevels({
+      productId: item.productId,
+      warehouseId: data.warehouseId,
+    });
+    if (item.quantity > available) {
+      return `Cannot reduce ${item.quantity} — only ${available} available at this warehouse.`;
+    }
+    return null;
+  },
 });

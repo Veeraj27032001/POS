@@ -48,7 +48,7 @@ export function NewProductDialog() {
     formState: { errors, isSubmitting },
   } = useForm<ProductCreateInput>({
     resolver: zodResolver(productCreateSchema) as never,
-    defaultValues: { trackExpiry: false, images: [], stockTracked: true },
+    defaultValues: { images: [], stockTracked: true },
   });
   const selectedHsnCodeId = watch("hsnCodeId");
 
@@ -189,21 +189,6 @@ export function NewProductDialog() {
                 <p className="text-sm text-red-600">{errors.reorderLevel.message}</p>
               )}
             </div>
-
-            <Controller
-              name="trackExpiry"
-              control={control}
-              render={({ field }) => (
-                <div className="flex items-center gap-2 sm:col-span-2">
-                  <Checkbox
-                    id="trackExpiry"
-                    checked={Boolean(field.value)}
-                    onCheckedChange={(checked) => field.onChange(checked)}
-                  />
-                  <Label htmlFor="trackExpiry">Track expiry</Label>
-                </div>
-              )}
-            />
 
             <Controller
               name="stockTracked"

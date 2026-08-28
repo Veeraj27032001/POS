@@ -30,7 +30,6 @@ const SERIES_TYPES = [
   "cash_bill",
   "credit_bill",
   "stock_inward",
-  "expiry_extension",
   "credit_note",
   "stock_damage",
   "stock_block",
@@ -46,7 +45,7 @@ const SERIES_TYPES = [
   "bill_payment",
   "shift",
   "online_bill",
-  "stock_retest",
+  "quality_check",
   "product_request",
 ] as const;
 
@@ -54,7 +53,6 @@ const SERIES_PREFIXES: Record<(typeof SERIES_TYPES)[number], string> = {
   cash_bill: "CB",
   credit_bill: "CR",
   stock_inward: "SI",
-  expiry_extension: "EE",
   credit_note: "CN",
   stock_damage: "SD",
   stock_block: "SB",
@@ -70,7 +68,7 @@ const SERIES_PREFIXES: Record<(typeof SERIES_TYPES)[number], string> = {
   bill_payment: "BP",
   shift: "SH",
   online_bill: "OB2",
-  stock_retest: "RT",
+  quality_check: "QC",
   product_request: "PQ",
 };
 
@@ -107,10 +105,12 @@ const REASON_CODES: Array<{ category: string; label: string }> = [
   { category: "stock_adjustment", label: "Physical recount discrepancy" },
   { category: "damage", label: "Damaged in storage" },
   { category: "damage", label: "Returned damaged" },
-  { category: "damage", label: "Failed quality re-test" },
   { category: "stock_block", label: "Reserved — pending bill" },
   { category: "stock_block", label: "Reserved — pending transfer" },
   { category: "stock_block", label: "Reserved — online order" },
+  { category: "quality_check", label: "Expired or near expiry" },
+  { category: "quality_check", label: "Failed physical inspection" },
+  { category: "quality_check", label: "Suspected tampering" },
 ];
 
 async function main() {
@@ -359,7 +359,6 @@ async function main() {
       name: "Lays Chips 10 Rs Pack",
       categoryId: category.id,
       hsnCodeId: hsnCodes["2106"].id,
-      trackExpiry: true,
       uomId: uomPiece.id,
       systemBarcode: "2000000000001",
       price: 10,
@@ -375,7 +374,6 @@ async function main() {
       name: "Lays Chips 20 Rs Pack",
       categoryId: category.id,
       hsnCodeId: hsnCodes["2106"].id,
-      trackExpiry: true,
       uomId: uomPiece.id,
       systemBarcode: "2000000000002",
       price: 20,

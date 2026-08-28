@@ -10,6 +10,7 @@ const VALID_CATEGORIES = new Set<ReasonCodeCategory>([
   "stock_adjustment",
   "damage",
   "stock_block",
+  "quality_check",
 ]);
 
 // Lightly gated, like stores/options and hsn-codes/options — every store

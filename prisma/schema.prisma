@@ -131,12 +131,12 @@ model Store {
   stockDamageMains             StockDamageMain[]
   stockBlockMains              StockBlockMain[]
   stockTransferMains           StockTransferMain[]
+  stockTransfersAsDestination  StockTransferMain[]           @relation("StockTransferDestinationStore")
   stockPositiveAdjustmentMains StockPositiveAdjustmentMain[]
   stockOpeningMains            StockOpeningMain[]
   stockNegativeAdjustmentMains StockNegativeAdjustmentMain[]
-  stockRetestMains             StockRetestMain[]
+  stockQualityCheckMains       StockQualityCheckMain[]
   productRequestMains          ProductRequestMain[]
-  stockExpiryExtensions        StockExpiryExtension[]
   stockEntryCorrections        StockEntryCorrection[]
 
   @@map("stores")
@@ -160,9 +160,8 @@ model FinancialYear {
   stockPositiveAdjustmentMains StockPositiveAdjustmentMain[]
   stockOpeningMains            StockOpeningMain[]
   stockNegativeAdjustmentMains StockNegativeAdjustmentMain[]
-  stockRetestMains             StockRetestMain[]
+  stockQualityCheckMains       StockQualityCheckMain[]
   productRequestMains          ProductRequestMain[]
-  stockExpiryExtensions        StockExpiryExtension[]
   stockEntryCorrections        StockEntryCorrection[]
 
   @@map("financial_years")
@@ -172,7 +171,6 @@ enum SeriesType {
   cash_bill
   credit_bill
   stock_inward
-  expiry_extension
   credit_note
   stock_damage
   stock_block
@@ -188,7 +186,7 @@ enum SeriesType {
   bill_payment
   shift
   online_bill
-  stock_retest
+  quality_check
   product_request
 }
 
@@ -240,20 +238,15 @@ model User {
   stockPositiveAdjustmentMains StockPositiveAdjustmentMain[]
   stockOpeningMains            StockOpeningMain[]
   stockNegativeAdjustmentMains StockNegativeAdjustmentMain[]
-  stockRetestMains             StockRetestMain[]
+  stockQualityCheckMains       StockQualityCheckMain[]
   productRequestMains          ProductRequestMain[]
-  stockExpiryExtensions        StockExpiryExtension[]
   stockEntryCorrections        StockEntryCorrection[]
   productSupplierPrices        ProductSupplierPrice[]
   productPriceHistory          ProductPriceHistory[]
 
-  stockInwardExpiryInvalidations             StockInwardItem[]             @relation("StockInwardExpiryInvalidatedBy")
-  stockBlockReleases                         StockBlockItem[]              @relation("StockBlockReleasedBy")
-  stockTransfersRequested                    StockTransferMain[]           @relation("StockTransferRequestedBy")
-  stockTransfersResponded                    StockTransferMain[]           @relation("StockTransferRespondedBy")
-  stockTransferExpiryInvalidations           StockTransferItem[]           @relation("StockTransferExpiryInvalidatedBy")
-  stockPositiveAdjustmentExpiryInvalidations StockPositiveAdjustmentItem[] @relation("StockPositiveAdjustmentExpiryInvalidatedBy")
-  stockOpeningExpiryInvalidations            StockOpeningItem[]            @relation("StockOpeningExpiryInvalidatedBy")
+  stockBlockReleases      StockBlockItem[]    @relation("StockBlockReleasedBy")
+  stockTransfersRequested StockTransferMain[] @relation("StockTransferRequestedBy")
+  stockTransfersResponded StockTransferMain[] @relation("StockTransferRespondedBy")
 
   @@map("users")
 }
@@ -320,13 +313,6 @@ enum StockTransferStatus {
   cancelled
 }
 
-enum StockExpirySourceItemType {
-  stock_inward_item
-  stock_transfer_item
-  stock_positive_adjustment_item
-  stock_opening_item
-}
-
 enum StockCorrectionSourceType {
   stock_inward_item
   stock_damage_item
@@ -368,23 +354,18 @@ model StockInwardMain {
 }
 
 model StockInwardItem {
-  id                        String          @id @default(uuid())
-  stockInwardMainId         String          @map("stock_inward_main_id")
-  stockInwardMain           StockInwardMain @relation(fields: [stockInwardMainId], references: [id], onDelete: Cascade)
-  productId                 String          @map("product_id")
-  product                   Product         @relation(fields: [productId], references: [id])
-  productName               String          @map("product_name")
-  productBarcode            String          @map("product_barcode")
-  productPrice              Decimal         @map("product_price") @db.Decimal(12, 2)
-  productHsnCode            String?         @map("product_hsn_code")
-  quantityAccepted          Int             @map("quantity_accepted")
-  quantityRejected          Int?            @map("quantity_rejected")
-  expiryDate                DateTime?       @map("expiry_date") @db.Date
-  expiryInvalidated         Boolean         @default(false) @map("expiry_invalidated")
-  expiryInvalidatedByUserId String?         @map("expiry_invalidated_by_user_id")
-  expiryInvalidatedByUser   User?           @relation("StockInwardExpiryInvalidatedBy", fields: [expiryInvalidatedByUserId], references: [id])
-  expiryInvalidatedAt       DateTime?       @map("expiry_invalidated_at")
-  unitCost                  Decimal?        @map("unit_cost") @db.Decimal(12, 2)
+  id                String          @id @default(uuid())
+  stockInwardMainId String          @map("stock_inward_main_id")
+  stockInwardMain   StockInwardMain @relation(fields: [stockInwardMainId], references: [id], onDelete: Cascade)
+  productId         String          @map("product_id")
+  product           Product         @relation(fields: [productId], references: [id])
+  productName       String          @map("product_name")
+  productBarcode    String          @map("product_barcode")
+  productPrice      Decimal         @map("product_price") @db.Decimal(12, 2)
+  productHsnCode    String?         @map("product_hsn_code")
+  quantityAccepted  Int             @map("quantity_accepted")
+  quantityRejected  Int?            @map("quantity_rejected")
+  unitCost          Decimal?        @map("unit_cost") @db.Decimal(12, 2)
 
   @@map("stock_inward_items")
 }
@@ -421,8 +402,6 @@ model StockDamageItem {
   quantity          Int
   reasonCodeId      String          @map("reason_code_id")
   reasonCode        ReasonCode      @relation(fields: [reasonCodeId], references: [id])
-
-  retestItem StockRetestItem?
 
   @@map("stock_damage_items")
 }
@@ -470,25 +449,26 @@ model StockBlockItem {
 }
 
 model StockTransferMain {
-  id                     String              @id @default(uuid())
-  documentNumber         String              @map("document_number")
-  financialYearId        String              @map("financial_year_id")
-  financialYear          FinancialYear       @relation(fields: [financialYearId], references: [id])
-  storeId                String              @map("store_id")
-  store                  Store               @relation(fields: [storeId], references: [id])
-  sourceWarehouseId      String              @map("source_warehouse_id")
-  sourceWarehouse        Warehouse           @relation("StockTransferSourceWarehouse", fields: [sourceWarehouseId], references: [id])
-  destinationWarehouseId String              @map("destination_warehouse_id")
-  destinationWarehouse   Warehouse           @relation("StockTransferDestinationWarehouse", fields: [destinationWarehouseId], references: [id])
-  status                 StockTransferStatus @default(pending)
-  requestedByUserId      String              @map("requested_by_user_id")
-  requestedByUser        User                @relation("StockTransferRequestedBy", fields: [requestedByUserId], references: [id])
-  requestedAt            DateTime            @default(now()) @map("requested_at")
-  respondedByUserId      String?             @map("responded_by_user_id")
-  respondedByUser        User?               @relation("StockTransferRespondedBy", fields: [respondedByUserId], references: [id])
-  respondedAt            DateTime?           @map("responded_at")
-  cancelledAt            DateTime?           @map("cancelled_at")
-  notes                  String?
+  id                 String              @id @default(uuid())
+  documentNumber     String              @map("document_number")
+  financialYearId    String              @map("financial_year_id")
+  financialYear      FinancialYear       @relation(fields: [financialYearId], references: [id])
+  storeId            String              @map("store_id")
+  store              Store               @relation(fields: [storeId], references: [id])
+  sourceWarehouseId  String              @map("source_warehouse_id")
+  sourceWarehouse    Warehouse           @relation("StockTransferSourceWarehouse", fields: [sourceWarehouseId], references: [id])
+  destinationStoreId String              @map("destination_store_id")
+  destinationStore   Store               @relation("StockTransferDestinationStore", fields: [destinationStoreId], references: [id])
+  status             StockTransferStatus @default(pending)
+  requestedByUserId  String              @map("requested_by_user_id")
+  requestedByUser    User                @relation("StockTransferRequestedBy", fields: [requestedByUserId], references: [id])
+  requestedAt        DateTime            @default(now()) @map("requested_at")
+  respondedByUserId  String?             @map("responded_by_user_id")
+  respondedByUser    User?               @relation("StockTransferRespondedBy", fields: [respondedByUserId], references: [id])
+  respondedAt        DateTime?           @map("responded_at")
+  receivedDate       DateTime?           @map("received_date") @db.Date
+  cancelledAt        DateTime?           @map("cancelled_at")
+  notes              String?
 
   items StockTransferItem[]
 
@@ -496,23 +476,20 @@ model StockTransferMain {
 }
 
 model StockTransferItem {
-  id                        String            @id @default(uuid())
-  stockTransferMainId       String            @map("stock_transfer_main_id")
-  stockTransferMain         StockTransferMain @relation(fields: [stockTransferMainId], references: [id], onDelete: Cascade)
-  productId                 String            @map("product_id")
-  product                   Product           @relation(fields: [productId], references: [id])
-  productName               String            @map("product_name")
-  productBarcode            String            @map("product_barcode")
-  productPrice              Decimal           @map("product_price") @db.Decimal(12, 2)
-  productHsnCode            String?           @map("product_hsn_code")
-  quantity                  Int
-  quantityAccepted          Int?              @map("quantity_accepted")
-  quantityRejected          Int?              @map("quantity_rejected")
-  expiryDate                DateTime?         @map("expiry_date") @db.Date
-  expiryInvalidated         Boolean           @default(false) @map("expiry_invalidated")
-  expiryInvalidatedByUserId String?           @map("expiry_invalidated_by_user_id")
-  expiryInvalidatedByUser   User?             @relation("StockTransferExpiryInvalidatedBy", fields: [expiryInvalidatedByUserId], references: [id])
-  expiryInvalidatedAt       DateTime?         @map("expiry_invalidated_at")
+  id                     String            @id @default(uuid())
+  stockTransferMainId    String            @map("stock_transfer_main_id")
+  stockTransferMain      StockTransferMain @relation(fields: [stockTransferMainId], references: [id], onDelete: Cascade)
+  productId              String            @map("product_id")
+  product                Product           @relation(fields: [productId], references: [id])
+  productName            String            @map("product_name")
+  productBarcode         String            @map("product_barcode")
+  productPrice           Decimal           @map("product_price") @db.Decimal(12, 2)
+  productHsnCode         String?           @map("product_hsn_code")
+  quantity               Int
+  destinationWarehouseId String?           @map("destination_warehouse_id")
+  destinationWarehouse   Warehouse?        @relation("StockTransferItemDestinationWarehouse", fields: [destinationWarehouseId], references: [id])
+  quantityAccepted       Int?              @map("quantity_accepted")
+  quantityRejected       Int?              @map("quantity_rejected")
 
   @@map("stock_transfer_items")
 }
@@ -547,11 +524,6 @@ model StockPositiveAdjustmentItem {
   productPrice                  Decimal                     @map("product_price") @db.Decimal(12, 2)
   productHsnCode                String?                     @map("product_hsn_code")
   quantity                      Int
-  expiryDate                    DateTime?                   @map("expiry_date") @db.Date
-  expiryInvalidated             Boolean                     @default(false) @map("expiry_invalidated")
-  expiryInvalidatedByUserId     String?                     @map("expiry_invalidated_by_user_id")
-  expiryInvalidatedByUser       User?                       @relation("StockPositiveAdjustmentExpiryInvalidatedBy", fields: [expiryInvalidatedByUserId], references: [id])
-  expiryInvalidatedAt           DateTime?                   @map("expiry_invalidated_at")
   reasonCodeId                  String                      @map("reason_code_id")
   reasonCode                    ReasonCode                  @relation(fields: [reasonCodeId], references: [id])
 
@@ -578,43 +550,18 @@ model StockOpeningMain {
 }
 
 model StockOpeningItem {
-  id                        String           @id @default(uuid())
-  stockOpeningMainId        String           @map("stock_opening_main_id")
-  stockOpeningMain          StockOpeningMain @relation(fields: [stockOpeningMainId], references: [id], onDelete: Cascade)
-  productId                 String           @map("product_id")
-  product                   Product          @relation(fields: [productId], references: [id])
-  productName               String           @map("product_name")
-  productBarcode            String           @map("product_barcode")
-  productPrice              Decimal          @map("product_price") @db.Decimal(12, 2)
-  productHsnCode            String?          @map("product_hsn_code")
-  quantity                  Int
-  expiryDate                DateTime?        @map("expiry_date") @db.Date
-  expiryInvalidated         Boolean          @default(false) @map("expiry_invalidated")
-  expiryInvalidatedByUserId String?          @map("expiry_invalidated_by_user_id")
-  expiryInvalidatedByUser   User?            @relation("StockOpeningExpiryInvalidatedBy", fields: [expiryInvalidatedByUserId], references: [id])
-  expiryInvalidatedAt       DateTime?        @map("expiry_invalidated_at")
+  id                 String           @id @default(uuid())
+  stockOpeningMainId String           @map("stock_opening_main_id")
+  stockOpeningMain   StockOpeningMain @relation(fields: [stockOpeningMainId], references: [id], onDelete: Cascade)
+  productId          String           @map("product_id")
+  product            Product          @relation(fields: [productId], references: [id])
+  productName        String           @map("product_name")
+  productBarcode     String           @map("product_barcode")
+  productPrice       Decimal          @map("product_price") @db.Decimal(12, 2)
+  productHsnCode     String?          @map("product_hsn_code")
+  quantity           Int
 
   @@map("stock_opening_items")
-}
-
-model StockExpiryExtension {
-  id                 String                    @id @default(uuid())
-  documentNumber     String                    @map("document_number")
-  financialYearId    String                    @map("financial_year_id")
-  financialYear      FinancialYear             @relation(fields: [financialYearId], references: [id])
-  storeId            String                    @map("store_id")
-  store              Store                     @relation(fields: [storeId], references: [id])
-  sourceItemType     StockExpirySourceItemType @map("source_item_type")
-  sourceItemId       String                    @map("source_item_id")
-  previousExpiryDate DateTime                  @map("previous_expiry_date") @db.Date
-  newExpiryDate      DateTime                  @map("new_expiry_date") @db.Date
-  wasAlreadyExpired  Boolean                   @map("was_already_expired")
-  notes              String?
-  extendedByUserId   String                    @map("extended_by_user_id")
-  extendedByUser     User                      @relation(fields: [extendedByUserId], references: [id])
-  extendedAt         DateTime                  @default(now()) @map("extended_at")
-
-  @@map("stock_expiry_extensions")
 }
 
 model StockNegativeAdjustmentMain {
@@ -673,7 +620,7 @@ model StockEntryCorrection {
   @@map("stock_entry_corrections")
 }
 
-model StockRetestMain {
+model StockQualityCheckMain {
   id              String        @id @default(uuid())
   documentNumber  String        @map("document_number")
   financialYearId String        @map("financial_year_id")
@@ -687,29 +634,26 @@ model StockRetestMain {
   createdByUser   User          @relation(fields: [createdByUserId], references: [id])
   createdAt       DateTime      @default(now()) @map("created_at")
 
-  items StockRetestItem[]
+  items StockQualityCheckItem[]
 
-  @@map("stock_retest_mains")
+  @@map("stock_quality_check_mains")
 }
 
-model StockRetestItem {
-  id                String           @id @default(uuid())
-  stockRetestMainId String           @map("stock_retest_main_id")
-  stockRetestMain   StockRetestMain  @relation(fields: [stockRetestMainId], references: [id], onDelete: Cascade)
-  productId         String           @map("product_id")
-  product           Product          @relation(fields: [productId], references: [id])
-  productName       String           @map("product_name")
-  productBarcode    String           @map("product_barcode")
-  productPrice      Decimal          @map("product_price") @db.Decimal(12, 2)
-  productHsnCode    String?          @map("product_hsn_code")
-  quantityTested    Int              @map("quantity_tested")
-  quantityPassed    Int              @map("quantity_passed")
-  quantityFailed    Int              @map("quantity_failed")
-  notes             String?
-  damageItemId      String?          @unique @map("damage_item_id")
-  damageItem        StockDamageItem? @relation(fields: [damageItemId], references: [id])
+model StockQualityCheckItem {
+  id                      String                @id @default(uuid())
+  stockQualityCheckMainId String                @map("stock_quality_check_main_id")
+  stockQualityCheckMain   StockQualityCheckMain @relation(fields: [stockQualityCheckMainId], references: [id], onDelete: Cascade)
+  productId               String                @map("product_id")
+  product                 Product               @relation(fields: [productId], references: [id])
+  productName             String                @map("product_name")
+  productBarcode          String                @map("product_barcode")
+  productPrice            Decimal               @map("product_price") @db.Decimal(12, 2)
+  productHsnCode          String?               @map("product_hsn_code")
+  quantity                Int
+  reasonCodeId            String                @map("reason_code_id")
+  reasonCode              ReasonCode            @relation(fields: [reasonCodeId], references: [id])
 
-  @@map("stock_retest_items")
+  @@map("stock_quality_check_items")
 }
 
 model ProductRequestMain {
@@ -821,7 +765,6 @@ model Product {
   category         Category? @relation(fields: [categoryId], references: [id])
   hsnCodeId        String?   @map("hsn_code_id")
   hsnCode          HsnCode?  @relation(fields: [hsnCodeId], references: [id])
-  trackExpiry      Boolean   @default(false) @map("track_expiry")
   images           String[]
   videos           String[]  @map("videos")
   description      String?
@@ -851,7 +794,7 @@ model Product {
   stockPositiveAdjustmentItems StockPositiveAdjustmentItem[]
   stockOpeningItems            StockOpeningItem[]
   stockNegativeAdjustmentItems StockNegativeAdjustmentItem[]
-  stockRetestItems             StockRetestItem[]
+  stockQualityCheckItems       StockQualityCheckItem[]
   productRequestItems          ProductRequestItem[]
   supplierPrices               ProductSupplierPrice[]
   priceHistory                 ProductPriceHistory[]
@@ -969,15 +912,15 @@ model Warehouse {
   isActive  Boolean  @default(true) @map("is_active")
   isDeleted Boolean  @default(false) @map("is_deleted")
 
-  stockInwardMains             StockInwardMain[]
-  stockDamageMains             StockDamageMain[]
-  stockBlockMains              StockBlockMain[]
-  stockTransfersAsSource       StockTransferMain[]           @relation("StockTransferSourceWarehouse")
-  stockTransfersAsDestination  StockTransferMain[]           @relation("StockTransferDestinationWarehouse")
-  stockPositiveAdjustmentMains StockPositiveAdjustmentMain[]
-  stockOpeningMains            StockOpeningMain[]
-  stockNegativeAdjustmentMains StockNegativeAdjustmentMain[]
-  stockRetestMains             StockRetestMain[]
+  stockInwardMains              StockInwardMain[]
+  stockDamageMains              StockDamageMain[]
+  stockBlockMains               StockBlockMain[]
+  stockTransfersAsSource        StockTransferMain[]           @relation("StockTransferSourceWarehouse")
+  stockTransferItemDestinations StockTransferItem[]           @relation("StockTransferItemDestinationWarehouse")
+  stockPositiveAdjustmentMains  StockPositiveAdjustmentMain[]
+  stockOpeningMains             StockOpeningMain[]
+  stockNegativeAdjustmentMains  StockNegativeAdjustmentMain[]
+  stockQualityCheckMains        StockQualityCheckMain[]
 
   @@map("warehouses")
 }
@@ -1076,6 +1019,7 @@ enum ReasonCodeCategory {
   stock_adjustment
   damage
   stock_block
+  quality_check
 }
 
 model ReasonCode {
@@ -1089,6 +1033,7 @@ model ReasonCode {
   stockBlockItems              StockBlockItem[]
   stockPositiveAdjustmentItems StockPositiveAdjustmentItem[]
   stockNegativeAdjustmentItems StockNegativeAdjustmentItem[]
+  stockQualityCheckItems       StockQualityCheckItem[]
 
   @@map("reason_codes")
 }

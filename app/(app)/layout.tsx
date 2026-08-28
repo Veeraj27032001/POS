@@ -1,9 +1,11 @@
 "use client";
 
 import {
+  ArrowLeftRight,
   Banknote,
   Barcode,
   Boxes,
+  ClipboardCheck,
   ClipboardList,
   CreditCard,
   Hash,
@@ -70,6 +72,8 @@ const NAV_ITEM_MODULE: Record<string, string> = {
   "/stock-inwards": "stock",
   "/stock-damages": "stock",
   "/stock-blocks": "stock",
+  "/stock-transfers": "stock",
+  "/stock-quality-checks": "stock",
   "/settings/hsn-codes": "hsn_codes",
   "/settings/tax-engine": "stores",
   "/settings/roles": "roles",
@@ -124,6 +128,16 @@ const NAV_GROUPS: AppNavGroup[] = [
         href: "/stock-blocks",
         label: "Stock Block",
         icon: <Lock className="h-4 w-4" />,
+      },
+      {
+        href: "/stock-transfers",
+        label: "Stock Transfer",
+        icon: <ArrowLeftRight className="h-4 w-4" />,
+      },
+      {
+        href: "/stock-quality-checks",
+        label: "Quality Check",
+        icon: <ClipboardCheck className="h-4 w-4" />,
       },
     ],
   },

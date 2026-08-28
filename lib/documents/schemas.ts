@@ -37,7 +37,6 @@ export const stockInwardItemSchema = z.object({
   productId: opaqueIdSchema,
   quantityAccepted: positiveInt,
   quantityRejected: nonNegativeInt.optional().nullable(),
-  expiryDate: isoDateOnlySchema.optional().nullable(),
   unitCost: nonNegativeDecimal.optional().nullable(),
 });
 export const stockInwardCreateSchema = z.object({
@@ -80,3 +79,49 @@ export const stockBlockCreateSchema = z.object({
   items: z.array(stockBlockItemSchema).min(1, "At least one item is required."),
 });
 export const stockBlockEditSchema = stockBlockCreateSchema;
+
+export const stockTransferItemSchema = z.object({
+  productId: opaqueIdSchema,
+  quantity: positiveInt,
+});
+export const stockTransferCreateSchema = z.object({
+  sourceWarehouseId: opaqueIdSchema,
+  destinationType: z.enum(["warehouse", "store"]),
+  destinationId: opaqueIdSchema,
+  transferDate: isoDateOnlySchema,
+  notes: optionalString(1000),
+  items: z.array(stockTransferItemSchema).min(1, "At least one item is required."),
+});
+
+export const stockTransferReceiveItemSchema = z.object({
+  itemId: opaqueIdSchema,
+  quantityAccepted: nonNegativeInt,
+  quantityRejected: nonNegativeInt,
+  destinationWarehouseId: opaqueIdSchema,
+});
+export const stockTransferReceiveSchema = z.object({
+  receivedDate: isoDateOnlySchema,
+  items: z.array(stockTransferReceiveItemSchema).min(1),
+});
+
+export const stockTransferRespondSchema = z.object({
+  action: z.enum(["cancel", "reject"]),
+});
+
+export const stockTransferEditSchema = z.object({
+  transferDate: isoDateOnlySchema,
+  notes: optionalString(1000),
+  items: z.array(stockTransferItemSchema).min(1, "At least one item is required."),
+});
+
+export const stockQualityCheckItemSchema = z.object({
+  productId: opaqueIdSchema,
+  quantity: positiveInt,
+  reasonCodeId: opaqueIdSchema,
+});
+export const stockQualityCheckCreateSchema = z.object({
+  warehouseId: opaqueIdSchema,
+  notes: optionalString(1000),
+  items: z.array(stockQualityCheckItemSchema).min(1, "At least one item is required."),
+});
+export const stockQualityCheckEditSchema = stockQualityCheckCreateSchema;

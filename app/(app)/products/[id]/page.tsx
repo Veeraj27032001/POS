@@ -30,7 +30,6 @@ interface ProductRow {
   skuBarcode: string | null;
   systemBarcode: string;
   description: string | null;
-  trackExpiry: boolean;
   stockTracked: boolean;
   reorderLevel: number | null;
   defaultCostPrice: string | null;
@@ -159,7 +158,6 @@ export default function ProductViewPage() {
               price={row.price}
               skuBarcode={row.skuBarcode}
               reorderLevel={row.reorderLevel}
-              trackExpiry={row.trackExpiry}
               stockTracked={row.stockTracked}
               onSaved={(updated) => setRow((prev) => (prev ? { ...prev, ...updated } : prev))}
             />
@@ -206,7 +204,6 @@ export default function ProductViewPage() {
             ["Manufacturer barcode", row.skuBarcode ?? "—"],
             ["Description", row.description ?? "—"],
             ["Reorder level", row.reorderLevel ?? "—"],
-            ["Tracks expiry", row.trackExpiry ? "Yes" : "No"],
             ["Tracks stock", row.stockTracked ? "Yes" : "No"],
           ].map(([label, value]) => (
             <div key={label} className="bg-card flex flex-col gap-1 p-4 text-sm">

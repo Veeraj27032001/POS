@@ -119,9 +119,6 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
                 productHsnCode: product.hsnCode?.hsnCode ?? null,
                 quantityAccepted: item.quantityAccepted,
                 quantityRejected: item.quantityRejected ?? null,
-                expiryDate: item.expiryDate
-                  ? dateOnlyToUtcMidnight(toDateOnly(item.expiryDate))
-                  : null,
                 unitCost: item.unitCost ?? null,
               },
             }),

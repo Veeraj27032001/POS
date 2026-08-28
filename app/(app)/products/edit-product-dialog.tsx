@@ -38,7 +38,6 @@ export interface EditProductDialogProps {
   price: string;
   skuBarcode: string | null;
   reorderLevel: number | null;
-  trackExpiry: boolean;
   stockTracked: boolean;
   onSaved: (updated: Record<string, unknown>) => void;
 }
@@ -68,7 +67,6 @@ export function EditProductDialog(props: EditProductDialogProps) {
       price: Number(current.price),
       skuBarcode: current.skuBarcode ?? undefined,
       reorderLevel: current.reorderLevel ?? undefined,
-      trackExpiry: current.trackExpiry,
       stockTracked: current.stockTracked,
     },
   });
@@ -214,21 +212,6 @@ export function EditProductDialog(props: EditProductDialogProps) {
                 <p className="text-sm text-red-600">{errors.reorderLevel.message}</p>
               )}
             </div>
-
-            <Controller
-              name="trackExpiry"
-              control={control}
-              render={({ field }) => (
-                <div className="flex items-center gap-2 sm:col-span-2">
-                  <Checkbox
-                    id="edit-trackExpiry"
-                    checked={Boolean(field.value)}
-                    onCheckedChange={(checked) => field.onChange(checked)}
-                  />
-                  <Label htmlFor="edit-trackExpiry">Track expiry</Label>
-                </div>
-              )}
-            />
 
             <Controller
               name="stockTracked"

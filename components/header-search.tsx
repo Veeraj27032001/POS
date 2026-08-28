@@ -41,7 +41,7 @@ export function HeaderSearch({ items }: { items: AppNavItem[] }) {
           />
         }
       />
-      <PopoverContent align="start" className="w-(--anchor-width) p-1.5">
+      <PopoverContent align="start" className="w-(--anchor-width) p-1.5" initialFocus={false}>
         <ul>
           {results.map((item) => (
             <li key={item.href}>

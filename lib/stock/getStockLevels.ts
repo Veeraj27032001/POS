@@ -3,7 +3,6 @@ import { unscoped } from "@/lib/db";
 export interface StockLevels {
   onHand: number;
   available: number;
-  expiredNotInvalidated: number;
 }
 
 export interface GetStockLevelsParams {
@@ -25,7 +24,6 @@ export async function getStockLevels({
   asOfDate,
 }: GetStockLevelsParams): Promise<StockLevels> {
   const db = unscoped();
-  const cutoff = asOfDate ?? new Date();
   const createdAtCutoff = asOfDate ? { createdAt: { lte: asOfDate } } : {};
 
   const [
@@ -36,27 +34,19 @@ export async function getStockLevels({
     opening,
     damage,
     negativeAdj,
+    qualityCheck,
     blocked,
-    expiredInward,
-    expiredTransferIn,
-    expiredPositiveAdj,
-    expiredOpening,
   ] = await Promise.all([
     db.stockInwardItem.aggregate({
       _sum: { quantityAccepted: true },
-      where: {
-        productId,
-        expiryInvalidated: false,
-        stockInwardMain: { warehouseId, ...createdAtCutoff },
-      },
+      where: { productId, stockInwardMain: { warehouseId, ...createdAtCutoff } },
     }),
     db.stockTransferItem.aggregate({
       _sum: { quantityAccepted: true },
       where: {
         productId,
-        expiryInvalidated: false,
+        destinationWarehouseId: warehouseId,
         stockTransferMain: {
-          destinationWarehouseId: warehouseId,
           status: "accepted",
           ...(asOfDate ? { respondedAt: { lte: asOfDate } } : {}),
         },
@@ -75,19 +65,11 @@ export async function getStockLevels({
     }),
     db.stockPositiveAdjustmentItem.aggregate({
       _sum: { quantity: true },
-      where: {
-        productId,
-        expiryInvalidated: false,
-        stockPositiveAdjustmentMain: { warehouseId, ...createdAtCutoff },
-      },
+      where: { productId, stockPositiveAdjustmentMain: { warehouseId, ...createdAtCutoff } },
     }),
     db.stockOpeningItem.aggregate({
       _sum: { quantity: true },
-      where: {
-        productId,
-        expiryInvalidated: false,
-        stockOpeningMain: { warehouseId, ...createdAtCutoff },
-      },
+      where: { productId, stockOpeningMain: { warehouseId, ...createdAtCutoff } },
     }),
     db.stockDamageItem.aggregate({
       _sum: { quantity: true },
@@ -97,52 +79,16 @@ export async function getStockLevels({
       _sum: { quantity: true },
       where: { productId, stockNegativeAdjustmentMain: { warehouseId, ...createdAtCutoff } },
     }),
+    db.stockQualityCheckItem.aggregate({
+      _sum: { quantity: true },
+      where: { productId, stockQualityCheckMain: { warehouseId, ...createdAtCutoff } },
+    }),
     db.stockBlockItem.aggregate({
       _sum: { quantityBlocked: true },
       where: {
         productId,
         status: "active",
         stockBlockMain: { warehouseId, ...(asOfDate ? { blockedAt: { lte: asOfDate } } : {}) },
-      },
-    }),
-    db.stockInwardItem.aggregate({
-      _sum: { quantityAccepted: true },
-      where: {
-        productId,
-        expiryInvalidated: false,
-        expiryDate: { lt: cutoff },
-        stockInwardMain: { warehouseId, ...createdAtCutoff },
-      },
-    }),
-    db.stockTransferItem.aggregate({
-      _sum: { quantityAccepted: true },
-      where: {
-        productId,
-        expiryInvalidated: false,
-        expiryDate: { lt: cutoff },
-        stockTransferMain: {
-          destinationWarehouseId: warehouseId,
-          status: "accepted",
-          ...(asOfDate ? { respondedAt: { lte: asOfDate } } : {}),
-        },
-      },
-    }),
-    db.stockPositiveAdjustmentItem.aggregate({
-      _sum: { quantity: true },
-      where: {
-        productId,
-        expiryInvalidated: false,
-        expiryDate: { lt: cutoff },
-        stockPositiveAdjustmentMain: { warehouseId, ...createdAtCutoff },
-      },
-    }),
-    db.stockOpeningItem.aggregate({
-      _sum: { quantity: true },
-      where: {
-        productId,
-        expiryInvalidated: false,
-        expiryDate: { lt: cutoff },
-        stockOpeningMain: { warehouseId, ...createdAtCutoff },
       },
     }),
   ]);
@@ -156,15 +102,10 @@ export async function getStockLevels({
     sum(positiveAdj._sum.quantity) +
     sum(opening._sum.quantity) -
     sum(damage._sum.quantity) -
-    sum(negativeAdj._sum.quantity);
+    sum(negativeAdj._sum.quantity) -
+    sum(qualityCheck._sum.quantity);
 
   const available = onHand - sum(blocked._sum.quantityBlocked);
 
-  const expiredNotInvalidated =
-    sum(expiredInward._sum.quantityAccepted) +
-    sum(expiredTransferIn._sum.quantityAccepted) +
-    sum(expiredPositiveAdj._sum.quantity) +
-    sum(expiredOpening._sum.quantity);
-
-  return { onHand, available, expiredNotInvalidated };
+  return { onHand, available };
 }

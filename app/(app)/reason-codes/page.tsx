@@ -38,6 +38,7 @@ export default function ReasonCodesPage() {
             { value: "stock_adjustment", label: "Stock adjustment" },
             { value: "damage", label: "Damage" },
             { value: "stock_block", label: "Stock block" },
+            { value: "quality_check", label: "Quality check" },
           ],
         },
         { name: "label", label: "Label", type: "text" },

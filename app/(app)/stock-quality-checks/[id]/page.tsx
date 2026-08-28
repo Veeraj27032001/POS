@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Button, buttonVariants } from "@/components/ui/button";
+import { formatDateOnly, toDateOnly } from "@/lib/datetime/dateOnly";
 import {
   Table,
   TableBody,
@@ -15,29 +16,25 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatDateOnly, toDateOnly } from "@/lib/datetime/dateOnly";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 import { useInvalidateResource } from "@/lib/pagination/useList";
 
-interface StockInwardItemRow {
+interface StockQualityCheckItemRow {
   id: string;
   productId: string;
   productName: string;
   productBarcode: string;
-  quantityAccepted: number;
-  quantityRejected: number | null;
-  unitCost: string | null;
+  quantity: number;
+  reasonCodeId: string;
 }
 
-interface StockInwardRow {
+interface StockQualityCheckRow {
   id: string;
   documentNumber: string;
   warehouseId: string;
-  supplierId: string | null;
-  purchaseOrderId: string | null;
-  inwardDate: string;
   notes: string | null;
-  items: StockInwardItemRow[];
+  createdAt: string;
+  items: StockQualityCheckItemRow[];
 }
 
 function lookupLabel(options: { value: string; label: string }[], id: string | null) {
@@ -45,46 +42,43 @@ function lookupLabel(options: { value: string; label: string }[], id: string | n
   return options.find((option) => option.value === id)?.label ?? id;
 }
 
-export default function StockInwardViewPage() {
+export default function StockQualityCheckViewPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const [row, setRow] = useState<StockInwardRow | null | undefined>(undefined);
+  const [row, setRow] = useState<StockQualityCheckRow | null | undefined>(undefined);
   const [deleting, setDeleting] = useState(false);
   const invalidate = useInvalidateResource();
   const warehouses = useOptionsList("warehouses", "name");
-  const suppliers = useOptionsList("suppliers", "name");
-  const purchaseOrders = useOptionsList("product-requests", "documentNumber");
+  const reasonCodes = useOptionsList("reason-codes/options", "label", "category=quality_check");
 
   useEffect(() => {
-    fetch(`/api/stock-inwards/${id}`)
+    fetch(`/api/stock-quality-checks/${id}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((body) => setRow(body));
   }, [id]);
 
   async function handleDelete() {
-    if (!window.confirm("Delete this stock inward record? This cannot be undone.")) return;
+    if (!window.confirm("Delete this quality check record? This cannot be undone.")) return;
     setDeleting(true);
     try {
-      const res = await fetch(`/api/stock-inwards/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/stock-quality-checks/${id}`, { method: "DELETE" });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
         toast.error(body?.error?.message ?? "Failed to delete.");
         return;
       }
-      invalidate("stock-inwards");
-      toast.success("Stock inward deleted.");
-      router.push("/stock-inwards");
+      invalidate("stock-quality-checks");
+      toast.success("Quality check deleted.");
+      router.push("/stock-quality-checks");
     } finally {
       setDeleting(false);
     }
   }
 
-  const canEdit = row && !row.purchaseOrderId;
-
   return (
     <div className="max-w-4xl space-y-4 p-8">
-      <Link href="/stock-inwards" className="text-muted-foreground text-sm hover:underline">
-        ← Back to Stock Inward
+      <Link href="/stock-quality-checks" className="text-muted-foreground text-sm hover:underline">
+        ← Back to Quality Check
       </Link>
 
       {row === undefined && <p className="text-muted-foreground">Loading…</p>}
@@ -94,28 +88,24 @@ export default function StockInwardViewPage() {
         <>
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-semibold">{row.documentNumber}</h1>
-            {canEdit && (
-              <div className="flex gap-2">
-                <Link
-                  href={`/stock-inwards/${row.id}/edit`}
-                  className={buttonVariants({ variant: "outline", size: "sm" })}
-                >
-                  Edit
-                </Link>
-                <Button variant="destructive" size="sm" disabled={deleting} onClick={handleDelete}>
-                  {deleting && <Loader2Icon className="size-3.5 animate-spin" />}
-                  Delete
-                </Button>
-              </div>
-            )}
+            <div className="flex gap-2">
+              <Link
+                href={`/stock-quality-checks/${row.id}/edit`}
+                className={buttonVariants({ variant: "outline", size: "sm" })}
+              >
+                Edit
+              </Link>
+              <Button variant="destructive" size="sm" disabled={deleting} onClick={handleDelete}>
+                {deleting && <Loader2Icon className="size-3.5 animate-spin" />}
+                Delete
+              </Button>
+            </div>
           </div>
 
           <dl className="bg-border grid grid-cols-1 gap-px overflow-hidden rounded-lg border sm:grid-cols-2">
             {[
               ["Warehouse", lookupLabel(warehouses, row.warehouseId)],
-              ["Supplier", lookupLabel(suppliers, row.supplierId)],
-              ["Product request", lookupLabel(purchaseOrders, row.purchaseOrderId)],
-              ["Inward date", formatDateOnly(toDateOnly(row.inwardDate))],
+              ["Date", formatDateOnly(toDateOnly(row.createdAt))],
               ["Notes", row.notes ?? "—"],
             ].map(([label, value]) => (
               <div key={label} className="bg-card flex flex-col gap-1 p-4 text-sm">
@@ -131,9 +121,8 @@ export default function StockInwardViewPage() {
                 <TableRow>
                   <TableHead>Product</TableHead>
                   <TableHead>Barcode</TableHead>
-                  <TableHead>Accepted</TableHead>
-                  <TableHead>Rejected</TableHead>
-                  <TableHead>Unit cost</TableHead>
+                  <TableHead>Quantity</TableHead>
+                  <TableHead>Reason</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -141,9 +130,8 @@ export default function StockInwardViewPage() {
                   <TableRow key={item.id}>
                     <TableCell>{item.productName}</TableCell>
                     <TableCell>{item.productBarcode}</TableCell>
-                    <TableCell>{item.quantityAccepted}</TableCell>
-                    <TableCell>{item.quantityRejected ?? "—"}</TableCell>
-                    <TableCell>{item.unitCost ?? "—"}</TableCell>
+                    <TableCell>{item.quantity}</TableCell>
+                    <TableCell>{lookupLabel(reasonCodes, item.reasonCodeId)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

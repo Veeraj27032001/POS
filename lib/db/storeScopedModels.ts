@@ -12,8 +12,7 @@ export const STORE_SCOPED_MODELS = new Set<string>([
   "StockPositiveAdjustmentMain",
   "StockOpeningMain",
   "StockNegativeAdjustmentMain",
-  "StockRetestMain",
+  "StockQualityCheckMain",
   "ProductRequestMain",
-  "StockExpiryExtension",
   "StockEntryCorrection",
 ]);

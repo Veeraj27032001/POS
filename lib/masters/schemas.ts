@@ -55,7 +55,6 @@ export const productCreateSchema = z.object({
   name: requiredString("Name"),
   categoryId: opaqueIdSchema.optional().nullable(),
   hsnCodeId: opaqueIdSchema.optional().nullable(),
-  trackExpiry: z.boolean().default(false),
   images: z.array(z.string()).default([]),
   videos: z.array(z.string()).default([]),
   description: optionalString(2000),
@@ -177,6 +176,7 @@ export const reasonCodeCategorySchema = z.enum([
   "stock_adjustment",
   "damage",
   "stock_block",
+  "quality_check",
 ]);
 export const reasonCodeCreateSchema = z.object({
   category: reasonCodeCategorySchema,
@@ -255,7 +255,6 @@ export const seriesTypeSchema = z.enum([
   "cash_bill",
   "credit_bill",
   "stock_inward",
-  "expiry_extension",
   "credit_note",
   "stock_damage",
   "stock_block",
@@ -271,7 +270,7 @@ export const seriesTypeSchema = z.enum([
   "bill_payment",
   "shift",
   "online_bill",
-  "stock_retest",
+  "quality_check",
   "product_request",
 ]);
 export const numberingSeriesCreateSchema = z.object({

@@ -35,7 +35,6 @@ interface ExistingStockInward {
     productId: string;
     quantityAccepted: number;
     quantityRejected: number | null;
-    expiryDate: string | null;
     unitCost: string | null;
   }[];
 }
@@ -87,7 +86,6 @@ export default function EditStockInwardPage() {
             productId: item.productId,
             quantityAccepted: item.quantityAccepted,
             quantityRejected: item.quantityRejected ?? undefined,
-            expiryDate: item.expiryDate ? toDateOnly(item.expiryDate) : undefined,
             unitCost: item.unitCost != null ? Number(item.unitCost) : undefined,
           })),
         });
@@ -204,11 +202,10 @@ export default function EditStockInwardPage() {
                 </div>
 
                 <div className="overflow-hidden rounded-lg border">
-                  <div className="text-muted-foreground bg-muted/40 grid grid-cols-[1fr_90px_90px_130px_110px_100px_auto] gap-2 border-b p-3 text-xs font-medium">
+                  <div className="text-muted-foreground bg-muted/40 grid grid-cols-[1fr_90px_90px_110px_100px_auto] gap-2 border-b p-3 text-xs font-medium">
                     <span>Product</span>
                     <span>Accepted</span>
                     <span>Rejected</span>
-                    <span>Expiry date</span>
                     <span>Unit cost</span>
                     <span>Total</span>
                     <span />
@@ -220,7 +217,7 @@ export default function EditStockInwardPage() {
                       return (
                         <div
                           key={field.id}
-                          className="grid grid-cols-[1fr_90px_90px_130px_110px_100px_auto] items-center gap-2 p-3"
+                          className="grid grid-cols-[1fr_90px_90px_110px_100px_auto] items-center gap-2 p-3"
                         >
                           <Controller
                             name={`items.${index}.productId`}
@@ -250,12 +247,6 @@ export default function EditStockInwardPage() {
                             {...register(`items.${index}.quantityRejected`, {
                               min: 0,
                               setValueAs: (v) => (v === "" || v === null ? undefined : Number(v)),
-                            })}
-                          />
-                          <Input
-                            type="date"
-                            {...register(`items.${index}.expiryDate`, {
-                              setValueAs: (v) => (v === "" ? undefined : v),
                             })}
                           />
                           <Input

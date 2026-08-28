@@ -759,7 +759,7 @@ test("Numbering Series: editing the current number corrects it without creating 
   await page.goto("/numbering-series");
   await expect(page.locator("button[aria-pressed]").first()).toBeVisible();
 
-  const row = page.getByRole("row").filter({ hasText: "stock_retest" }).first();
+  const row = page.getByRole("row").filter({ hasText: "quality_check" }).first();
   await row.getByRole("button", { name: "Edit" }).click();
 
   await page.locator("#edit-currentNumber").fill("42");
@@ -1232,7 +1232,11 @@ test("Stock Inward: cannot reduce quantity below what damage/blocks already cons
   await page.getByText("Select product…").click();
   const productName = (await page.getByRole("option").first().textContent())!.trim();
   await page.getByRole("option").first().click();
-  await page.getByPlaceholder("Accepted").fill("10");
+  // Large, deliberately lopsided numbers — this dev database has real
+  // accumulated stock for the "first" product from many earlier test runs,
+  // so a small delta wouldn't reliably push the *total* negative. A 99999
+  // reduction will, regardless of whatever history already exists.
+  await page.getByPlaceholder("Accepted").fill("100000");
   const [inwardResponse] = await Promise.all([
     page.waitForResponse(
       (res) => res.url().endsWith("/api/stock-inwards") && res.request().method() === "POST",
@@ -1247,29 +1251,15 @@ test("Stock Inward: cannot reduce quantity below what damage/blocks already cons
   await page.getByRole("option", { name: warehouseName, exact: true }).click();
   await page.getByText("Select product…").click();
   await page.getByRole("option", { name: productName, exact: true }).click();
-  await page.getByPlaceholder("Qty").fill("8");
+  await page.getByPlaceholder("Qty").fill("99999");
   await page.getByText("Select reason…").click();
   await page.getByRole("option").first().click();
-  const [damageResponse] = await Promise.all([
-    page.waitForResponse(
-      (res) => res.url().endsWith("/api/stock-damages") && res.request().method() === "POST",
-    ),
-    page.getByRole("button", { name: "Save" }).click(),
-  ]);
+  await page.getByRole("button", { name: "Save" }).click();
   await expect(page.getByText("Stock damage recorded.")).toBeVisible();
-  console.log("inward id:", createdInward.main.id, "damage body:", await damageResponse.text());
 
   await page.goto(`/stock-inwards/${createdInward.main.id}/edit`);
   await page.getByPlaceholder("Accepted").fill("1");
-  const [putResponse] = await Promise.all([
-    page.waitForResponse(
-      (res) =>
-        res.url().endsWith(`/api/stock-inwards/${createdInward.main.id}`) &&
-        res.request().method() === "PUT",
-    ),
-    page.getByRole("button", { name: "Save" }).click(),
-  ]);
-  console.log("PUT status:", putResponse.status(), "body:", await putResponse.text());
+  await page.getByRole("button", { name: "Save" }).click();
   await expect(page.getByText(/would leave -?\d+ available/)).toBeVisible();
 });
 
@@ -1511,5 +1501,331 @@ test("Product Requests: edit while draft, approve, revert, then delete", async (
   await expect(page).toHaveURL("/product-requests");
 
   const res = await page.request.get(`/api/product-requests/${created.main.id}`);
+  expect(res.status()).toBe(404);
+});
+
+test("Stock Transfer: same-store transfer completes immediately", async ({ page }) => {
+  test.skip(!ADMIN2_EMAIL || !ADMIN2_PASSWORD, "SEED_ADMIN2_EMAIL/PASSWORD not configured");
+  await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
+
+  // A second warehouse in the same store, so there's somewhere to send to.
+  await page.goto("/warehouses");
+  const secondWarehouseName = `Test Transfer Destination ${Date.now()}`;
+  await page.getByRole("button", { name: "New" }).click();
+  await page.getByLabel("Name").fill(secondWarehouseName);
+  await page.getByLabel("Address").fill("456 Transfer Test Road");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Warehouse created.")).toBeVisible();
+
+  await page.goto("/stock-inwards/new");
+  await page.getByText("Select warehouse…").click();
+  const sourceWarehouseName = (await page.getByRole("option").first().textContent())!.trim();
+  await page.getByRole("option").first().click();
+  await page.getByText("Select product…").click();
+  const productName = (await page.getByRole("option").first().textContent())!.trim();
+  await page.getByRole("option").first().click();
+  await page.getByPlaceholder("Accepted").fill("50");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Stock inward recorded.")).toBeVisible();
+
+  await page.goto("/stock-transfers/new");
+  await page.getByText("Select warehouse…").click();
+  await page.getByRole("option", { name: sourceWarehouseName, exact: true }).click();
+  await page.getByText("Select destination warehouse…").click();
+  await page.getByRole("option", { name: secondWarehouseName, exact: true }).click();
+  await page.getByText("Select product…").click();
+  await page.getByRole("option", { name: productName, exact: true }).click();
+  await page.getByPlaceholder("Qty").fill("5");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Stock transfer completed.")).toBeVisible();
+  await expect(page).toHaveURL("/stock-transfers");
+
+  await expect(page.locator("table tbody").getByText("Accepted").first()).toBeVisible();
+});
+
+test("Stock Transfer: cross-store request, receive, and reflect on both sides", async ({
+  page,
+}) => {
+  test.skip(!ADMIN2_EMAIL || !ADMIN2_PASSWORD, "SEED_ADMIN2_EMAIL/PASSWORD not configured");
+  test.setTimeout(240_000); // setup + two full logins + several page loads
+
+  await login(page);
+
+  const rolesRes = await page.request.get("/api/roles?pageSize=200");
+  const roles = (await rolesRes.json()) as { data: { id: string; name: string }[] };
+  const adminRole = roles.data.find((r) => r.name === "Admin")!;
+
+  const storeName = `Test Transfer Store B ${Date.now()}`;
+  const storeRes = await page.request.post("/api/stores", {
+    data: { name: storeName, address: "1 Transfer B Road" },
+  });
+  const store = (await storeRes.json()) as { id: string };
+
+  const warehouseName = `Test Transfer B Warehouse ${Date.now()}`;
+  await page.request.post("/api/warehouses", {
+    data: { name: warehouseName, address: "2 Transfer B Road", storeId: store.id },
+  });
+
+  const userEmail = `transfer-b-${Date.now()}@example.com`;
+  const userPassword = "TempPass123!";
+  await page.request.post("/api/users", {
+    data: {
+      name: "Transfer B User",
+      email: userEmail,
+      password: userPassword,
+      roleId: adminRole.id,
+      storeId: store.id,
+    },
+  });
+
+  await page.getByRole("button", { name: "Account menu" }).click();
+  await page.getByRole("button", { name: "Sign out" }).click();
+  await expect(page).toHaveURL(/\/login/);
+
+  // Store A (ADMIN2) requests a transfer to Store B.
+  await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
+
+  await page.goto("/stock-inwards/new");
+  await page.getByText("Select warehouse…").click();
+  const sourceWarehouseName = (await page.getByRole("option").first().textContent())!.trim();
+  await page.getByRole("option").first().click();
+  await page.getByText("Select product…").click();
+  const productName = (await page.getByRole("option").first().textContent())!.trim();
+  await page.getByRole("option").first().click();
+  await page.getByPlaceholder("Accepted").fill("50");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Stock inward recorded.")).toBeVisible();
+
+  await page.goto("/stock-transfers/new");
+  await page.getByText("Select warehouse…").click();
+  await page.getByRole("option", { name: sourceWarehouseName, exact: true }).click();
+  await page.getByText("Different store").click();
+  await page.getByText("Select destination store…").click();
+  await page.getByRole("option", { name: storeName, exact: true }).click();
+  await page.getByText("Select product…").click();
+  await page.getByRole("option", { name: productName, exact: true }).click();
+  await page.getByPlaceholder("Qty").fill("5");
+  const [transferResponse] = await Promise.all([
+    page.waitForResponse(
+      (res) => res.url().endsWith("/api/stock-transfers") && res.request().method() === "POST",
+    ),
+    page.getByRole("button", { name: "Save" }).click(),
+  ]);
+  await expect(page.getByText("Stock transfer requested.")).toBeVisible();
+  const createdTransfer = (await transferResponse.json()) as {
+    main: { id: string; documentNumber: string };
+  };
+
+  await page.goto("/stock-transfers");
+  await expect(page.locator("table tbody").getByText("Pending").first()).toBeVisible();
+
+  await page.getByRole("button", { name: "Account menu" }).click();
+  await page.getByRole("button", { name: "Sign out" }).click();
+  await expect(page).toHaveURL(/\/login/);
+
+  // Store B receives it.
+  await loginAs(page, userEmail, userPassword);
+
+  await page.goto("/stock-transfers");
+  await page.getByText("Receive", { exact: true }).click();
+  await expect(page.getByRole("cell", { name: createdTransfer.main.documentNumber })).toBeVisible();
+
+  await page.goto(`/stock-transfers/${createdTransfer.main.id}`);
+  await Promise.all([
+    page.waitForResponse((res) => res.url().includes("/api/warehouses?")),
+    page.getByRole("link", { name: "Receive" }).click(),
+  ]);
+  await expect(page.getByText("Select warehouse…")).toBeVisible();
+  await page.getByText("Select warehouse…").click();
+  await expect(page.getByRole("option").first()).toBeVisible();
+  await page.getByRole("option", { name: warehouseName, exact: true }).click();
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Stock transfer received.")).toBeVisible();
+  await expect(page.locator("span").filter({ hasText: "Accepted" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Account menu" }).click();
+  await page.getByRole("button", { name: "Sign out" }).click();
+  await expect(page).toHaveURL(/\/login/);
+
+  // Store A sees it as accepted too.
+  await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
+  await page.goto(`/stock-transfers/${createdTransfer.main.id}`);
+  await expect(page.locator("span").filter({ hasText: "Accepted" })).toBeVisible();
+});
+
+test("Stock Transfer: the requester can cancel a pending cross-store request", async ({ page }) => {
+  test.skip(!ADMIN2_EMAIL || !ADMIN2_PASSWORD, "SEED_ADMIN2_EMAIL/PASSWORD not configured");
+
+  await login(page);
+  const storeName = `Test Transfer Cancel Store ${Date.now()}`;
+  await page.request.post("/api/stores", {
+    data: { name: storeName, address: "1 Cancel Test Road" },
+  });
+  await page.getByRole("button", { name: "Account menu" }).click();
+  await page.getByRole("button", { name: "Sign out" }).click();
+  await expect(page).toHaveURL(/\/login/);
+
+  await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
+  await page.goto("/stock-transfers/new");
+  await page.getByText("Select warehouse…").click();
+  await page.getByRole("option").first().click();
+  await page.getByText("Different store").click();
+  await page.getByText("Select destination store…").click();
+  await page.getByRole("option", { name: storeName, exact: true }).click();
+  await page.getByText("Select product…").click();
+  await page.getByRole("option").first().click();
+  await page.getByPlaceholder("Qty").fill("1");
+  const [transferResponse] = await Promise.all([
+    page.waitForResponse(
+      (res) => res.url().endsWith("/api/stock-transfers") && res.request().method() === "POST",
+    ),
+    page.getByRole("button", { name: "Save" }).click(),
+  ]);
+  await expect(page.getByText("Stock transfer requested.")).toBeVisible();
+  const created = (await transferResponse.json()) as { main: { id: string } };
+
+  await page.goto(`/stock-transfers/${created.main.id}`);
+  page.on("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await expect(page.getByText("Transfer cancelled.")).toBeVisible();
+
+  await page.goto(`/stock-transfers/${created.main.id}`);
+  await expect(page.locator("span").filter({ hasText: "Cancelled" })).toBeVisible();
+});
+
+test("Stock Transfer: edit and delete a pending request, blocked once accepted", async ({
+  page,
+}) => {
+  test.skip(!ADMIN2_EMAIL || !ADMIN2_PASSWORD, "SEED_ADMIN2_EMAIL/PASSWORD not configured");
+
+  await login(page);
+  const storeName = `Test Transfer Edit Store ${Date.now()}`;
+  await page.request.post("/api/stores", {
+    data: { name: storeName, address: "1 Edit Test Road" },
+  });
+  await page.getByRole("button", { name: "Account menu" }).click();
+  await page.getByRole("button", { name: "Sign out" }).click();
+  await expect(page).toHaveURL(/\/login/);
+
+  await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
+  await page.goto("/stock-transfers/new");
+  await page.getByText("Select warehouse…").click();
+  await page.getByRole("option").first().click();
+  await page.getByText("Different store").click();
+  await page.getByText("Select destination store…").click();
+  await page.getByRole("option", { name: storeName, exact: true }).click();
+  await page.getByText("Select product…").click();
+  await page.getByRole("option").first().click();
+  await page.getByPlaceholder("Qty").fill("3");
+  const [transferResponse] = await Promise.all([
+    page.waitForResponse(
+      (res) => res.url().endsWith("/api/stock-transfers") && res.request().method() === "POST",
+    ),
+    page.getByRole("button", { name: "Save" }).click(),
+  ]);
+  await expect(page.getByText("Stock transfer requested.")).toBeVisible();
+  const created = (await transferResponse.json()) as { main: { id: string } };
+
+  await page.goto(`/stock-transfers/${created.main.id}`);
+  await page.getByRole("link", { name: "Edit" }).click();
+  await expect(page.getByPlaceholder("Qty")).toHaveValue("3");
+  await page.getByPlaceholder("Qty").fill("7");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Stock transfer updated.")).toBeVisible();
+  await expect(page.getByRole("cell", { name: "7", exact: true })).toBeVisible();
+
+  page.on("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "Delete" }).click();
+  await expect(page.getByText("Stock transfer deleted.")).toBeVisible();
+  await expect(page).toHaveURL("/stock-transfers");
+
+  const res = await page.request.get(`/api/stock-transfers/${created.main.id}`);
+  expect(res.status()).toBe(404);
+});
+
+test("Quality Check: succeeds within available stock, rejected beyond it", async ({ page }) => {
+  test.skip(!ADMIN2_EMAIL || !ADMIN2_PASSWORD, "SEED_ADMIN2_EMAIL/PASSWORD not configured");
+  await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
+
+  await page.goto("/stock-inwards/new");
+  await page.getByText("Select warehouse…").click();
+  const warehouseName = (await page.getByRole("option").first().textContent())!.trim();
+  await page.getByRole("option").first().click();
+  await page.getByText("Select product…").click();
+  const productName = (await page.getByRole("option").first().textContent())!.trim();
+  await page.getByRole("option").first().click();
+  await page.getByPlaceholder("Accepted").fill("10");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Stock inward recorded.")).toBeVisible();
+
+  await page.goto("/stock-quality-checks/new");
+  await page.getByText("Select warehouse…").click();
+  await page.getByRole("option", { name: warehouseName, exact: true }).click();
+  await page.getByText("Select product…").click();
+  await page.getByRole("option", { name: productName, exact: true }).click();
+  await page.getByPlaceholder("Qty").fill("5");
+  await page.getByText("Select reason…").click();
+  await page.getByRole("option").first().click();
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Quality check recorded.")).toBeVisible();
+  await expect(page).toHaveURL(/\/stock-quality-checks$/);
+
+  await page.goto("/stock-quality-checks/new");
+  await page.getByText("Select warehouse…").click();
+  await page.getByRole("option", { name: warehouseName, exact: true }).click();
+  await page.getByText("Select product…").click();
+  await page.getByRole("option", { name: productName, exact: true }).click();
+  await page.getByPlaceholder("Qty").fill("999999");
+  await page.getByText("Select reason…").click();
+  await page.getByRole("option").first().click();
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText(/only \d+ available/)).toBeVisible();
+  await expect(page).toHaveURL(/\/stock-quality-checks\/new$/);
+});
+
+test("Quality Check: edit and delete", async ({ page }) => {
+  test.skip(!ADMIN2_EMAIL || !ADMIN2_PASSWORD, "SEED_ADMIN2_EMAIL/PASSWORD not configured");
+  await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
+
+  await page.goto("/stock-inwards/new");
+  await page.getByText("Select warehouse…").click();
+  await page.getByRole("option").first().click();
+  await page.getByText("Select product…").click();
+  await page.getByRole("option").first().click();
+  await page.getByPlaceholder("Accepted").fill("10");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Stock inward recorded.")).toBeVisible();
+
+  await page.goto("/stock-quality-checks/new");
+  await page.getByText("Select warehouse…").click();
+  await page.getByRole("option").first().click();
+  await page.getByText("Select product…").click();
+  await page.getByRole("option").first().click();
+  await page.getByPlaceholder("Qty").fill("2");
+  await page.getByText("Select reason…").click();
+  await page.getByRole("option").first().click();
+  const [response] = await Promise.all([
+    page.waitForResponse(
+      (res) => res.url().endsWith("/api/stock-quality-checks") && res.request().method() === "POST",
+    ),
+    page.getByRole("button", { name: "Save" }).click(),
+  ]);
+  await expect(page.getByText("Quality check recorded.")).toBeVisible();
+  const created = (await response.json()) as { main: { id: string } };
+
+  await page.goto(`/stock-quality-checks/${created.main.id}`);
+  await page.getByRole("link", { name: "Edit" }).click();
+  await expect(page.getByPlaceholder("Qty")).toHaveValue("2");
+  await page.getByPlaceholder("Qty").fill("4");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Quality check updated.")).toBeVisible();
+  await expect(page.getByRole("cell", { name: "4", exact: true })).toBeVisible();
+
+  page.on("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "Delete" }).click();
+  await expect(page.getByText("Quality check deleted.")).toBeVisible();
+  await expect(page).toHaveURL("/stock-quality-checks");
+
+  const res = await page.request.get(`/api/stock-quality-checks/${created.main.id}`);
   expect(res.status()).toBe(404);
 });

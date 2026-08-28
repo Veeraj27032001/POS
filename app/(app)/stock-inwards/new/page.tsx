@@ -26,12 +26,6 @@ import { useInvalidateResource } from "@/lib/pagination/useList";
 
 type StockInwardCreateInput = z.infer<typeof stockInwardCreateSchema>;
 
-function addOneYear(dateOnly: string): string {
-  const d = new Date(`${dateOnly}T00:00:00.000Z`);
-  d.setUTCFullYear(d.getUTCFullYear() + 1);
-  return d.toISOString().slice(0, 10);
-}
-
 export default function NewStockInwardPage() {
   const router = useRouter();
   const invalidate = useInvalidateResource();
@@ -39,14 +33,12 @@ export default function NewStockInwardPage() {
   const suppliers = useOptionsList("suppliers", "name");
   const products = useOptionsList("products", "name");
   const [linkedDocumentNumber, setLinkedDocumentNumber] = useState<string | null>(null);
-  const [autoApplyExpiry, setAutoApplyExpiry] = useState(false);
 
   const {
     register,
     handleSubmit,
     control,
     setValue,
-    getValues,
     formState: { errors, isSubmitting },
   } = useForm<StockInwardCreateInput>({
     resolver: zodResolver(stockInwardCreateSchema) as never,
@@ -57,25 +49,9 @@ export default function NewStockInwardPage() {
   });
   const { fields, append, remove, replace } = useFieldArray({ control, name: "items" });
   const watchedItems = useWatch({ control, name: "items" });
-  const inwardDate = useWatch({ control, name: "inwardDate" });
-
-  function expiryDefault(): string | undefined {
-    return autoApplyExpiry && inwardDate ? addOneYear(inwardDate) : undefined;
-  }
 
   function handleAddItem() {
-    append({ productId: "", quantityAccepted: 1, expiryDate: expiryDefault() });
-  }
-
-  function handleAutoExpiryToggle(checked: boolean) {
-    setAutoApplyExpiry(checked);
-    if (!checked || !inwardDate) return;
-    const computed = addOneYear(inwardDate);
-    fields.forEach((_field, index) => {
-      if (!getValues(`items.${index}.expiryDate`)) {
-        setValue(`items.${index}.expiryDate`, computed);
-      }
-    });
+    append({ productId: "", quantityAccepted: 1 });
   }
 
   function handlePicked(result: {
@@ -92,7 +68,6 @@ export default function NewStockInwardPage() {
         productId: item.productId,
         quantityAccepted: item.quantity,
         unitCost: item.unitCost,
-        expiryDate: expiryDefault(),
       })),
     );
   }
@@ -216,28 +191,17 @@ export default function NewStockInwardPage() {
                   Items
                   <RequiredMark />
                 </Label>
-                <div className="flex items-center gap-4">
-                  <label className="flex items-center gap-1.5 text-xs">
-                    <input
-                      type="checkbox"
-                      checked={autoApplyExpiry}
-                      onChange={(e) => handleAutoExpiryToggle(e.target.checked)}
-                    />
-                    Auto-apply expiry (inward date + 1 year)
-                  </label>
-                  <Button type="button" variant="outline" size="sm" onClick={handleAddItem}>
-                    <PlusIcon className="size-3.5" />
-                    Add item
-                  </Button>
-                </div>
+                <Button type="button" variant="outline" size="sm" onClick={handleAddItem}>
+                  <PlusIcon className="size-3.5" />
+                  Add item
+                </Button>
               </div>
 
               <div className="overflow-hidden rounded-lg border">
-                <div className="text-muted-foreground bg-muted/40 grid grid-cols-[1fr_90px_90px_130px_110px_100px_auto] gap-2 border-b p-3 text-xs font-medium">
+                <div className="text-muted-foreground bg-muted/40 grid grid-cols-[1fr_90px_90px_110px_100px_auto] gap-2 border-b p-3 text-xs font-medium">
                   <span>Product</span>
                   <span>Accepted</span>
                   <span>Rejected</span>
-                  <span>Expiry date</span>
                   <span>Unit cost</span>
                   <span>Total</span>
                   <span />
@@ -249,7 +213,7 @@ export default function NewStockInwardPage() {
                     return (
                       <div
                         key={field.id}
-                        className="grid grid-cols-[1fr_90px_90px_130px_110px_100px_auto] items-center gap-2 p-3"
+                        className="grid grid-cols-[1fr_90px_90px_110px_100px_auto] items-center gap-2 p-3"
                       >
                         <Controller
                           name={`items.${index}.productId`}
@@ -279,12 +243,6 @@ export default function NewStockInwardPage() {
                           {...register(`items.${index}.quantityRejected`, {
                             min: 0,
                             setValueAs: (v) => (v === "" || v === null ? undefined : Number(v)),
-                          })}
-                        />
-                        <Input
-                          type="date"
-                          {...register(`items.${index}.expiryDate`, {
-                            setValueAs: (v) => (v === "" ? undefined : v),
                           })}
                         />
                         <Input
