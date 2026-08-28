@@ -1,4 +1,4 @@
-import { BarcodePreview } from "@/components/barcode-preview";
+import { BarcodeViewDialog } from "@/components/barcode-view-dialog";
 import { unscoped } from "@/lib/db";
 
 import { PrintAllButton } from "../print-all-button";
@@ -40,7 +40,7 @@ export default async function SystemBarcodesPage() {
             <tr key={p.id} className="border-b">
               <td className="p-2">{p.name}</td>
               <td className="w-48 p-2">
-                <BarcodePreview value={p.systemBarcode} />
+                <BarcodeViewDialog value={p.systemBarcode} label={p.name} />
               </td>
               <td className="p-2 font-mono">{p.systemBarcode}</td>
             </tr>
