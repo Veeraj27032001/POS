@@ -408,4 +408,8 @@ export const numberingSeriesResource = defineResource({
   createSchema: schemas.numberingSeriesCreateSchema,
   updateSchema: schemas.numberingSeriesUpdateSchema,
   getDelegate: delegateOf("numberingSeries"),
+  // Each row belongs to exactly one financial year — without this, switching
+  // FY wouldn't change what shows here, since store is the only other scope.
+  extraWhere: (session) =>
+    session.user.financialYearId ? { financialYearId: session.user.financialYearId } : {},
 });
