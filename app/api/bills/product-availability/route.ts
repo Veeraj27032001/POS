@@ -4,11 +4,15 @@ import { auth } from "@/auth";
 import { hasPermission } from "@/lib/auth/rbac";
 import { asAppSession } from "@/lib/auth/types";
 import { getStoreWideAvailable } from "@/lib/billing/getStoreWideAvailable";
+import { getSelfBlockedByWarehouse } from "@/lib/billing/getSelfBlockedByWarehouse";
 import { opaqueIdSchema } from "@/lib/validation/common";
 import { apiErrorResponse, parseJsonOrRespond } from "@/lib/validation/response";
 import { withStoreContext } from "@/middleware/scope";
 
-const schema = z.object({ productIds: z.array(opaqueIdSchema).max(50) });
+const schema = z.object({
+  productIds: z.array(opaqueIdSchema).max(50),
+  billId: opaqueIdSchema.optional().nullable(),
+});
 
 // Store-wide available quantity for a handful of products at once — used
 // to show green/red stock status on billing's product search results
@@ -27,13 +31,20 @@ export async function POST(request: Request) {
 
   const parsed = await parseJsonOrRespond(request, schema);
   if ("response" in parsed) return parsed.response;
+  const { billId } = parsed.data;
 
   return withStoreContext(async () => {
     const availability = await Promise.all(
-      parsed.data.productIds.map(async (productId) => ({
-        productId,
-        available: await getStoreWideAvailable(session.user.storeId!, productId),
-      })),
+      parsed.data.productIds.map(async (productId) => {
+        const available = await getStoreWideAvailable(session.user.storeId!, productId);
+        const selfBlocked = billId
+          ? Array.from((await getSelfBlockedByWarehouse(billId, productId)).values()).reduce(
+              (sum, qty) => sum + qty,
+              0,
+            )
+          : 0;
+        return { productId, available: available + selfBlocked };
+      }),
     );
     return Response.json({ availability });
   });

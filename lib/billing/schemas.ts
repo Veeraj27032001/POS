@@ -66,6 +66,7 @@ export const billCustomerDetailsSchema = z.object({
 // created. Line items are keyed by productId directly rather than a real
 // line id, since none exists until the cart is actually submitted.
 export const billPreviewSchema = z.object({
+  billId: opaqueIdSchema.optional().nullable(),
   lines: z
     .array(
       z.object({

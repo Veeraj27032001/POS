@@ -89,12 +89,6 @@ interface CompletedBill {
   grandTotal: string;
 }
 
-interface CartPayment {
-  paymentMethodId: string;
-  paymentMethodLabel: string;
-  amount: number;
-}
-
 interface ExistingPayment {
   id: string;
   amount: string;
@@ -159,6 +153,9 @@ export default function BillingPage() {
   const [billType, setBillType] = useState<"cash_bill" | "credit_bill">("cash_bill");
   const [terminalId, setTerminalId] = useState<string | null>(null);
   const [started, setStarted] = useState(false);
+  // True from first render whenever the URL already carries ?billId= — hides
+  // the "Start a bill" form during that fetch instead of flashing it first.
+  const [resuming, setResuming] = useState(() => !!searchParams.get("billId"));
 
   // Set once a save creates the bill server-side, so later saves update it.
   const [savedBillId, setSavedBillId] = useState<string | null>(null);
@@ -191,7 +188,6 @@ export default function BillingPage() {
   const scanInputRef = useRef<HTMLInputElement>(null);
 
   const [paymentMethodId, setPaymentMethodId] = useState<string | null>(null);
-  const [cartPayments, setCartPayments] = useState<CartPayment[]>([]);
   const [existingPayments, setExistingPayments] = useState<ExistingPayment[]>([]);
 
   const [savingDraft, setSavingDraft] = useState(false);
@@ -246,7 +242,11 @@ export default function BillingPage() {
 
   async function loadForResume(id: string) {
     const res = await fetch(`/api/bills/${id}`);
-    if (!res.ok) return;
+    if (!res.ok) {
+      toast.error("Failed to load that bill.");
+      setResuming(false);
+      return;
+    }
     const b = await res.json();
     setBillType(b.billType);
     setTerminalId(b.terminalId);
@@ -299,6 +299,7 @@ export default function BillingPage() {
     setOverallDiscount(Number(b.overallDiscount) > 0 ? String(b.overallDiscount) : "");
     setExistingPayments(b.payments ?? []);
     setStarted(true);
+    setResuming(false);
   }
 
   function startBill() {
@@ -343,7 +344,7 @@ export default function BillingPage() {
     const res = await fetch("/api/bills/product-availability", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ productIds }),
+      body: JSON.stringify({ productIds, billId: savedBillId }),
     });
     if (!res.ok) return;
     const body = (await res.json()) as { availability: { productId: string; available: number }[] };
@@ -445,6 +446,7 @@ export default function BillingPage() {
 
   // Read-only totals preview — nothing here is persisted.
   const previewKey = JSON.stringify({
+    billId: savedBillId,
     lines: cartLines.map((l) => ({
       productId: l.productId,
       quantity: l.quantity,
@@ -674,7 +676,6 @@ export default function BillingPage() {
     setCustomerStateId(null);
     setOverallDiscount("");
     setOverallDiscountReasonCodeId(null);
-    setCartPayments([]);
     setExistingPayments([]);
     setPaymentMethodId(null);
     setSavedBillId(null);
@@ -746,41 +747,24 @@ export default function BillingPage() {
     })();
   }
 
-  function addPayment() {
-    if (!paymentMethodId || remaining <= 0) return;
-    const method = paymentMethods.find((m) => m.value === paymentMethodId);
-    setCartPayments((prev) => [
-      ...prev,
-      { paymentMethodId, paymentMethodLabel: method?.label ?? "", amount: remaining },
-    ]);
-    setPaymentMethodId(null);
-  }
-
-  function removePayment(index: number) {
-    setCartPayments((prev) => prev.filter((_, i) => i !== index));
-  }
-
   async function createBill() {
     if (cartLines.length === 0) {
       toast.error("Add items first.");
       return;
     }
-    if (remaining > 0.01) {
-      toast.error("Record full payment first.");
+    if (remaining > 0.01 && !paymentMethodId) {
+      toast.error("Select a payment method.");
       return;
     }
     setCreating(true);
     try {
       const billId = await syncCart();
       if (!billId) return;
-      for (const payment of cartPayments) {
+      if (remaining > 0.01) {
         const res = await fetch(`/api/bills/${billId}/payments`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            paymentMethodId: payment.paymentMethodId,
-            amount: payment.amount,
-          }),
+          body: JSON.stringify({ paymentMethodId, amount: remaining }),
         });
         if (!res.ok) {
           const body = await res.json().catch(() => null);
@@ -810,10 +794,9 @@ export default function BillingPage() {
     setTerminalId(rememberedTerminalId);
   }
 
-  const existingPaidTotal = existingPayments
+  const totalPaid = existingPayments
     .filter((p) => p.status === "success")
     .reduce((s, p) => s + Number(p.amount), 0);
-  const totalPaid = existingPaidTotal + cartPayments.reduce((s, p) => s + p.amount, 0);
   const remaining = Math.max(0, preview.grandTotal - totalPaid);
   const customerSummary = selectedCustomerId
     ? (customers.find((c) => c.value === selectedCustomerId)?.label ?? null)
@@ -874,6 +857,15 @@ export default function BillingPage() {
             <Button onClick={startNewBill}>Start new bill</Button>
           </CardFooter>
         </Card>
+      </div>
+    );
+  }
+
+  if (resuming) {
+    return (
+      <div className="flex h-[60vh] flex-col items-center justify-center gap-3 backdrop-blur-sm">
+        <Loader2Icon className="text-muted-foreground size-8 animate-spin" />
+        <p className="text-muted-foreground text-sm">Loading bill…</p>
       </div>
     );
   }
@@ -1225,15 +1217,8 @@ export default function BillingPage() {
                 {money(preview.grandTotal)}
               </span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Paid</span>
-              <span>
-                {currencySymbol}
-                {money(totalPaid)}
-              </span>
-            </div>
             <div className="flex justify-between font-semibold">
-              <span>Remaining</span>
+              <span>Amount due</span>
               <span>
                 {currencySymbol}
                 {money(remaining)}
@@ -1243,7 +1228,7 @@ export default function BillingPage() {
           <CardFooter className="justify-end">
             <Button
               onClick={createBill}
-              disabled={busy || remaining > 0.01 || cartLines.length === 0}
+              disabled={busy || cartLines.length === 0 || (remaining > 0.01 && !paymentMethodId)}
             >
               {creating ? "Creating…" : "Create bill"}
             </Button>
@@ -1264,24 +1249,8 @@ export default function BillingPage() {
                 placeholder="Select payment method…"
               />
             </div>
-            <div className="space-y-1.5">
-              <Label>Amount</Label>
-              <Input
-                type="text"
-                value={`${currencySymbol}${remaining.toFixed(2)}`}
-                readOnly
-                disabled
-              />
-            </div>
-            <Button
-              variant="outline"
-              onClick={addPayment}
-              disabled={!paymentMethodId || remaining <= 0}
-            >
-              Add payment
-            </Button>
 
-            {(existingPayments.length > 0 || cartPayments.length > 0) && (
+            {existingPayments.length > 0 && (
               <div className="divide-y border-t pt-2 text-sm">
                 {existingPayments.map((p) => (
                   <div key={p.id} className="flex justify-between py-1">
@@ -1292,24 +1261,6 @@ export default function BillingPage() {
                     <span>
                       {currencySymbol}
                       {money(p.amount)}
-                    </span>
-                  </div>
-                ))}
-                {cartPayments.map((p, index) => (
-                  <div key={index} className="flex justify-between py-1">
-                    <span>
-                      {p.paymentMethodLabel} <span className="text-muted-foreground">(new)</span>
-                    </span>
-                    <span className="flex items-center gap-2">
-                      {currencySymbol}
-                      {money(p.amount)}
-                      <button
-                        type="button"
-                        className="text-muted-foreground text-xs hover:underline"
-                        onClick={() => removePayment(index)}
-                      >
-                        Remove
-                      </button>
                     </span>
                   </div>
                 ))}

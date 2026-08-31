@@ -6,6 +6,10 @@ import {
   releaseBillLineAllocations,
   replaceBillLineAllocations,
 } from "@/lib/billing/allocateBillLineStock";
+import {
+  getSelfBlockedByWarehouse,
+  applySelfBlocked,
+} from "@/lib/billing/getSelfBlockedByWarehouse";
 import { getStoreWideAvailable } from "@/lib/billing/getStoreWideAvailable";
 import { getWarehouseAvailability } from "@/lib/billing/getWarehouseAvailability";
 import { loadEditableLine } from "@/lib/billing/loadEditableLine";
@@ -50,38 +54,24 @@ export async function PATCH(
     if (!product) return apiErrorResponse("bad_request", "Product not found.", 400);
 
     const isHeld = line.bill.status === "held";
+    const isHeldStockTracked = isHeld && product.stockTracked;
 
-    const perWarehouse = product.stockTracked
-      ? await getWarehouseAvailability(line.bill.storeId, line.productId)
-      : [];
+    const [perWarehouse, selfBlocked, reasonCode] = await Promise.all([
+      product.stockTracked ? getWarehouseAvailability(line.bill.storeId, line.productId) : [],
+      isHeldStockTracked ? getSelfBlockedByWarehouse(id, line.productId) : null,
+      isHeldStockTracked
+        ? db.reasonCode.findFirst({
+            where: { category: "stock_block", label: "Reserved — pending bill" },
+          })
+        : null,
+    ]);
 
     // On a held bill, this line's current block already subtracts from
     // `available` — add it back so editing it isn't checked against its
     // own reservation.
-    let effectivePerWarehouse = perWarehouse;
-    if (isHeld && product.stockTracked) {
-      const existingAllocations = await db.billLineWarehouseAllocation.findMany({
-        where: { billLineId: lineId },
-      });
-      const selfBlocked = new Map<string, number>();
-      await Promise.all(
-        existingAllocations.map(async (alloc) => {
-          const agg = await db.stockBlockItem.aggregate({
-            _sum: { quantityBlocked: true },
-            where: {
-              status: "active",
-              stockBlockMain: { sourceType: "draft_bill_line", sourceId: alloc.id },
-            },
-          });
-          const qty = agg._sum.quantityBlocked ?? 0;
-          selfBlocked.set(alloc.warehouseId, (selfBlocked.get(alloc.warehouseId) ?? 0) + qty);
-        }),
-      );
-      effectivePerWarehouse = perWarehouse.map((w) => ({
-        ...w,
-        available: w.available + (selfBlocked.get(w.warehouseId) ?? 0),
-      }));
-    }
+    const effectivePerWarehouse = selfBlocked
+      ? applySelfBlocked(perWarehouse, selfBlocked)
+      : perWarehouse;
 
     // Draft reserves nothing, so oversell there is only a warning. Held is
     // a real reservation, so it's a hard block instead.
@@ -128,19 +118,12 @@ export async function PATCH(
     }
     const allocations = "error" in allocResult ? [] : allocResult.allocations;
 
-    let reasonCodeId: string | null = null;
-    if (isHeld && product.stockTracked) {
-      const reasonCode = await db.reasonCode.findFirst({
-        where: { category: "stock_block", label: "Reserved — pending bill" },
-      });
-      if (!reasonCode) {
-        return apiErrorResponse(
-          "bad_request",
-          "Missing the 'Reserved — pending bill' reason code — contact a Super Admin.",
-          400,
-        );
-      }
-      reasonCodeId = reasonCode.id;
+    if (isHeldStockTracked && !reasonCode) {
+      return apiErrorResponse(
+        "bad_request",
+        "Missing the 'Reserved — pending bill' reason code — contact a Super Admin.",
+        400,
+      );
     }
 
     const result = await db.$transaction(async (tx) => {
@@ -165,7 +148,7 @@ export async function PATCH(
             storeId: line.bill.storeId,
             financialYearId: line.bill.financialYearId,
             userId: session.user.id,
-            reasonCodeId: reasonCodeId!,
+            reasonCodeId: reasonCode!.id,
           });
         }
       }

@@ -5,6 +5,7 @@ import {
   blockLineAllocations,
   releaseBillLineAllocations,
 } from "@/lib/billing/allocateBillLineStock";
+import { getSelfBlockedByWarehouse } from "@/lib/billing/getSelfBlockedByWarehouse";
 import { unscoped } from "@/lib/db";
 import { getStockLevels } from "@/lib/stock/getStockLevels";
 import { writeAuditLog } from "@/lib/security/audit";
@@ -66,15 +67,9 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
       checks.map(async ({ line, alloc }) => {
         const [levels, selfBlocked] = await Promise.all([
           getStockLevels({ productId: line.productId, warehouseId: alloc.warehouseId }),
-          db.stockBlockItem.aggregate({
-            _sum: { quantityBlocked: true },
-            where: {
-              status: "active",
-              stockBlockMain: { sourceType: "draft_bill_line", sourceId: alloc.id },
-            },
-          }),
+          getSelfBlockedByWarehouse(id, line.productId),
         ]);
-        const effectiveAvailable = levels.available + (selfBlocked._sum.quantityBlocked ?? 0);
+        const effectiveAvailable = levels.available + (selfBlocked.get(alloc.warehouseId) ?? 0);
         return { line, alloc, effectiveAvailable };
       }),
     );

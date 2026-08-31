@@ -1,6 +1,10 @@
 import { auth } from "@/auth";
 import { hasPermission } from "@/lib/auth/rbac";
 import { asAppSession } from "@/lib/auth/types";
+import {
+  applySelfBlocked,
+  getSelfBlockedByWarehouse,
+} from "@/lib/billing/getSelfBlockedByWarehouse";
 import { getWarehouseAvailability } from "@/lib/billing/getWarehouseAvailability";
 import { billPreviewSchema } from "@/lib/billing/schemas";
 import { resolveAllocations } from "@/lib/billing/resolveAllocations";
@@ -88,13 +92,16 @@ export async function POST(request: Request) {
       let warehouseAvailability: { warehouseId: string; available: number }[] = [];
       if (product.stockTracked) {
         const perWarehouse = await getWarehouseAvailability(session.user.storeId!, product.id);
-        warehouseAvailability = perWarehouse;
+        const effectivePerWarehouse = data.billId
+          ? applySelfBlocked(perWarehouse, await getSelfBlockedByWarehouse(data.billId, product.id))
+          : perWarehouse;
+        warehouseAvailability = effectivePerWarehouse;
         const allocResult = await resolveAllocations({
           storeId: session.user.storeId!,
           productId: product.id,
           quantity: line.quantity,
           requested: line.allocations,
-          perWarehouse,
+          perWarehouse: effectivePerWarehouse,
         });
         if ("error" in allocResult) {
           allocationWarning = allocResult.error;
