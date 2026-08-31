@@ -1,6 +1,12 @@
 import { z } from "zod";
 
-import { opaqueIdSchema, optionalString, positiveInt } from "@/lib/validation/common";
+import {
+  emailSchema,
+  opaqueIdSchema,
+  optionalPhoneSchema,
+  optionalString,
+  positiveInt,
+} from "@/lib/validation/common";
 
 export const billTypeSchema = z.enum(["cash_bill", "credit_bill", "online_bill"]);
 
@@ -37,6 +43,21 @@ export const billLineDiscountSchema = z.object({
 export const billDiscountSchema = z.object({
   overallDiscount: z.coerce.number().min(0, "Must be zero or greater."),
   discountReasonCodeId: opaqueIdSchema.optional().nullable(),
+});
+
+// Billing's own customer detail fields — deliberately more permissive than
+// the Customers master's own createSchema (lib/masters/schemas.ts), which
+// keeps requiring Name. Same underlying `customers` table either way: these
+// are plain billing-detail fields that sync to whichever customer record is
+// currently attached to the bill (creating one on first meaningful input).
+export const billCustomerDetailsSchema = z.object({
+  name: optionalString(255),
+  phone: optionalPhoneSchema,
+  email: emailSchema.optional().nullable(),
+  address: optionalString(500),
+  countryId: opaqueIdSchema.optional().nullable(),
+  stateId: opaqueIdSchema.optional().nullable(),
+  pincode: optionalString(20),
 });
 
 export const billPaymentCreateSchema = z.object({

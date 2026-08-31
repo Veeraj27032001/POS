@@ -10,9 +10,16 @@ const globalForPrisma = globalThis as unknown as {
 
 function createAdapter(): PrismaPg {
   const { DATABASE_URL } = env();
+  // getStockLevels() alone fires ~11 queries via Promise.all, and callers
+  // that check several warehouses (billing's oversell/allocation checks)
+  // fire one getStockLevels() per warehouse in parallel on top of that — a
+  // pool this small was queuing badly under real warehouse counts. This
+  // goes through Supabase's pooled connection (pgbouncer), which is built
+  // to absorb a larger client-side pool without a proportional increase in
+  // real Postgres backend connections.
   return new PrismaPg({
     connectionString: DATABASE_URL,
-    max: 10,
+    max: 30,
     connectionTimeoutMillis: 10_000,
   });
 }

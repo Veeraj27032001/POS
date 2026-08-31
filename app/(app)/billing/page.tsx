@@ -1,5 +1,6 @@
 "use client";
 
+import { Loader2Icon } from "lucide-react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -116,6 +117,9 @@ export default function BillingPage() {
 
   const [scanValue, setScanValue] = useState("");
   const [productMatches, setProductMatches] = useState<ProductMatch[]>([]);
+  const [highlightedMatch, setHighlightedMatch] = useState(0);
+  const [searching, setSearching] = useState(false);
+  const [addingProductId, setAddingProductId] = useState<string | null>(null);
   const scanInputRef = useRef<HTMLInputElement>(null);
 
   const [paymentMethodId, setPaymentMethodId] = useState<string | null>(null);
@@ -192,16 +196,22 @@ export default function BillingPage() {
       setProductMatches([]);
       return;
     }
-    const res = await fetch(`/api/products?search=${encodeURIComponent(term)}&pageSize=10`);
-    const body = (await res.json().catch(() => null)) as { data: ProductMatch[] } | null;
-    const products = body?.data ?? [];
-    const exact = products.find((p) => p.systemBarcode === term || p.skuBarcode === term);
+    setSearching(true);
+    try {
+      const res = await fetch(`/api/products?search=${encodeURIComponent(term)}&pageSize=10`);
+      const body = (await res.json().catch(() => null)) as { data: ProductMatch[] } | null;
+      const products = body?.data ?? [];
+      const exact = products.find((p) => p.systemBarcode === term || p.skuBarcode === term);
 
-    if (exact) {
-      await addProduct(exact.id);
-      return;
+      if (exact) {
+        await addProduct(exact.id);
+        return;
+      }
+      setProductMatches(products);
+      setHighlightedMatch(0);
+    } finally {
+      setSearching(false);
     }
-    setProductMatches(products);
   }
 
   const debouncedScanValue = useDebouncedValue(scanValue, 300);
@@ -212,20 +222,25 @@ export default function BillingPage() {
 
   async function addProduct(productId: string) {
     if (!bill) return;
-    const res = await fetch(`/api/bills/${bill.id}/lines`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ productId }),
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => null);
-      toast.error(body?.error?.message ?? "Failed to add item.");
-      return;
+    setAddingProductId(productId);
+    try {
+      const res = await fetch(`/api/bills/${bill.id}/lines`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        toast.error(body?.error?.message ?? "Failed to add item.");
+        return;
+      }
+      setScanValue("");
+      setProductMatches([]);
+      await refetchBill(bill.id);
+      scanInputRef.current?.focus();
+    } finally {
+      setAddingProductId(null);
     }
-    setScanValue("");
-    setProductMatches([]);
-    await refetchBill(bill.id);
-    scanInputRef.current?.focus();
   }
 
   async function removeLine(lineId: string) {
@@ -624,32 +639,55 @@ export default function BillingPage() {
 
       <Card>
         <CardContent className="space-y-2 pt-6">
-          <Input
-            ref={scanInputRef}
-            value={scanValue}
-            onChange={(e) => setScanValue(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                void searchProducts(scanValue.trim());
-              }
-            }}
-            placeholder="Scan or search a product…"
-            autoFocus
-          />
+          <div className="relative">
+            <Input
+              ref={scanInputRef}
+              value={scanValue}
+              onChange={(e) => setScanValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  setHighlightedMatch((i) => Math.min(i + 1, productMatches.length - 1));
+                } else if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  setHighlightedMatch((i) => Math.max(i - 1, 0));
+                } else if (e.key === "Enter") {
+                  e.preventDefault();
+                  if (productMatches.length > 0) {
+                    const target = productMatches[highlightedMatch] ?? productMatches[0];
+                    void addProduct(target.id);
+                  } else {
+                    void searchProducts(scanValue.trim());
+                  }
+                }
+              }}
+              placeholder="Scan or search a product…"
+              autoFocus
+            />
+            {(searching || addingProductId) && (
+              <Loader2Icon className="text-muted-foreground absolute top-1/2 right-3 size-4 -translate-y-1/2 animate-spin" />
+            )}
+          </div>
           {productMatches.length > 0 && (
             <div className="divide-y rounded-lg border">
-              {productMatches.map((p) => (
+              {productMatches.map((p, index) => (
                 <button
                   key={p.id}
                   type="button"
                   onClick={() => void addProduct(p.id)}
-                  className="hover:bg-muted/50 flex w-full items-center justify-between p-2 text-left text-sm"
+                  disabled={addingProductId !== null}
+                  onMouseEnter={() => setHighlightedMatch(index)}
+                  className={`flex w-full items-center justify-between p-2 text-left text-sm disabled:opacity-60 ${
+                    index === highlightedMatch ? "bg-muted" : "hover:bg-muted/50"
+                  }`}
                 >
                   <span>
                     {p.name} <span className="text-muted-foreground">· {p.systemBarcode}</span>
                   </span>
-                  <span>₹{money(p.price)}</span>
+                  <span className="flex items-center gap-2">
+                    ₹{money(p.price)}
+                    {addingProductId === p.id && <Loader2Icon className="size-3.5 animate-spin" />}
+                  </span>
                 </button>
               ))}
             </div>

@@ -885,7 +885,7 @@ model PendingMediaUpload {
 
 model Customer {
   id            String   @id @default(uuid())
-  name          String
+  name          String?
   phone         String?
   email         String?
   address       String?
