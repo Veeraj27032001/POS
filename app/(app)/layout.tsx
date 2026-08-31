@@ -15,6 +15,7 @@ import {
   Lock,
   Menu,
   Package,
+  PackageOpen,
   PackagePlus,
   PackageX,
   Settings as SettingsIcon,
@@ -79,6 +80,7 @@ const NAV_ITEM_MODULE: Record<string, string> = {
   "/stock-quality-checks": "stock",
   "/stock-positive-adjustments": "stock",
   "/stock-negative-adjustments": "stock",
+  "/stock-openings": "stock",
   "/settings/hsn-codes": "hsn_codes",
   "/settings/tax-engine": "stores",
   "/settings/financial-years": "financial_years",
@@ -139,6 +141,11 @@ const NAV_GROUPS: AppNavGroup[] = [
         href: "/stock-transfers",
         label: "Stock Transfer",
         icon: <ArrowLeftRight className="h-4 w-4" />,
+      },
+      {
+        href: "/stock-openings",
+        label: "Opening Balance",
+        icon: <PackageOpen className="h-4 w-4" />,
       },
       {
         href: "/stock-positive-adjustments",

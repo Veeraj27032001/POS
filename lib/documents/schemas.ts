@@ -153,3 +153,15 @@ export const stockNegativeAdjustmentCreateSchema = z.object({
   items: z.array(stockNegativeAdjustmentItemSchema).min(1, "At least one item is required."),
 });
 export const stockNegativeAdjustmentEditSchema = stockNegativeAdjustmentCreateSchema;
+
+export const stockOpeningItemSchema = z.object({
+  productId: opaqueIdSchema,
+  quantity: positiveInt,
+});
+export const stockOpeningCreateSchema = z.object({
+  warehouseId: opaqueIdSchema,
+  openingDate: isoDateOnlySchema,
+  notes: optionalString(1000),
+  items: z.array(stockOpeningItemSchema).min(1, "At least one item is required."),
+});
+export const stockOpeningEditSchema = stockOpeningCreateSchema;

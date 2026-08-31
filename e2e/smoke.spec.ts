@@ -2004,3 +2004,79 @@ test("Negative Adjustment: edit and delete", async ({ page }) => {
   const res = await page.request.get(`/api/stock-negative-adjustments/${created.main.id}`);
   expect(res.status()).toBe(404);
 });
+
+test("Opening Balance: create, edit, and delete", async ({ page }) => {
+  test.skip(!ADMIN2_EMAIL || !ADMIN2_PASSWORD, "SEED_ADMIN2_EMAIL/PASSWORD not configured");
+  await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
+
+  await page.goto("/stock-openings/new");
+  await page.getByText("Select warehouse…").click();
+  await page.getByRole("option").first().click();
+  await page.getByText("Select product…").click();
+  await page.getByRole("option").first().click();
+  await page.getByPlaceholder("Qty").fill("2");
+  const [response] = await Promise.all([
+    page.waitForResponse(
+      (res) => res.url().endsWith("/api/stock-openings") && res.request().method() === "POST",
+    ),
+    page.getByRole("button", { name: "Save" }).click(),
+  ]);
+  await expect(page.getByText("Opening balance recorded.")).toBeVisible();
+  const created = (await response.json()) as { main: { id: string } };
+
+  await page.goto(`/stock-openings/${created.main.id}`);
+  await page.getByRole("link", { name: "Edit" }).click();
+  await expect(page.getByPlaceholder("Qty")).toHaveValue("2");
+  await page.getByPlaceholder("Qty").fill("4");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Opening balance updated.")).toBeVisible();
+  await expect(page.getByRole("cell", { name: "4", exact: true })).toBeVisible();
+
+  page.on("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "Delete" }).click();
+  await expect(page.getByText("Opening balance deleted.")).toBeVisible();
+  await expect(page).toHaveURL("/stock-openings");
+
+  const res = await page.request.get(`/api/stock-openings/${created.main.id}`);
+  expect(res.status()).toBe(404);
+});
+
+test("Opening Balance: cannot reduce quantity below what's already consumed elsewhere", async ({
+  page,
+}) => {
+  test.skip(!ADMIN2_EMAIL || !ADMIN2_PASSWORD, "SEED_ADMIN2_EMAIL/PASSWORD not configured");
+  await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
+
+  await page.goto("/stock-openings/new");
+  await page.getByText("Select warehouse…").click();
+  const warehouseName = (await page.getByRole("option").first().textContent())!.trim();
+  await page.getByRole("option").first().click();
+  await page.getByText("Select product…").click();
+  const productName = (await page.getByRole("option").first().textContent())!.trim();
+  await page.getByRole("option").first().click();
+  await page.getByPlaceholder("Qty").fill("100000");
+  const [openingResponse] = await Promise.all([
+    page.waitForResponse(
+      (res) => res.url().endsWith("/api/stock-openings") && res.request().method() === "POST",
+    ),
+    page.getByRole("button", { name: "Save" }).click(),
+  ]);
+  await expect(page.getByText("Opening balance recorded.")).toBeVisible();
+  const createdOpening = (await openingResponse.json()) as { main: { id: string } };
+
+  await page.goto("/stock-damages/new");
+  await page.getByText("Select warehouse…").click();
+  await page.getByRole("option", { name: warehouseName, exact: true }).click();
+  await page.getByText("Select product…").click();
+  await page.getByRole("option", { name: productName, exact: true }).click();
+  await page.getByPlaceholder("Qty").fill("99999");
+  await page.getByText("Select reason…").click();
+  await page.getByRole("option").first().click();
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Stock damage recorded.")).toBeVisible();
+
+  await page.goto(`/stock-openings/${createdOpening.main.id}/edit`);
+  await page.getByPlaceholder("Qty").fill("1");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText(/would leave -?\d+ available/)).toBeVisible();
+});

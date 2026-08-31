@@ -236,3 +236,20 @@ export const stockNegativeAdjustmentResource = defineDocumentResource({
     return null;
   },
 });
+
+export const stockOpeningResource = defineDocumentResource({
+  name: "stock_opening",
+  module: "stock",
+  seriesType: "opening_balance",
+  createSchema: schemas.stockOpeningCreateSchema,
+  getMainDelegate: mainDelegateOf("stockOpeningMain"),
+  getItemDelegate: itemDelegateOf("stockOpeningItem"),
+  buildMainData: (data) => ({
+    warehouseId: data.warehouseId,
+    openingDate: dateOnlyToUtcMidnight(toDateOnly(data.openingDate)),
+    notes: data.notes ?? null,
+  }),
+  buildItemData: (item) => ({
+    quantity: item.quantity,
+  }),
+});
