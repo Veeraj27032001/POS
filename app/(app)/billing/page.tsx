@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { LineWarehouseSplit } from "@/components/billing/line-warehouse-split";
 import { NewCustomerInlineForm } from "@/components/billing/new-customer-inline-form";
 import { RequiredMark } from "@/components/required-mark";
 import { SearchableSelect } from "@/components/searchable-select";
@@ -25,6 +26,12 @@ import {
 import { useSelectedTerminal } from "@/lib/billing/useSelectedTerminal";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 
+interface BillLineAllocation {
+  warehouseId: string;
+  quantity: number;
+  warehouse: { id: string; name: string };
+}
+
 interface BillLineRow {
   id: string;
   productId: string;
@@ -36,6 +43,7 @@ interface BillLineRow {
   lineTotal: string;
   taxBreakdown: { taxAmount: number } | null;
   status: string;
+  allocations: BillLineAllocation[];
 }
 
 interface BillPaymentRow {
@@ -598,6 +606,15 @@ export default function BillingPage() {
                 <TableCell>
                   <div>{line.productName}</div>
                   <div className="text-muted-foreground text-xs">{line.productBarcode}</div>
+                  {line.allocations.length > 0 && (
+                    <LineWarehouseSplit
+                      billId={bill.id}
+                      lineId={line.id}
+                      quantity={line.quantity}
+                      allocations={line.allocations}
+                      onUpdated={() => void refetchBill(bill.id)}
+                    />
+                  )}
                 </TableCell>
                 <TableCell>{line.quantity}</TableCell>
                 <TableCell>₹{money(line.unitPrice)}</TableCell>
