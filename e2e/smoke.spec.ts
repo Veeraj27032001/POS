@@ -2083,3 +2083,55 @@ test("Opening Balance: cannot reduce quantity below what's already consumed else
   await page.getByRole("button", { name: "Save" }).click();
   await expect(page.getByText(/would leave -?\d+ available/)).toBeVisible();
 });
+
+test("Entry Correction: corrects a source document's quantity and logs it", async ({ page }) => {
+  test.skip(!ADMIN2_EMAIL || !ADMIN2_PASSWORD, "SEED_ADMIN2_EMAIL/PASSWORD not configured");
+  await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
+
+  await page.goto("/stock-openings/new");
+  await page.getByText("Select warehouse…").click();
+  await page.getByRole("option").first().click();
+  await page.getByText("Select product…").click();
+  const productName = (await page.getByRole("option").first().textContent())!.trim();
+  await page.getByRole("option").first().click();
+  await page.getByPlaceholder("Qty").fill("10");
+  const [openingResponse] = await Promise.all([
+    page.waitForResponse(
+      (res) => res.url().endsWith("/api/stock-openings") && res.request().method() === "POST",
+    ),
+    page.getByRole("button", { name: "Save" }).click(),
+  ]);
+  await expect(page.getByText("Opening balance recorded.")).toBeVisible();
+  const createdOpening = (await openingResponse.json()) as {
+    main: { id: string; documentNumber: string };
+  };
+
+  await page.goto("/entry-corrections/new");
+  await page.getByText("Select a document type…").click();
+  await page.getByRole("option", { name: "Opening Balance" }).click();
+  await page.getByText("Select a document…").click();
+  await page.getByRole("option", { name: createdOpening.main.documentNumber, exact: true }).click();
+  await page.getByText("Select an item…").click();
+  await page.getByRole("option", { name: productName }).click();
+  await page.locator("#newValue").fill("6");
+  await page.locator("#notes").fill("Recount found fewer units.");
+  const [correctionResponse] = await Promise.all([
+    page.waitForResponse(
+      (res) => res.url().endsWith("/api/entry-corrections") && res.request().method() === "POST",
+    ),
+    page.getByRole("button", { name: "Apply correction" }).click(),
+  ]);
+  await expect(page.getByText("Correction applied.")).toBeVisible();
+  await expect(page).toHaveURL("/entry-corrections");
+  const correction = (await correctionResponse.json()) as { id: string; documentNumber: string };
+  await expect(page.getByText(correction.documentNumber)).toBeVisible();
+  await expect(page.getByText("10 → 6")).toBeVisible();
+
+  const openingRes = await page.request.get(`/api/stock-openings/${createdOpening.main.id}`);
+  const openingBody = (await openingRes.json()) as { items: { quantity: number }[] };
+  expect(openingBody.items[0].quantity).toBe(6);
+
+  await page.goto(`/entry-corrections/${correction.id}`);
+  await expect(page.getByText("Opening Balance")).toBeVisible();
+  await expect(page.getByText("Recount found fewer units.")).toBeVisible();
+});
