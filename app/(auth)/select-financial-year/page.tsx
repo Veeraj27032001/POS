@@ -112,7 +112,7 @@ function SelectFinancialYearForm() {
           </Select>
         </div>
 
-        {terminals.length > 0 && (
+        {session?.user.storeId && terminals.length > 0 && (
           <div className="space-y-1.5">
             <Label>
               Terminal

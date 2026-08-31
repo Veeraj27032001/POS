@@ -61,10 +61,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const existingQuantity = existingLine?.quantity ?? 0;
     const newQuantity = existingQuantity + (data.quantity ?? 1);
 
+    // A draft bill reserves nothing, so oversell here is a warning, not a
+    // hard block — the cashier can still add more than's on hand while
+    // building the cart; real availability is only actually enforced when
+    // the bill is held (see app/api/bills/[id]/hold/route.ts).
     const perWarehouse = product.stockTracked
       ? await getWarehouseAvailability(bill.storeId, data.productId)
       : [];
-
+    let stockWarning: string | undefined;
     if (product.stockTracked) {
       const storeAvailable = await getStoreWideAvailable(
         bill.storeId,
@@ -73,11 +77,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       );
       const resultingAvailable = storeAvailable + existingQuantity - newQuantity;
       if (resultingAvailable < 0) {
-        return apiErrorResponse(
-          "bad_request",
-          `Only ${storeAvailable + existingQuantity} of ${product.name} available across this store's warehouses.`,
-          400,
-        );
+        stockWarning = `Only ${storeAvailable + existingQuantity} of ${product.name} available across this store's warehouses.`;
       }
     }
 
@@ -101,8 +101,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         })
       : { allocations: [] };
     if ("error" in allocResult) {
-      return apiErrorResponse("bad_request", allocResult.error, 400);
+      stockWarning = allocResult.error;
+    } else if (allocResult.fellBack) {
+      stockWarning =
+        "The chosen warehouse split was no longer available — reallocated automatically.";
     }
+    const allocations = "error" in allocResult ? [] : allocResult.allocations;
 
     const result = await db.$transaction(async (tx) => {
       const line = existingLine
@@ -131,11 +135,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       if (product.stockTracked) {
         await replaceBillLineAllocations(tx, {
           billLineId: line.id,
-          product,
-          storeId: bill.storeId,
-          financialYearId: bill.financialYearId,
-          userId: session.user.id,
-          allocations: allocResult.allocations,
+          allocations,
         });
       }
 
@@ -155,10 +155,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return Response.json(
       {
         ...result,
-        warning:
-          "fellBack" in allocResult && allocResult.fellBack
-            ? "The chosen warehouse split was no longer available — reallocated automatically."
-            : undefined,
+        warning: stockWarning,
       },
       { status: 201 },
     );

@@ -48,10 +48,13 @@ export async function PATCH(
     });
     if (!product) return apiErrorResponse("bad_request", "Product not found.", 400);
 
+    // A draft bill reserves nothing, so oversell here is a warning, not a
+    // hard block — real availability is only enforced when the bill is
+    // held (see app/api/bills/[id]/hold/route.ts).
     const perWarehouse = product.stockTracked
       ? await getWarehouseAvailability(line.bill.storeId, line.productId)
       : [];
-
+    let stockWarning: string | undefined;
     if (product.stockTracked) {
       const storeAvailable = await getStoreWideAvailable(
         line.bill.storeId,
@@ -60,11 +63,7 @@ export async function PATCH(
       );
       const resultingAvailable = storeAvailable + line.quantity - data.quantity;
       if (resultingAvailable < 0) {
-        return apiErrorResponse(
-          "bad_request",
-          `Only ${storeAvailable + line.quantity} of ${product.name} available across this store's warehouses.`,
-          400,
-        );
+        stockWarning = `Only ${storeAvailable + line.quantity} of ${product.name} available across this store's warehouses.`;
       }
     }
 
@@ -88,8 +87,12 @@ export async function PATCH(
         })
       : { allocations: [] };
     if ("error" in allocResult) {
-      return apiErrorResponse("bad_request", allocResult.error, 400);
+      stockWarning = allocResult.error;
+    } else if (allocResult.fellBack) {
+      stockWarning =
+        "The chosen warehouse split was no longer available — reallocated automatically.";
     }
+    const allocations = "error" in allocResult ? [] : allocResult.allocations;
 
     const result = await db.$transaction(async (tx) => {
       const updated = await tx.billLine.update({
@@ -104,11 +107,7 @@ export async function PATCH(
       if (product.stockTracked) {
         await replaceBillLineAllocations(tx, {
           billLineId: lineId,
-          product,
-          storeId: line.bill.storeId,
-          financialYearId: line.bill.financialYearId,
-          userId: session.user.id,
-          allocations: allocResult.allocations,
+          allocations,
         });
       }
 
@@ -126,7 +125,7 @@ export async function PATCH(
       afterData: result.line,
     });
 
-    return Response.json(result);
+    return Response.json({ ...result, warning: stockWarning });
   });
 }
 

@@ -15,18 +15,20 @@ interface ProductSnapshot {
   hsnCode: { hsnCode: string } | null;
 }
 
-// Every scan/quantity change replaces a line's warehouse allocations (and
-// the stock blocks reserving them) from scratch rather than diffing old vs
-// new — simpler, and available stock is always computed fresh anyway so
-// there's no running total to keep in sync.
+// Every scan/quantity change replaces a line's warehouse allocations from
+// scratch rather than diffing old vs new — simpler, and available stock is
+// always computed fresh anyway so there's no running total to keep in
+// sync. This only records WHICH warehouse each line's stock will come
+// from — it does NOT reserve anything. A draft bill blocks no stock at
+// all; the actual reservation only happens at Hold, via blockLineStock
+// below, using whatever allocation rows this leaves in place. If a line
+// being edited happens to still have an active block (shouldn't normally
+// happen — resuming a held bill always releases first — but defensively
+// covered here), that block is released before its allocation is replaced.
 export async function replaceBillLineAllocations(
   tx: Prisma.TransactionClient,
   params: {
     billLineId: string;
-    product: ProductSnapshot;
-    storeId: string;
-    financialYearId: string;
-    userId: string;
     allocations: BillLineAllocationInput[];
   },
 ) {
@@ -40,30 +42,43 @@ export async function replaceBillLineAllocations(
     if (blockMain) {
       await tx.stockBlockItem.updateMany({
         where: { stockBlockMainId: blockMain.id, status: "active" },
-        data: { status: "released", releasedByUserId: params.userId, releasedAt: new Date() },
+        data: { status: "released", releasedByUserId: null, releasedAt: new Date() },
       });
     }
   }
   await tx.billLineWarehouseAllocation.deleteMany({ where: { billLineId: params.billLineId } });
 
-  if (params.allocations.length === 0) return;
-
-  const reason = await tx.reasonCode.findFirst({
-    where: { category: "stock_block", label: "Reserved — pending bill" },
-  });
-  if (!reason) {
-    throw new Error("Missing the 'Reserved — pending bill' reason code.");
-  }
-
   for (const allocation of params.allocations) {
-    const created = await tx.billLineWarehouseAllocation.create({
+    await tx.billLineWarehouseAllocation.create({
       data: {
         billLineId: params.billLineId,
         warehouseId: allocation.warehouseId,
         quantity: allocation.quantity,
       },
     });
+  }
+}
 
+// The actual stock reservation — called only when a bill is held (see
+// app/api/bills/[id]/hold/route.ts), one StockBlock per current allocation
+// row on the given line. Assumes availability was already checked by the
+// caller; this just writes the block.
+export async function blockLineAllocations(
+  tx: Prisma.TransactionClient,
+  params: {
+    billLineId: string;
+    product: ProductSnapshot;
+    storeId: string;
+    financialYearId: string;
+    userId: string;
+    reasonCodeId: string;
+  },
+) {
+  const allocations = await tx.billLineWarehouseAllocation.findMany({
+    where: { billLineId: params.billLineId },
+  });
+
+  for (const allocation of allocations) {
     const { documentNumber } = await allocateDocumentNumber(tx, {
       seriesType: "stock_block",
       storeId: params.storeId,
@@ -76,7 +91,7 @@ export async function replaceBillLineAllocations(
         storeId: params.storeId,
         warehouseId: allocation.warehouseId,
         sourceType: "draft_bill_line",
-        sourceId: created.id,
+        sourceId: allocation.id,
         blockedByUserId: params.userId,
         blockedAt: new Date(),
       },
@@ -90,7 +105,7 @@ export async function replaceBillLineAllocations(
         productPrice: params.product.price as never,
         productHsnCode: params.product.hsnCode?.hsnCode ?? null,
         quantityBlocked: allocation.quantity,
-        reasonCodeId: reason.id,
+        reasonCodeId: params.reasonCodeId,
         status: "active",
       },
     });

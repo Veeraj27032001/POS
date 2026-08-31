@@ -13,12 +13,17 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { useOptionsList } from "@/lib/masters/useOptionsList";
 
 export interface AllocationDisplay {
   warehouseId: string;
   warehouseName: string;
   quantity: number;
+}
+
+export interface WarehouseAvailabilityDisplay {
+  warehouseId: string;
+  warehouseName: string;
+  available: number;
 }
 
 // Auto-allocation (oldest-stocked warehouse first, preferring a single
@@ -27,12 +32,14 @@ export interface AllocationDisplay {
 // tells the parent cart line what split to use the next time the cart is
 // actually saved (Save draft/Hold/Create bill). If a previously-chosen
 // override has gone stale by then, the server falls back to a fresh
-// automatic split rather than failing — allocations shown here always
-// reflect live stock since they come from the read-only preview.
+// automatic split rather than failing — allocations and per-warehouse
+// stock shown here always reflect live numbers since they come from the
+// read-only preview.
 export function LineWarehouseSplit({
   productName,
   quantity,
   allocations,
+  warehouseAvailability,
   hasManualOverride,
   warning,
   onSave,
@@ -41,12 +48,12 @@ export function LineWarehouseSplit({
   productName: string;
   quantity: number;
   allocations: AllocationDisplay[];
+  warehouseAvailability: WarehouseAvailabilityDisplay[];
   hasManualOverride: boolean;
   warning: string | null;
   onSave: (allocations: { warehouseId: string; quantity: number }[]) => void;
   onClearOverride: () => void;
 }) {
-  const warehouses = useOptionsList("warehouses", "name");
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<Record<string, string>>({});
 
@@ -67,6 +74,15 @@ export function LineWarehouseSplit({
       toast.error(`Allocations must add up to ${quantity}.`);
       return;
     }
+    for (const entry of entries) {
+      const available = warehouseAvailability.find(
+        (w) => w.warehouseId === entry.warehouseId,
+      )?.available;
+      if (available !== undefined && entry.quantity > available) {
+        toast.error(`Only ${available} available at that warehouse.`);
+        return;
+      }
+    }
     onSave(entries);
     setOpen(false);
   }
@@ -86,16 +102,18 @@ export function LineWarehouseSplit({
           <DialogTitle>Warehouse split — {productName}</DialogTitle>
         </DialogHeader>
         <div className="space-y-1">
-          {warehouses.map((w) => (
-            <div key={w.value} className="flex items-center gap-2">
-              <span className="w-32 truncate text-sm">{w.label}</span>
+          {warehouseAvailability.map((w) => (
+            <div key={w.warehouseId} className="flex items-center gap-2">
+              <span className="w-32 truncate text-sm">{w.warehouseName}</span>
               <Input
                 type="number"
                 min={0}
+                max={w.available}
                 className="h-8 w-24"
-                value={draft[w.value] ?? ""}
-                onChange={(e) => setDraft((d) => ({ ...d, [w.value]: e.target.value }))}
+                value={draft[w.warehouseId] ?? ""}
+                onChange={(e) => setDraft((d) => ({ ...d, [w.warehouseId]: e.target.value }))}
               />
+              <span className="text-muted-foreground text-xs">{w.available} available</span>
             </div>
           ))}
           <div className="text-muted-foreground text-xs">

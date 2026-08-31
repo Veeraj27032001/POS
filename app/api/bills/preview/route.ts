@@ -63,6 +63,7 @@ export async function POST(request: Request) {
       lineTotal: number;
       allocations: { warehouseId: string; quantity: number }[];
       allocationWarning: string | null;
+      warehouseAvailability: { warehouseId: string; available: number }[];
     }[] = [];
     const warehouseIds = new Set<string>();
 
@@ -84,8 +85,10 @@ export async function POST(request: Request) {
 
       let allocations: { warehouseId: string; quantity: number }[] = [];
       let allocationWarning: string | null = null;
+      let warehouseAvailability: { warehouseId: string; available: number }[] = [];
       if (product.stockTracked) {
         const perWarehouse = await getWarehouseAvailability(session.user.storeId!, product.id);
+        warehouseAvailability = perWarehouse;
         const allocResult = await resolveAllocations({
           storeId: session.user.storeId!,
           productId: product.id,
@@ -102,7 +105,7 @@ export async function POST(request: Request) {
               "The chosen warehouse split no longer has enough stock — showing an automatic reallocation instead.";
           }
         }
-        for (const a of allocations) warehouseIds.add(a.warehouseId);
+        for (const w of perWarehouse) warehouseIds.add(w.warehouseId);
       }
 
       subtotal += lineSubtotal;
@@ -118,6 +121,7 @@ export async function POST(request: Request) {
         lineTotal: round2(lineTotal),
         allocations,
         allocationWarning,
+        warehouseAvailability,
       });
     }
 
@@ -136,6 +140,10 @@ export async function POST(request: Request) {
         allocations: line.allocations.map((a) => ({
           ...a,
           warehouseName: warehouseNameById.get(a.warehouseId) ?? "",
+        })),
+        warehouseAvailability: line.warehouseAvailability.map((w) => ({
+          ...w,
+          warehouseName: warehouseNameById.get(w.warehouseId) ?? "",
         })),
       })),
       subtotal: round2(subtotal),

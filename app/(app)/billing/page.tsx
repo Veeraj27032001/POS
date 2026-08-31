@@ -15,6 +15,7 @@ import {
 import { EditableLineValue } from "@/components/billing/editable-line-value";
 import { LineWarehouseSplit } from "@/components/billing/line-warehouse-split";
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
+import { useStoreCurrencySymbol } from "@/lib/hooks/useStoreCurrencySymbol";
 import { RequiredMark } from "@/components/required-mark";
 import { SearchableSelect } from "@/components/searchable-select";
 import { asAppSession } from "@/lib/auth/types";
@@ -76,6 +77,7 @@ interface PreviewLine {
   lineTotal: number;
   allocations: { warehouseId: string; warehouseName: string; quantity: number }[];
   allocationWarning: string | null;
+  warehouseAvailability: { warehouseId: string; warehouseName: string; available: number }[];
 }
 
 interface PreviewTotals {
@@ -157,10 +159,11 @@ export default function BillingPage() {
 
   const terminals = useOptionsList("terminals", "name");
   const customers = useOptionsList("customers", "name");
-  const paymentMethods = useOptionsList("payment-methods", "name");
+  const paymentMethods = useOptionsList("payment-methods/options", "name");
   const discountReasons = useOptionsList("reason-codes/options", "label", "category=discount");
   const { terminalId: rememberedTerminalId, setTerminalId: rememberTerminalId } =
     useSelectedTerminal();
+  const currencySymbol = useStoreCurrencySymbol();
 
   const [billType, setBillType] = useState<"cash_bill" | "credit_bill">("cash_bill");
   const [terminalId, setTerminalId] = useState<string | null>(null);
@@ -172,6 +175,10 @@ export default function BillingPage() {
   const [savedDocumentNumber, setSavedDocumentNumber] = useState<string | null>(null);
 
   const [cartLines, setCartLines] = useState<CartLine[]>([]);
+  // A line removed locally after it was already synced (has a serverId)
+  // has to be voided server-side on the next save too — otherwise it just
+  // silently stays there (and stays blocked, once Hold is involved).
+  const [removedServerLineIds, setRemovedServerLineIds] = useState<string[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [customerDraft, setCustomerDraft] = useState<CustomerDraft>(emptyCustomerDraft);
   const [customerStateId, setCustomerStateId] = useState<string | null>(null);
@@ -361,7 +368,13 @@ export default function BillingPage() {
   }
 
   function removeLine(productId: string) {
-    setCartLines((prev) => prev.filter((l) => l.productId !== productId));
+    setCartLines((prev) => {
+      const line = prev.find((l) => l.productId === productId);
+      if (line?.serverId) {
+        setRemovedServerLineIds((ids) => [...ids, line.serverId!]);
+      }
+      return prev.filter((l) => l.productId !== productId);
+    });
   }
 
   // Changing quantity invalidates any manual warehouse split (it no longer
@@ -462,6 +475,21 @@ export default function BillingPage() {
     return preview.lines.find((l) => l.productId === productId)?.allocationWarning ?? null;
   }
 
+  function warehouseAvailabilityForLine(
+    productId: string,
+  ): { warehouseId: string; warehouseName: string; available: number }[] {
+    return preview.lines.find((l) => l.productId === productId)?.warehouseAvailability ?? [];
+  }
+
+  // Truly out of stock — resolveAllocations couldn't find anywhere to put
+  // it at all — as opposed to a stale manual override that still resolved
+  // fine via automatic fallback (has a warning but real allocations too).
+  function isOutOfStock(productId: string): boolean {
+    return (
+      allocationWarningForLine(productId) !== null && allocationsForLine(productId).length === 0
+    );
+  }
+
   // The only place anything here actually reaches the server. Creates the
   // bill on first save; on every save after that it only sends whatever
   // changed since the last one (new lines, changed quantities/discounts,
@@ -488,6 +516,16 @@ export default function BillingPage() {
       setSavedBillId(created.id);
       setSavedDocumentNumber(created.documentNumber);
     }
+
+    for (const lineId of removedServerLineIds) {
+      const res = await fetch(`/api/bills/${billId}/lines/${lineId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        toast.error(body?.error?.message ?? "Failed to remove an item.");
+        return null;
+      }
+    }
+    setRemovedServerLineIds([]);
 
     const nextLines = [...cartLines];
     for (let i = 0; i < nextLines.length; i++) {
@@ -614,6 +652,7 @@ export default function BillingPage() {
 
   function resetCart() {
     setCartLines([]);
+    setRemovedServerLineIds([]);
     setSelectedCustomerId(null);
     setCustomerDraft(emptyCustomerDraft);
     setCustomerStateId(null);
@@ -759,7 +798,8 @@ export default function BillingPage() {
               {completedBill.documentNumber}
             </p>
             <p>
-              <span className="text-muted-foreground">Grand total: </span>₹
+              <span className="text-muted-foreground">Grand total: </span>
+              {currencySymbol}
               {money(completedBill.grandTotal)}
             </p>
           </CardContent>
@@ -817,51 +857,64 @@ export default function BillingPage() {
           </Link>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-xl">Start a bill</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-1.5">
-              <Label>
-                Bill type
-                <RequiredMark />
-              </Label>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant={billType === "cash_bill" ? "default" : "outline"}
-                  onClick={() => setBillType("cash_bill")}
-                >
-                  Cash Bill
-                </Button>
-                <Button
-                  type="button"
-                  variant={billType === "credit_bill" ? "default" : "outline"}
-                  onClick={() => setBillType("credit_bill")}
-                >
-                  Credit Bill
-                </Button>
+        {session && !session.user.storeId ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-xl">Start a bill</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground text-sm">
+                A Super Admin session has no single store — sign in as a store user to bill.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-xl">Start a bill</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-1.5">
+                <Label>
+                  Bill type
+                  <RequiredMark />
+                </Label>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant={billType === "cash_bill" ? "default" : "outline"}
+                    onClick={() => setBillType("cash_bill")}
+                  >
+                    Cash Bill
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={billType === "credit_bill" ? "default" : "outline"}
+                    onClick={() => setBillType("credit_bill")}
+                  >
+                    Credit Bill
+                  </Button>
+                </div>
               </div>
-            </div>
 
-            <div className="space-y-1.5">
-              <Label>
-                Terminal
-                <RequiredMark />
-              </Label>
-              <SearchableSelect
-                options={terminals}
-                value={terminalId}
-                onChange={setTerminalId}
-                placeholder="Select terminal…"
-              />
-            </div>
-          </CardContent>
-          <CardFooter className="justify-end">
-            <Button onClick={startBill}>Start bill</Button>
-          </CardFooter>
-        </Card>
+              <div className="space-y-1.5">
+                <Label>
+                  Terminal
+                  <RequiredMark />
+                </Label>
+                <SearchableSelect
+                  options={terminals}
+                  value={terminalId}
+                  onChange={setTerminalId}
+                  placeholder="Select terminal…"
+                />
+              </div>
+            </CardContent>
+            <CardFooter className="justify-end">
+              <Button onClick={startBill}>Start bill</Button>
+            </CardFooter>
+          </Card>
+        )}
       </div>
     );
   }
@@ -953,7 +1006,10 @@ export default function BillingPage() {
                   <span>
                     {p.name} <span className="text-muted-foreground">· {p.systemBarcode}</span>
                   </span>
-                  <span>₹{money(p.price)}</span>
+                  <span>
+                    {currencySymbol}
+                    {money(p.price)}
+                  </span>
                 </button>
               ))}
             </div>
@@ -985,13 +1041,19 @@ export default function BillingPage() {
             {cartLines.map((line) => (
               <TableRow key={line.productId}>
                 <TableCell>
-                  <div>{line.productName}</div>
+                  <div className={isOutOfStock(line.productId) ? "text-destructive" : undefined}>
+                    {line.productName}
+                  </div>
                   <div className="text-muted-foreground text-xs">{line.productBarcode}</div>
+                  {isOutOfStock(line.productId) && (
+                    <div className="text-destructive text-xs">Out of stock</div>
+                  )}
                   {line.stockTracked && (
                     <LineWarehouseSplit
                       productName={line.productName}
                       quantity={line.quantity}
                       allocations={allocationsForLine(line.productId)}
+                      warehouseAvailability={warehouseAvailabilityForLine(line.productId)}
                       hasManualOverride={line.manualAllocations !== null}
                       warning={allocationWarningForLine(line.productId)}
                       onSave={(allocations) => setLineAllocations(line.productId, allocations)}
@@ -1006,7 +1068,10 @@ export default function BillingPage() {
                     onCommit={(next) => updateLineQuantity(line.productId, next)}
                   />
                 </TableCell>
-                <TableCell>₹{money(line.price)}</TableCell>
+                <TableCell>
+                  {currencySymbol}
+                  {money(line.price)}
+                </TableCell>
                 <TableCell>
                   <EditableLineValue
                     value={line.discountApplied}
@@ -1014,8 +1079,14 @@ export default function BillingPage() {
                     onCommit={(next) => updateLineDiscount(line.productId, next)}
                   />
                 </TableCell>
-                <TableCell>₹{money(taxForLine(line.productId))}</TableCell>
-                <TableCell>₹{money(totalForLine(line.productId))}</TableCell>
+                <TableCell>
+                  {currencySymbol}
+                  {money(taxForLine(line.productId))}
+                </TableCell>
+                <TableCell>
+                  {currencySymbol}
+                  {money(totalForLine(line.productId))}
+                </TableCell>
                 <TableCell>
                   <Button
                     variant="destructive"
@@ -1041,11 +1112,17 @@ export default function BillingPage() {
           <CardContent className="space-y-1 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Subtotal</span>
-              <span>₹{money(preview.subtotal)}</span>
+              <span>
+                {currencySymbol}
+                {money(preview.subtotal)}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Discount</span>
-              <span>₹{money(preview.discountTotal)}</span>
+              <span>
+                {currencySymbol}
+                {money(preview.discountTotal)}
+              </span>
             </div>
 
             <div className="grid grid-cols-2 items-end gap-2 py-2">
@@ -1071,19 +1148,31 @@ export default function BillingPage() {
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Tax</span>
-              <span>₹{money(preview.taxTotal)}</span>
+              <span>
+                {currencySymbol}
+                {money(preview.taxTotal)}
+              </span>
             </div>
             <div className="flex justify-between border-t pt-1 font-semibold">
               <span>Grand total</span>
-              <span>₹{money(preview.grandTotal)}</span>
+              <span>
+                {currencySymbol}
+                {money(preview.grandTotal)}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Paid</span>
-              <span>₹{money(totalPaid)}</span>
+              <span>
+                {currencySymbol}
+                {money(totalPaid)}
+              </span>
             </div>
             <div className="flex justify-between font-semibold">
               <span>Remaining</span>
-              <span>₹{money(remaining)}</span>
+              <span>
+                {currencySymbol}
+                {money(remaining)}
+              </span>
             </div>
           </CardContent>
           <CardFooter className="justify-end">
@@ -1112,7 +1201,12 @@ export default function BillingPage() {
             </div>
             <div className="space-y-1.5">
               <Label>Amount</Label>
-              <Input type="text" value={`₹${remaining.toFixed(2)}`} readOnly disabled />
+              <Input
+                type="text"
+                value={`${currencySymbol}${remaining.toFixed(2)}`}
+                readOnly
+                disabled
+              />
             </div>
             <Button
               variant="outline"
@@ -1130,7 +1224,10 @@ export default function BillingPage() {
                       {p.paymentMethod.name}{" "}
                       <span className="text-muted-foreground">({p.status})</span>
                     </span>
-                    <span>₹{money(p.amount)}</span>
+                    <span>
+                      {currencySymbol}
+                      {money(p.amount)}
+                    </span>
                   </div>
                 ))}
                 {cartPayments.map((p, index) => (
@@ -1139,7 +1236,8 @@ export default function BillingPage() {
                       {p.paymentMethodLabel} <span className="text-muted-foreground">(new)</span>
                     </span>
                     <span className="flex items-center gap-2">
-                      ₹{money(p.amount)}
+                      {currencySymbol}
+                      {money(p.amount)}
                       <button
                         type="button"
                         className="text-muted-foreground text-xs hover:underline"
