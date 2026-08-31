@@ -6,6 +6,7 @@ import {
   replaceBillLineAllocations,
 } from "@/lib/billing/allocateBillLineStock";
 import { getStoreWideAvailable } from "@/lib/billing/getStoreWideAvailable";
+import { getWarehouseAvailability } from "@/lib/billing/getWarehouseAvailability";
 import { loadEditableLine } from "@/lib/billing/loadEditableLine";
 import { recomputeBillTotals } from "@/lib/billing/recomputeBillTotals";
 import { resolveAllocations } from "@/lib/billing/resolveAllocations";
@@ -47,8 +48,16 @@ export async function PATCH(
     });
     if (!product) return apiErrorResponse("bad_request", "Product not found.", 400);
 
+    const perWarehouse = product.stockTracked
+      ? await getWarehouseAvailability(line.bill.storeId, line.productId)
+      : [];
+
     if (product.stockTracked) {
-      const storeAvailable = await getStoreWideAvailable(line.bill.storeId, line.productId);
+      const storeAvailable = await getStoreWideAvailable(
+        line.bill.storeId,
+        line.productId,
+        perWarehouse,
+      );
       const resultingAvailable = storeAvailable + line.quantity - data.quantity;
       if (resultingAvailable < 0) {
         return apiErrorResponse(
@@ -75,6 +84,7 @@ export async function PATCH(
           productId: product.id,
           quantity: data.quantity,
           requested: data.allocations,
+          perWarehouse,
         })
       : { allocations: [] };
     if ("error" in allocResult) {

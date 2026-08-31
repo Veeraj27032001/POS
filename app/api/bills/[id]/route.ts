@@ -29,6 +29,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
         lines: {
           orderBy: { createdAt: "asc" },
           include: {
+            product: { select: { stockTracked: true } },
             allocations: { include: { warehouse: { select: { id: true, name: true } } } },
           },
         },

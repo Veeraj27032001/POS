@@ -1,7 +1,9 @@
 import { auth } from "@/auth";
 import { hasPermission } from "@/lib/auth/rbac";
 import { asAppSession } from "@/lib/auth/types";
+import { getWarehouseAvailability } from "@/lib/billing/getWarehouseAvailability";
 import { billPreviewSchema } from "@/lib/billing/schemas";
+import { resolveAllocations } from "@/lib/billing/resolveAllocations";
 import { resolveTax } from "@/lib/billing/resolveTax";
 import { unscoped } from "@/lib/db";
 import { apiErrorResponse, parseJsonOrRespond } from "@/lib/validation/response";
@@ -59,7 +61,10 @@ export async function POST(request: Request) {
       discountApplied: number;
       tax: Awaited<ReturnType<typeof resolveTax>>;
       lineTotal: number;
+      allocations: { warehouseId: string; quantity: number }[];
+      allocationWarning: string | null;
     }[] = [];
+    const warehouseIds = new Set<string>();
 
     for (const line of data.lines) {
       const product = productById.get(line.productId);
@@ -77,6 +82,29 @@ export async function POST(request: Request) {
       });
       const lineTotal = lineSubtotal - line.discountApplied + tax.taxAmount;
 
+      let allocations: { warehouseId: string; quantity: number }[] = [];
+      let allocationWarning: string | null = null;
+      if (product.stockTracked) {
+        const perWarehouse = await getWarehouseAvailability(session.user.storeId!, product.id);
+        const allocResult = await resolveAllocations({
+          storeId: session.user.storeId!,
+          productId: product.id,
+          quantity: line.quantity,
+          requested: line.allocations,
+          perWarehouse,
+        });
+        if ("error" in allocResult) {
+          allocationWarning = allocResult.error;
+        } else {
+          allocations = allocResult.allocations;
+          if (allocResult.fellBack) {
+            allocationWarning =
+              "The chosen warehouse split no longer has enough stock — showing an automatic reallocation instead.";
+          }
+        }
+        for (const a of allocations) warehouseIds.add(a.warehouseId);
+      }
+
       subtotal += lineSubtotal;
       lineDiscountTotal += line.discountApplied;
       taxTotal += tax.taxAmount;
@@ -88,14 +116,28 @@ export async function POST(request: Request) {
         discountApplied: line.discountApplied,
         tax,
         lineTotal: round2(lineTotal),
+        allocations,
+        allocationWarning,
       });
     }
+
+    const warehouses = await db.warehouse.findMany({
+      where: { id: { in: Array.from(warehouseIds) } },
+      select: { id: true, name: true },
+    });
+    const warehouseNameById = new Map(warehouses.map((w) => [w.id, w.name]));
 
     const discountTotal = lineDiscountTotal + data.overallDiscount;
     const grandTotal = subtotal - discountTotal + taxTotal;
 
     return Response.json({
-      lines,
+      lines: lines.map((line) => ({
+        ...line,
+        allocations: line.allocations.map((a) => ({
+          ...a,
+          warehouseName: warehouseNameById.get(a.warehouseId) ?? "",
+        })),
+      })),
       subtotal: round2(subtotal),
       lineDiscountTotal: round2(lineDiscountTotal),
       overallDiscount: round2(data.overallDiscount),

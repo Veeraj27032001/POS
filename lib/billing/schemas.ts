@@ -72,6 +72,7 @@ export const billPreviewSchema = z.object({
         productId: opaqueIdSchema,
         quantity: positiveInt,
         discountApplied: z.coerce.number().min(0, "Must be zero or greater.").default(0),
+        allocations: z.array(billLineAllocationSchema).optional(),
       }),
     )
     .default([]),

@@ -13,6 +13,7 @@ import {
   type CustomerDraft,
 } from "@/components/billing/customer-details-fields";
 import { EditableLineValue } from "@/components/billing/editable-line-value";
+import { LineWarehouseSplit } from "@/components/billing/line-warehouse-split";
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 import { RequiredMark } from "@/components/required-mark";
 import { SearchableSelect } from "@/components/searchable-select";
@@ -32,20 +33,32 @@ import {
 import { useSelectedTerminal } from "@/lib/billing/useSelectedTerminal";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 
+interface Allocation {
+  warehouseId: string;
+  quantity: number;
+}
+
 interface CartLine {
   productId: string;
   productName: string;
   productBarcode: string;
   price: number;
+  stockTracked: boolean;
   quantity: number;
   discountApplied: number;
   discountReasonCodeId: string | null;
+  // null = use whatever the server auto-allocates; set = the cashier's
+  // manual override, sent as `requested` on the next save. The server
+  // falls back to auto-allocation if this has gone stale by save time.
+  manualAllocations: Allocation[] | null;
   // Sync bookkeeping — null until this line has actually been saved to the
-  // server at least once. syncedQuantity/syncedDiscount track what the
-  // server currently has, so a later save only sends what changed.
+  // server at least once. syncedQuantity/syncedDiscount/syncedAllocations
+  // track what the server currently has, so a later save only sends what
+  // changed.
   serverId: string | null;
   syncedQuantity: number;
   syncedDiscount: number;
+  syncedAllocations: Allocation[] | null;
 }
 
 interface ProductMatch {
@@ -54,12 +67,15 @@ interface ProductMatch {
   systemBarcode: string;
   skuBarcode: string | null;
   price: string;
+  stockTracked: boolean;
 }
 
 interface PreviewLine {
   productId: string;
   tax: { taxAmount: number };
   lineTotal: number;
+  allocations: { warehouseId: string; warehouseName: string; quantity: number }[];
+  allocationWarning: string | null;
 }
 
 interface PreviewTotals {
@@ -102,6 +118,11 @@ interface CustomerRecord {
 
 function money(value: string | number): string {
   return Number(value).toFixed(2);
+}
+
+function sortedAllocations(allocations: Allocation[] | null): Allocation[] {
+  if (!allocations) return [];
+  return [...allocations].sort((a, b) => a.warehouseId.localeCompare(b.warehouseId));
 }
 
 function draftFrom(c: Partial<CustomerRecord> | null): CustomerDraft {
@@ -223,18 +244,26 @@ export default function BillingPage() {
     setCartLines(
       (b.lines as Array<Record<string, unknown>>)
         .filter((l) => l.status === "active")
-        .map((l) => ({
-          productId: l.productId as string,
-          productName: l.productName as string,
-          productBarcode: l.productBarcode as string,
-          price: Number(l.unitPrice),
-          quantity: l.quantity as number,
-          discountApplied: Number(l.discountApplied ?? 0),
-          discountReasonCodeId: null,
-          serverId: l.id as string,
-          syncedQuantity: l.quantity as number,
-          syncedDiscount: Number(l.discountApplied ?? 0),
-        })),
+        .map((l) => {
+          const allocations = (
+            l.allocations as Array<{ warehouseId: string; quantity: number }>
+          ).map((a) => ({ warehouseId: a.warehouseId, quantity: a.quantity }));
+          return {
+            productId: l.productId as string,
+            productName: l.productName as string,
+            productBarcode: l.productBarcode as string,
+            price: Number(l.unitPrice),
+            stockTracked: Boolean((l.product as { stockTracked: boolean }).stockTracked),
+            quantity: l.quantity as number,
+            discountApplied: Number(l.discountApplied ?? 0),
+            discountReasonCodeId: null,
+            manualAllocations: null,
+            serverId: l.id as string,
+            syncedQuantity: l.quantity as number,
+            syncedDiscount: Number(l.discountApplied ?? 0),
+            syncedAllocations: allocations,
+          };
+        }),
     );
     if (b.customer) {
       setSelectedCustomerId(b.customer.id);
@@ -314,12 +343,15 @@ export default function BillingPage() {
           productName: product.name,
           productBarcode: product.systemBarcode,
           price: Number(product.price),
+          stockTracked: product.stockTracked,
           quantity: 1,
           discountApplied: 0,
           discountReasonCodeId: null,
+          manualAllocations: null,
           serverId: null,
           syncedQuantity: 0,
           syncedDiscount: 0,
+          syncedAllocations: null,
         },
       ];
     });
@@ -332,13 +364,33 @@ export default function BillingPage() {
     setCartLines((prev) => prev.filter((l) => l.productId !== productId));
   }
 
+  // Changing quantity invalidates any manual warehouse split (it no longer
+  // sums to the new quantity) — reverts to automatic, matching the
+  // established rule that allocation is redone by default on every
+  // quantity change.
   function updateLineQuantity(productId: string, quantity: number) {
-    setCartLines((prev) => prev.map((l) => (l.productId === productId ? { ...l, quantity } : l)));
+    setCartLines((prev) =>
+      prev.map((l) =>
+        l.productId === productId ? { ...l, quantity, manualAllocations: null } : l,
+      ),
+    );
   }
 
   function updateLineDiscount(productId: string, discountApplied: number) {
     setCartLines((prev) =>
       prev.map((l) => (l.productId === productId ? { ...l, discountApplied } : l)),
+    );
+  }
+
+  function setLineAllocations(productId: string, allocations: Allocation[]) {
+    setCartLines((prev) =>
+      prev.map((l) => (l.productId === productId ? { ...l, manualAllocations: allocations } : l)),
+    );
+  }
+
+  function clearLineAllocations(productId: string) {
+    setCartLines((prev) =>
+      prev.map((l) => (l.productId === productId ? { ...l, manualAllocations: null } : l)),
     );
   }
 
@@ -364,6 +416,7 @@ export default function BillingPage() {
       productId: l.productId,
       quantity: l.quantity,
       discountApplied: l.discountApplied,
+      allocations: l.manualAllocations ?? undefined,
     })),
     overallDiscount: Number(overallDiscount) || 0,
     customerStateId,
@@ -399,6 +452,16 @@ export default function BillingPage() {
     return preview.lines.find((l) => l.productId === productId)?.tax.taxAmount ?? 0;
   }
 
+  function allocationsForLine(
+    productId: string,
+  ): { warehouseId: string; warehouseName: string; quantity: number }[] {
+    return preview.lines.find((l) => l.productId === productId)?.allocations ?? [];
+  }
+
+  function allocationWarningForLine(productId: string): string | null {
+    return preview.lines.find((l) => l.productId === productId)?.allocationWarning ?? null;
+  }
+
   // The only place anything here actually reaches the server. Creates the
   // bill on first save; on every save after that it only sends whatever
   // changed since the last one (new lines, changed quantities/discounts,
@@ -429,11 +492,19 @@ export default function BillingPage() {
     const nextLines = [...cartLines];
     for (let i = 0; i < nextLines.length; i++) {
       const line = nextLines[i];
+      const allocationsChanged =
+        JSON.stringify(sortedAllocations(line.manualAllocations)) !==
+        JSON.stringify(sortedAllocations(line.syncedAllocations));
+
       if (!line.serverId) {
         const res = await fetch(`/api/bills/${billId}/lines`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ productId: line.productId, quantity: line.quantity }),
+          body: JSON.stringify({
+            productId: line.productId,
+            quantity: line.quantity,
+            allocations: line.manualAllocations ?? undefined,
+          }),
         });
         if (!res.ok) {
           const body = await res.json().catch(() => null);
@@ -441,13 +512,22 @@ export default function BillingPage() {
           setCartLines(nextLines);
           return null;
         }
-        const body = (await res.json()) as { line: { id: string } };
-        nextLines[i] = { ...line, serverId: body.line.id, syncedQuantity: line.quantity };
-      } else if (line.quantity !== line.syncedQuantity) {
+        const body = (await res.json()) as { line: { id: string }; warning?: string };
+        if (body.warning) toast.warning(body.warning);
+        nextLines[i] = {
+          ...line,
+          serverId: body.line.id,
+          syncedQuantity: line.quantity,
+          syncedAllocations: line.manualAllocations,
+        };
+      } else if (line.quantity !== line.syncedQuantity || allocationsChanged) {
         const res = await fetch(`/api/bills/${billId}/lines/${line.serverId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ quantity: line.quantity }),
+          body: JSON.stringify({
+            quantity: line.quantity,
+            allocations: line.manualAllocations ?? undefined,
+          }),
         });
         if (!res.ok) {
           const body = await res.json().catch(() => null);
@@ -455,7 +535,11 @@ export default function BillingPage() {
           setCartLines(nextLines);
           return null;
         }
-        nextLines[i] = { ...line, syncedQuantity: line.quantity };
+        nextLines[i] = {
+          ...line,
+          syncedQuantity: line.quantity,
+          syncedAllocations: line.manualAllocations,
+        };
       }
 
       if (nextLines[i].discountApplied !== nextLines[i].syncedDiscount) {
@@ -903,6 +987,17 @@ export default function BillingPage() {
                 <TableCell>
                   <div>{line.productName}</div>
                   <div className="text-muted-foreground text-xs">{line.productBarcode}</div>
+                  {line.stockTracked && (
+                    <LineWarehouseSplit
+                      productName={line.productName}
+                      quantity={line.quantity}
+                      allocations={allocationsForLine(line.productId)}
+                      hasManualOverride={line.manualAllocations !== null}
+                      warning={allocationWarningForLine(line.productId)}
+                      onSave={(allocations) => setLineAllocations(line.productId, allocations)}
+                      onClearOverride={() => clearLineAllocations(line.productId)}
+                    />
+                  )}
                 </TableCell>
                 <TableCell>
                   <EditableLineValue

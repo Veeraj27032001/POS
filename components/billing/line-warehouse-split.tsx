@@ -1,49 +1,65 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 
-interface Allocation {
+export interface AllocationDisplay {
   warehouseId: string;
+  warehouseName: string;
   quantity: number;
-  warehouse: { id: string; name: string };
 }
 
 // Auto-allocation (oldest-stocked warehouse first, preferring a single
-// warehouse over a split) picks the split by default — this is the manual
-// override, shown per line, for a cashier who wants to choose it themselves.
+// warehouse over a split) picks the split by default — this modal is the
+// manual override. Purely local: nothing here talks to the server, it just
+// tells the parent cart line what split to use the next time the cart is
+// actually saved (Save draft/Hold/Create bill). If a previously-chosen
+// override has gone stale by then, the server falls back to a fresh
+// automatic split rather than failing — allocations shown here always
+// reflect live stock since they come from the read-only preview.
 export function LineWarehouseSplit({
-  billId,
-  lineId,
+  productName,
   quantity,
   allocations,
-  onUpdated,
+  hasManualOverride,
+  warning,
+  onSave,
+  onClearOverride,
 }: {
-  billId: string;
-  lineId: string;
+  productName: string;
   quantity: number;
-  allocations: Allocation[];
-  onUpdated: () => void;
+  allocations: AllocationDisplay[];
+  hasManualOverride: boolean;
+  warning: string | null;
+  onSave: (allocations: { warehouseId: string; quantity: number }[]) => void;
+  onClearOverride: () => void;
 }) {
   const warehouses = useOptionsList("warehouses", "name");
-  const [editing, setEditing] = useState(false);
+  const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<Record<string, string>>({});
-  const [saving, setSaving] = useState(false);
 
-  function startEdit() {
+  useEffect(() => {
+    if (!open) return;
     const initial: Record<string, string> = {};
     for (const a of allocations) initial[a.warehouseId] = String(a.quantity);
     setDraft(initial);
-    setEditing(true);
-  }
+  }, [open, allocations]);
 
   const draftTotal = Object.values(draft).reduce((sum, v) => sum + (Number(v) || 0), 0);
 
-  async function save() {
+  function save() {
     const entries = Object.entries(draft)
       .map(([warehouseId, v]) => ({ warehouseId, quantity: Number(v) || 0 }))
       .filter((a) => a.quantity > 0);
@@ -51,70 +67,62 @@ export function LineWarehouseSplit({
       toast.error(`Allocations must add up to ${quantity}.`);
       return;
     }
-    setSaving(true);
-    try {
-      const res = await fetch(`/api/bills/${billId}/lines/${lineId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ quantity, allocations: entries }),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        toast.error(body?.error?.message ?? "Failed to update warehouse split.");
-        return;
-      }
-      toast.success("Warehouse split updated.");
-      setEditing(false);
-      onUpdated();
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  if (!editing) {
-    return (
-      <div className="text-muted-foreground text-xs">
-        {allocations.length > 0 ? (
-          <>
-            {allocations.map((a) => `${a.warehouse.name}: ${a.quantity}`).join(", ")}{" "}
-            <button type="button" className="text-primary hover:underline" onClick={startEdit}>
-              Change
-            </button>
-          </>
-        ) : (
-          <button type="button" className="text-primary hover:underline" onClick={startEdit}>
-            Choose warehouses
-          </button>
-        )}
-      </div>
-    );
+    onSave(entries);
+    setOpen(false);
   }
 
   return (
-    <div className="bg-card space-y-1 rounded border p-2">
-      {warehouses.map((w) => (
-        <div key={w.value} className="flex items-center gap-2">
-          <span className="w-24 truncate text-xs">{w.label}</span>
-          <Input
-            type="number"
-            min={0}
-            className="h-7 w-20"
-            value={draft[w.value] ?? ""}
-            onChange={(e) => setDraft((d) => ({ ...d, [w.value]: e.target.value }))}
-          />
-        </div>
-      ))}
+    <Dialog open={open} onOpenChange={setOpen}>
       <div className="text-muted-foreground text-xs">
-        {draftTotal} / {quantity}
+        <DialogTrigger render={<button type="button" className="text-primary hover:underline" />}>
+          {allocations.length > 0
+            ? allocations.map((a) => `${a.warehouseName}: ${a.quantity}`).join(", ")
+            : "Choose warehouses"}
+        </DialogTrigger>
+        {warning && <div className="text-warning mt-0.5">{warning}</div>}
       </div>
-      <div className="flex gap-2">
-        <Button type="button" size="sm" variant="outline" onClick={() => setEditing(false)}>
-          Cancel
-        </Button>
-        <Button type="button" size="sm" onClick={() => void save()} disabled={saving}>
-          {saving ? "Saving…" : "Save"}
-        </Button>
-      </div>
-    </div>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Warehouse split — {productName}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-1">
+          {warehouses.map((w) => (
+            <div key={w.value} className="flex items-center gap-2">
+              <span className="w-32 truncate text-sm">{w.label}</span>
+              <Input
+                type="number"
+                min={0}
+                className="h-8 w-24"
+                value={draft[w.value] ?? ""}
+                onChange={(e) => setDraft((d) => ({ ...d, [w.value]: e.target.value }))}
+              />
+            </div>
+          ))}
+          <div className="text-muted-foreground text-xs">
+            {draftTotal} / {quantity}
+          </div>
+        </div>
+        <DialogFooter>
+          {hasManualOverride && (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                onClearOverride();
+                setOpen(false);
+              }}
+            >
+              Use automatic
+            </Button>
+          )}
+          <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            Cancel
+          </Button>
+          <Button type="button" onClick={save}>
+            Save
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
