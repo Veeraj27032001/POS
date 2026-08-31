@@ -101,6 +101,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       updates.billDate = dateOnlyToUtcMidnight(toDateOnly(data.billDate));
     }
 
+    if (data.terminalId !== undefined) {
+      const terminal = await db.terminal.findUnique({ where: { id: data.terminalId } });
+      if (!terminal || terminal.storeId !== bill.storeId) {
+        return apiErrorResponse("bad_request", "Select a terminal belonging to your store.", 400);
+      }
+      updates.terminalId = data.terminalId;
+    }
+
     const updated = await db.bill.update({
       where: { id },
       data: updates,

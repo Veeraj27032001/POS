@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2Icon } from "lucide-react";
+import { Loader2Icon, SettingsIcon } from "lucide-react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -21,6 +21,13 @@ import { SearchableSelect } from "@/components/searchable-select";
 import { asAppSession } from "@/lib/auth/types";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -316,6 +323,40 @@ export default function BillingPage() {
     }
     rememberTerminalId(terminalId);
     setStarted(true);
+  }
+
+  // A remembered terminal skips the Start screen entirely — straight into
+  // billing, same as changing financial year doesn't ask again each visit.
+  useEffect(() => {
+    if (started || resuming) return;
+    if (!session?.user.storeId) return;
+    if (rememberedTerminalId) {
+      setTerminalId(rememberedTerminalId);
+      setStarted(true);
+    }
+  }, [rememberedTerminalId, started, resuming, session?.user.storeId]);
+
+  const [terminalModalOpen, setTerminalModalOpen] = useState(false);
+
+  // Switches terminal without a page refresh — updates the remembered
+  // choice locally, and the saved bill's own row if one already exists.
+  async function switchTerminal(newTerminalId: string) {
+    setTerminalId(newTerminalId);
+    rememberTerminalId(newTerminalId);
+    if (savedBillId) {
+      const res = await fetch(`/api/bills/${savedBillId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ terminalId: newTerminalId }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        toast.error(body?.error?.message ?? "Failed to switch terminal.");
+        return;
+      }
+    }
+    toast.success("Terminal switched.");
+    setTerminalModalOpen(false);
   }
 
   async function searchProducts(term: string) {
@@ -935,32 +976,9 @@ export default function BillingPage() {
         ) : (
           <Card>
             <CardHeader>
-              <CardTitle className="text-xl">Start a bill</CardTitle>
+              <CardTitle className="text-xl">Select a terminal</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-1.5">
-                <Label>
-                  Bill type
-                  <RequiredMark />
-                </Label>
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant={billType === "cash_bill" ? "default" : "outline"}
-                    onClick={() => setBillType("cash_bill")}
-                  >
-                    Cash Bill
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={billType === "credit_bill" ? "default" : "outline"}
-                    onClick={() => setBillType("credit_bill")}
-                  >
-                    Credit Bill
-                  </Button>
-                </div>
-              </div>
-
               <div className="space-y-1.5">
                 <Label>
                   Terminal
@@ -972,10 +990,14 @@ export default function BillingPage() {
                   onChange={setTerminalId}
                   placeholder="Select terminal…"
                 />
+                <p className="text-muted-foreground text-xs">
+                  Remembered on this device — asked only once. Bill type and date are set on the
+                  billing screen itself.
+                </p>
               </div>
             </CardContent>
             <CardFooter className="justify-end">
-              <Button onClick={startBill}>Start bill</Button>
+              <Button onClick={startBill}>Continue</Button>
             </CardFooter>
           </Card>
         )}
@@ -992,6 +1014,35 @@ export default function BillingPage() {
             <span>{customerSummary ?? "Walk-in customer"}</span>
             <span>·</span>
             <span>{billType === "credit_bill" ? "Credit Bill" : "Cash Bill"}</span>
+            <span>·</span>
+            <span>{terminals.find((t) => t.value === terminalId)?.label ?? "No terminal"}</span>
+            <Dialog open={terminalModalOpen} onOpenChange={setTerminalModalOpen}>
+              <DialogTrigger
+                render={
+                  <button
+                    type="button"
+                    className="text-muted-foreground hover:text-foreground"
+                    aria-label="Switch terminal"
+                  />
+                }
+              >
+                <SettingsIcon className="size-3.5" />
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-sm">
+                <DialogHeader>
+                  <DialogTitle>Switch terminal</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-1.5">
+                  <Label>Terminal</Label>
+                  <SearchableSelect
+                    options={terminals}
+                    value={terminalId}
+                    onChange={(v) => v && void switchTerminal(v)}
+                    placeholder="Select terminal…"
+                  />
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
         <div className="flex gap-2">
@@ -1023,13 +1074,54 @@ export default function BillingPage() {
       </div>
 
       <Card>
-        <CardContent className="pt-6">
-          <div className="max-w-xs space-y-1.5">
+        <CardHeader>
+          <CardTitle className="text-base">Billing details</CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="space-y-1.5">
+            <Label>
+              Bill type
+              <RequiredMark />
+            </Label>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={billType === "cash_bill" ? "default" : "outline"}
+                disabled={!!savedBillId}
+                onClick={() => setBillType("cash_bill")}
+              >
+                Cash Bill
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={billType === "credit_bill" ? "default" : "outline"}
+                disabled={!!savedBillId}
+                onClick={() => setBillType("credit_bill")}
+              >
+                Credit Bill
+              </Button>
+            </div>
+          </div>
+          <div className="space-y-1.5">
             <Label>
               Bill date
               <RequiredMark />
             </Label>
             <Input type="date" value={billDate} onChange={(e) => setBillDate(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>
+              Terminal
+              <RequiredMark />
+            </Label>
+            <SearchableSelect
+              options={terminals}
+              value={terminalId}
+              onChange={(v) => v && void switchTerminal(v)}
+              placeholder="Select terminal…"
+            />
           </div>
         </CardContent>
       </Card>
