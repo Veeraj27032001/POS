@@ -15,4 +15,12 @@ export const STORE_SCOPED_MODELS = new Set<string>([
   "StockQualityCheckMain",
   "ProductRequestMain",
   "StockEntryCorrection",
+  "Bill",
+  "PaymentRequest",
+  "Refund",
+  "BillCancellation",
+  "BillReturn",
+  "CreditNote",
+  "BillPayment",
+  "Shift",
 ]);

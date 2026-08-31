@@ -139,6 +139,15 @@ model Store {
   productRequestMains          ProductRequestMain[]
   stockEntryCorrections        StockEntryCorrection[]
 
+  bills             Bill[]
+  paymentRequests   PaymentRequest[]
+  refunds           Refund[]
+  billCancellations BillCancellation[]
+  billReturns       BillReturn[]
+  creditNotes       CreditNote[]
+  billPayments      BillPayment[]
+  shifts            Shift[]
+
   @@map("stores")
 }
 
@@ -163,6 +172,15 @@ model FinancialYear {
   stockQualityCheckMains       StockQualityCheckMain[]
   productRequestMains          ProductRequestMain[]
   stockEntryCorrections        StockEntryCorrection[]
+
+  bills             Bill[]
+  paymentRequests   PaymentRequest[]
+  refunds           Refund[]
+  billCancellations BillCancellation[]
+  billReturns       BillReturn[]
+  creditNotes       CreditNote[]
+  billPayments      BillPayment[]
+  shifts            Shift[]
 
   @@map("financial_years")
 }
@@ -247,6 +265,15 @@ model User {
   stockBlockReleases      StockBlockItem[]    @relation("StockBlockReleasedBy")
   stockTransfersRequested StockTransferMain[] @relation("StockTransferRequestedBy")
   stockTransfersResponded StockTransferMain[] @relation("StockTransferRespondedBy")
+
+  billsAsCashier       Bill[]
+  billLinesVoided      BillLine[]
+  paymentRequests      PaymentRequest[]
+  refundsProcessed     Refund[]
+  billCancellations    BillCancellation[]
+  billReturnsProcessed BillReturn[]
+  creditNotes          CreditNote[]
+  shiftsAsCashier      Shift[]
 
   @@map("users")
 }
@@ -804,6 +831,8 @@ model Product {
   supplierPrices               ProductSupplierPrice[]
   priceHistory                 ProductPriceHistory[]
 
+  billLines BillLine[]
+
   @@map("products")
 }
 
@@ -874,6 +903,9 @@ model Customer {
 
   stores Store[]
 
+  bills       Bill[]
+  creditNotes CreditNote[]
+
   @@map("customers")
 }
 
@@ -927,6 +959,9 @@ model Warehouse {
   stockNegativeAdjustmentMains  StockNegativeAdjustmentMain[]
   stockQualityCheckMains        StockQualityCheckMain[]
 
+  billLineWarehouseAllocations BillLineWarehouseAllocation[]
+  billReturnLines              BillReturnLine[]
+
   @@map("warehouses")
 }
 
@@ -946,6 +981,9 @@ model PaymentMethod {
   requiresReference Boolean           @default(false) @map("requires_reference")
   isActive          Boolean           @default(true) @map("is_active")
   isDeleted         Boolean           @default(false) @map("is_deleted")
+
+  refunds      Refund[]
+  billPayments BillPayment[]
 
   @@map("payment_methods")
 }
@@ -1014,6 +1052,9 @@ model Terminal {
   isActive         Boolean @default(true) @map("is_active")
   isDeleted        Boolean @default(false) @map("is_deleted")
 
+  bills  Bill[]
+  shifts Shift[]
+
   @@map("terminals")
 }
 
@@ -1040,6 +1081,10 @@ model ReasonCode {
   stockNegativeAdjustmentItems StockNegativeAdjustmentItem[]
   stockQualityCheckItems       StockQualityCheckItem[]
 
+  billLines         BillLine[]
+  billCancellations BillCancellation[]
+  billReturns       BillReturn[]
+
   @@map("reason_codes")
 }
 
@@ -1058,6 +1103,8 @@ model CashDenomination {
   currency   Currency         @relation(fields: [currencyId], references: [id])
   isActive   Boolean          @default(true) @map("is_active")
   isDeleted  Boolean          @default(false) @map("is_deleted")
+
+  shiftCashCounts ShiftCashCount[]
 
   @@map("cash_denominations")
 }
@@ -1093,4 +1140,340 @@ model ApiCredential {
   revokedAt       DateTime? @map("revoked_at")
 
   @@map("api_credentials")
+}
+
+enum BillType {
+  cash_bill
+  credit_bill
+  online_bill
+}
+
+enum BillStatus {
+  draft
+  held
+  completed
+  cancelled
+}
+
+enum BillLineStatus {
+  active
+  voided
+}
+
+enum PaymentRequestMethod {
+  qr_code
+  payment_link
+  card_machine
+}
+
+enum PaymentRequestDeliveryChannel {
+  email
+  sms
+}
+
+enum PaymentRequestStatus {
+  pending
+  paid
+  expired
+  cancelled
+}
+
+enum RefundSourceType {
+  bill_cancellation
+  bill_return
+}
+
+enum RefundStatus {
+  pending
+  processing
+  completed
+  failed
+}
+
+enum BillStatusAtCancellation {
+  draft
+  held
+  completed
+}
+
+enum ReturnLineCondition {
+  sellable
+  damaged
+}
+
+enum CreditNoteSourceType {
+  bill_return
+  bill_cancellation
+}
+
+enum BillPaymentStatus {
+  success
+  failed
+  pending
+}
+
+enum ShiftStatus {
+  open
+  closed
+}
+
+enum ShiftCashCountType {
+  opening
+  closing
+}
+
+model Bill {
+  id              String        @id @default(uuid())
+  documentNumber  String        @map("document_number")
+  financialYearId String        @map("financial_year_id")
+  financialYear   FinancialYear @relation(fields: [financialYearId], references: [id])
+  billType        BillType      @map("bill_type")
+  storeId         String        @map("store_id")
+  store           Store         @relation(fields: [storeId], references: [id])
+  terminalId      String        @map("terminal_id")
+  terminal        Terminal      @relation(fields: [terminalId], references: [id])
+  cashierUserId   String        @map("cashier_user_id")
+  cashierUser     User          @relation(fields: [cashierUserId], references: [id])
+  customerId      String?       @map("customer_id")
+  customer        Customer?     @relation(fields: [customerId], references: [id])
+  status          BillStatus    @default(draft)
+  subtotal        Decimal       @default(0) @db.Decimal(12, 2)
+  discountTotal   Decimal       @default(0) @map("discount_total") @db.Decimal(12, 2)
+  taxTotal        Decimal       @default(0) @map("tax_total") @db.Decimal(12, 2)
+  grandTotal      Decimal       @default(0) @map("grand_total") @db.Decimal(12, 2)
+  dueDate         DateTime?     @map("due_date") @db.Date
+  receiptSnapshot Json?         @map("receipt_snapshot")
+  heldAt          DateTime?     @map("held_at")
+  resumedAt       DateTime?     @map("resumed_at")
+  shiftId         String?       @map("shift_id")
+  shift           Shift?        @relation(fields: [shiftId], references: [id])
+  createdAt       DateTime      @default(now()) @map("created_at")
+  completedAt     DateTime?     @map("completed_at")
+
+  lines           BillLine[]
+  payments        BillPayment[]
+  paymentRequests PaymentRequest[]
+  cancellations   BillCancellation[]
+  returns         BillReturn[]
+  creditNotes     CreditNote[]
+
+  @@map("bills")
+}
+
+model BillLine {
+  id                   String         @id @default(uuid())
+  billId               String         @map("bill_id")
+  bill                 Bill           @relation(fields: [billId], references: [id], onDelete: Cascade)
+  productId            String         @map("product_id")
+  product              Product        @relation(fields: [productId], references: [id])
+  productName          String         @map("product_name")
+  productBarcode       String         @map("product_barcode")
+  quantity             Int
+  unitPrice            Decimal        @map("unit_price") @db.Decimal(12, 2)
+  taxBreakdown         Json           @map("tax_breakdown")
+  discountApplied      Decimal?       @map("discount_applied") @db.Decimal(12, 2)
+  discountReasonCodeId String?        @map("discount_reason_code_id")
+  discountReasonCode   ReasonCode?    @relation(fields: [discountReasonCodeId], references: [id])
+  lineTotal            Decimal        @map("line_total") @db.Decimal(12, 2)
+  status               BillLineStatus @default(active)
+  voidedByUserId       String?        @map("voided_by_user_id")
+  voidedByUser         User?          @relation(fields: [voidedByUserId], references: [id])
+  voidedAt             DateTime?      @map("voided_at")
+
+  allocations BillLineWarehouseAllocation[]
+  returnLines BillReturnLine[]
+
+  @@map("bill_lines")
+}
+
+model BillLineWarehouseAllocation {
+  id          String    @id @default(uuid())
+  billLineId  String    @map("bill_line_id")
+  billLine    BillLine  @relation(fields: [billLineId], references: [id], onDelete: Cascade)
+  warehouseId String    @map("warehouse_id")
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+  quantity    Int
+
+  @@map("bill_line_warehouse_allocations")
+}
+
+model PaymentRequest {
+  id               String                         @id @default(uuid())
+  billId           String                         @map("bill_id")
+  bill             Bill                           @relation(fields: [billId], references: [id])
+  documentNumber   String                         @map("document_number")
+  financialYearId  String                         @map("financial_year_id")
+  financialYear    FinancialYear                  @relation(fields: [financialYearId], references: [id])
+  storeId          String                         @map("store_id")
+  store            Store                          @relation(fields: [storeId], references: [id])
+  amount           Decimal                        @db.Decimal(12, 2)
+  method           PaymentRequestMethod
+  deliveryChannel  PaymentRequestDeliveryChannel? @map("delivery_channel")
+  status           PaymentRequestStatus           @default(pending)
+  gatewayReference String?                        @map("gateway_reference")
+  createdByUserId  String                         @map("created_by_user_id")
+  createdByUser    User                           @relation(fields: [createdByUserId], references: [id])
+  createdAt        DateTime                       @default(now()) @map("created_at")
+  paidAt           DateTime?                      @map("paid_at")
+
+  @@map("payment_requests")
+}
+
+model Refund {
+  id                String           @id @default(uuid())
+  sourceType        RefundSourceType @map("source_type")
+  sourceId          String           @map("source_id")
+  documentNumber    String           @map("document_number")
+  financialYearId   String           @map("financial_year_id")
+  financialYear     FinancialYear    @relation(fields: [financialYearId], references: [id])
+  storeId           String           @map("store_id")
+  store             Store            @relation(fields: [storeId], references: [id])
+  amount            Decimal          @db.Decimal(12, 2)
+  refundMethodId    String?          @map("refund_method_id")
+  refundMethod      PaymentMethod?   @relation(fields: [refundMethodId], references: [id])
+  status            RefundStatus     @default(pending)
+  gatewayReference  String?          @map("gateway_reference")
+  processedByUserId String           @map("processed_by_user_id")
+  processedByUser   User             @relation(fields: [processedByUserId], references: [id])
+  createdAt         DateTime         @default(now()) @map("created_at")
+  completedAt       DateTime?        @map("completed_at")
+
+  @@map("refunds")
+}
+
+model BillCancellation {
+  id                       String                   @id @default(uuid())
+  billId                   String                   @map("bill_id")
+  bill                     Bill                     @relation(fields: [billId], references: [id])
+  billStatusAtCancellation BillStatusAtCancellation @map("bill_status_at_cancellation")
+  documentNumber           String                   @map("document_number")
+  financialYearId          String                   @map("financial_year_id")
+  financialYear            FinancialYear            @relation(fields: [financialYearId], references: [id])
+  storeId                  String                   @map("store_id")
+  store                    Store                    @relation(fields: [storeId], references: [id])
+  reasonCodeId             String                   @map("reason_code_id")
+  reasonCode               ReasonCode               @relation(fields: [reasonCodeId], references: [id])
+  cancelledByUserId        String                   @map("cancelled_by_user_id")
+  cancelledByUser          User                     @relation(fields: [cancelledByUserId], references: [id])
+  cancelledAt              DateTime                 @default(now()) @map("cancelled_at")
+
+  creditNotes CreditNote[]
+
+  @@map("bill_cancellations")
+}
+
+model BillReturn {
+  id                String        @id @default(uuid())
+  billId            String        @map("bill_id")
+  bill              Bill          @relation(fields: [billId], references: [id])
+  reasonCodeId      String        @map("reason_code_id")
+  reasonCode        ReasonCode    @relation(fields: [reasonCodeId], references: [id])
+  documentNumber    String        @map("document_number")
+  financialYearId   String        @map("financial_year_id")
+  financialYear     FinancialYear @relation(fields: [financialYearId], references: [id])
+  storeId           String        @map("store_id")
+  store             Store         @relation(fields: [storeId], references: [id])
+  processedByUserId String        @map("processed_by_user_id")
+  processedByUser   User          @relation(fields: [processedByUserId], references: [id])
+  createdAt         DateTime      @default(now()) @map("created_at")
+
+  lines       BillReturnLine[]
+  creditNotes CreditNote[]
+
+  @@map("bill_returns")
+}
+
+model BillReturnLine {
+  id          String              @id @default(uuid())
+  returnId    String              @map("return_id")
+  return      BillReturn          @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  billLineId  String              @map("bill_line_id")
+  billLine    BillLine            @relation(fields: [billLineId], references: [id])
+  quantity    Int
+  condition   ReturnLineCondition
+  warehouseId String              @map("warehouse_id")
+  warehouse   Warehouse           @relation(fields: [warehouseId], references: [id])
+
+  @@map("bill_return_lines")
+}
+
+model CreditNote {
+  id                 String               @id @default(uuid())
+  documentNumber     String               @map("document_number")
+  financialYearId    String               @map("financial_year_id")
+  financialYear      FinancialYear        @relation(fields: [financialYearId], references: [id])
+  storeId            String               @map("store_id")
+  store              Store                @relation(fields: [storeId], references: [id])
+  sourceType         CreditNoteSourceType @map("source_type")
+  billReturnId       String?              @map("bill_return_id")
+  billReturn         BillReturn?          @relation(fields: [billReturnId], references: [id])
+  billCancellationId String?              @map("bill_cancellation_id")
+  billCancellation   BillCancellation?    @relation(fields: [billCancellationId], references: [id])
+  originalBillId     String               @map("original_bill_id")
+  originalBill       Bill                 @relation(fields: [originalBillId], references: [id])
+  customerId         String               @map("customer_id")
+  customer           Customer             @relation(fields: [customerId], references: [id])
+  amount             Decimal              @db.Decimal(12, 2)
+  taxBreakdown       Json                 @map("tax_breakdown")
+  createdByUserId    String               @map("created_by_user_id")
+  createdByUser      User                 @relation(fields: [createdByUserId], references: [id])
+  createdAt          DateTime             @default(now()) @map("created_at")
+
+  @@map("credit_notes")
+}
+
+model BillPayment {
+  id              String            @id @default(uuid())
+  billId          String            @map("bill_id")
+  bill            Bill              @relation(fields: [billId], references: [id])
+  paymentMethodId String            @map("payment_method_id")
+  paymentMethod   PaymentMethod     @relation(fields: [paymentMethodId], references: [id])
+  documentNumber  String            @map("document_number")
+  financialYearId String            @map("financial_year_id")
+  financialYear   FinancialYear     @relation(fields: [financialYearId], references: [id])
+  storeId         String            @map("store_id")
+  store           Store             @relation(fields: [storeId], references: [id])
+  amount          Decimal           @db.Decimal(12, 2)
+  referenceNumber String?           @map("reference_number")
+  status          BillPaymentStatus @default(success)
+  createdAt       DateTime          @default(now()) @map("created_at")
+
+  @@map("bill_payments")
+}
+
+model Shift {
+  id              String        @id @default(uuid())
+  terminalId      String        @map("terminal_id")
+  terminal        Terminal      @relation(fields: [terminalId], references: [id])
+  cashierUserId   String        @map("cashier_user_id")
+  cashierUser     User          @relation(fields: [cashierUserId], references: [id])
+  storeId         String        @map("store_id")
+  store           Store         @relation(fields: [storeId], references: [id])
+  documentNumber  String        @map("document_number")
+  financialYearId String        @map("financial_year_id")
+  financialYear   FinancialYear @relation(fields: [financialYearId], references: [id])
+  status          ShiftStatus   @default(open)
+  openingFloat    Decimal       @map("opening_float") @db.Decimal(12, 2)
+  closingExpected Decimal?      @map("closing_expected") @db.Decimal(12, 2)
+  closingCounted  Decimal?      @map("closing_counted") @db.Decimal(12, 2)
+  variance        Decimal?      @db.Decimal(12, 2)
+  openedAt        DateTime?     @map("opened_at")
+  closedAt        DateTime?     @map("closed_at")
+
+  bills      Bill[]
+  cashCounts ShiftCashCount[]
+
+  @@map("shifts")
+}
+
+model ShiftCashCount {
+  id              String             @id @default(uuid())
+  shiftId         String             @map("shift_id")
+  shift           Shift              @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  denominationId  String             @map("denomination_id")
+  denomination    CashDenomination   @relation(fields: [denominationId], references: [id])
+  countType       ShiftCashCountType @map("count_type")
+  quantityCounted Int                @map("quantity_counted")
+
+  @@map("shift_cash_counts")
 }

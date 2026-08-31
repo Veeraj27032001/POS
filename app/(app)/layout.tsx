@@ -20,10 +20,12 @@ import {
   PackageOpen,
   PackagePlus,
   PackageX,
+  Receipt,
   Settings as SettingsIcon,
   Shield,
   ShieldCheck,
   ShieldQuestion,
+  ShoppingCart,
   Store,
   Tags,
   TrendingDown,
@@ -85,6 +87,8 @@ const NAV_ITEM_MODULE: Record<string, string> = {
   "/stock-openings": "stock",
   "/entry-corrections": "stock",
   "/low-stock": "stock",
+  "/billing": "billing",
+  "/bills": "billing",
   "/settings/hsn-codes": "hsn_codes",
   "/settings/tax-engine": "stores",
   "/settings/financial-years": "financial_years",
@@ -95,6 +99,13 @@ const NAV_GROUPS: AppNavGroup[] = [
   {
     label: "Overview",
     items: [{ href: "/", label: "Dashboard", icon: <LayoutDashboard className="h-4 w-4" /> }],
+  },
+  {
+    label: "Billing",
+    items: [
+      { href: "/billing", label: "New Bill", icon: <ShoppingCart className="h-4 w-4" /> },
+      { href: "/bills", label: "Bills", icon: <Receipt className="h-4 w-4" /> },
+    ],
   },
   {
     label: "Catalog",

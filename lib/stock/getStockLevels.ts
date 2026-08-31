@@ -39,6 +39,8 @@ export async function getStockLevels({
     negativeAdj,
     qualityCheck,
     blocked,
+    sold,
+    returnedSellable,
   ] = await Promise.all([
     db.stockInwardItem.aggregate({
       _sum: { quantityAccepted: true },
@@ -97,10 +99,28 @@ export async function getStockLevels({
         stockBlockMain: { warehouseId, blockedAt: { lte: cutoff } },
       },
     }),
+    db.billLineWarehouseAllocation.aggregate({
+      _sum: { quantity: true },
+      where: {
+        warehouseId,
+        billLine: {
+          productId,
+          status: "active",
+          bill: { status: "completed", completedAt: { lte: cutoff } },
+        },
+      },
+    }),
+    db.billReturnLine.aggregate({
+      _sum: { quantity: true },
+      where: {
+        warehouseId,
+        condition: "sellable",
+        billLine: { productId },
+        return: { createdAt: { lte: cutoff } },
+      },
+    }),
   ]);
 
-  // TODO(step5): subtract active/completed Bill Line Warehouse Allocation
-  // quantity, add sellable Return Line quantity, once billing exists.
   const onHand =
     sum(inward._sum.quantityAccepted) +
     sum(transferIn._sum.quantityAccepted) -
@@ -109,7 +129,9 @@ export async function getStockLevels({
     sum(opening._sum.quantity) -
     sum(damage._sum.quantity) -
     sum(negativeAdj._sum.quantity) -
-    sum(qualityCheck._sum.quantity);
+    sum(qualityCheck._sum.quantity) -
+    sum(sold._sum.quantity) +
+    sum(returnedSellable._sum.quantity);
 
   const available = onHand - sum(blocked._sum.quantityBlocked);
 

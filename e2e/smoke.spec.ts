@@ -2179,3 +2179,96 @@ test("Low Stock: flags a product at or below its reorder level for a warehouse",
   await expect(row).toBeVisible();
   await expect(row.getByText("Low", { exact: true })).toBeVisible();
 });
+
+test("Billing: cash bill golden path — scan, pay, complete", async ({ page }) => {
+  test.skip(!ADMIN2_EMAIL || !ADMIN2_PASSWORD, "SEED_ADMIN2_EMAIL/PASSWORD not configured");
+  test.setTimeout(180_000);
+
+  const paymentMethodName = `Test Cash ${Date.now()}`;
+  const productName = `Test Billing Product ${Date.now()}`;
+
+  await login(page);
+  const pmRes = await page.request.post("/api/payment-methods", {
+    data: { name: paymentMethodName, type: "cash", requiresReference: false },
+  });
+  expect(pmRes.ok()).toBeTruthy();
+
+  await page.goto("/products");
+  await page.getByRole("button", { name: "New Product" }).click();
+  await page.getByLabel("Name").fill(productName);
+  await page.getByText("Select category…").click();
+  await page.getByRole("option").first().click();
+  await page.getByText("Select HSN code…").click();
+  await page.getByRole("option").first().click();
+  await page.getByText("Select UOM…").click();
+  await page.getByRole("option").first().click();
+  await page.getByLabel("Price").fill("50");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText(productName)).toBeVisible();
+
+  await page.getByRole("button", { name: "Account menu" }).click();
+  await page.getByRole("button", { name: "Sign out" }).click();
+  await expect(page).toHaveURL(/\/login/);
+
+  await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
+
+  await page.goto("/stock-openings/new");
+  await page.getByText("Select warehouse…").click();
+  await page.getByRole("option").first().click();
+  await page.getByText("Select product…").click();
+  await page.getByRole("option", { name: productName, exact: true }).click();
+  await page.getByPlaceholder("Qty").fill("100");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Opening balance recorded.")).toBeVisible();
+
+  const warehousesRes = await page.request.get("/api/warehouses?pageSize=1");
+  const warehousesBody = (await warehousesRes.json()) as { data: { storeId: string }[] };
+  const storeId = warehousesBody.data[0].storeId;
+
+  const terminalName = `Test Counter ${Date.now()}`;
+  const terminalRes = await page.request.post("/api/terminals", {
+    data: { name: terminalName, storeId },
+  });
+  expect(terminalRes.ok()).toBeTruthy();
+
+  await page.goto("/billing");
+  await page.getByRole("button", { name: "Cash Bill" }).click();
+  await page.getByText("Select terminal…").click();
+  await page.getByRole("option", { name: terminalName, exact: true }).click();
+  await page.getByRole("button", { name: "Start bill" }).click();
+
+  await expect(page.getByPlaceholder("Scan or search a product…")).toBeVisible();
+  await page.getByPlaceholder("Scan or search a product…").fill(productName);
+  await page.getByPlaceholder("Scan or search a product…").press("Enter");
+  await page.getByText(productName, { exact: false }).first().click();
+
+  const lineRow = page.getByRole("row").filter({ hasText: productName });
+  await expect(lineRow).toBeVisible();
+  await expect(page.getByText("₹50.00", { exact: true }).first()).toBeVisible();
+
+  await page.getByText("Select payment method…").click();
+  await page.getByRole("option", { name: paymentMethodName, exact: true }).click();
+  const amountInput = page.locator('input[type="number"]').last();
+  await amountInput.fill("50");
+  await page.getByRole("button", { name: "Record payment" }).click();
+  await expect(page.getByText("Payment recorded.")).toBeVisible();
+  await expect(page.getByText("₹0.00").last()).toBeVisible();
+
+  const completeButton = page.getByRole("button", { name: "Complete bill" });
+  await expect(completeButton).toBeEnabled();
+  const [completeResponse] = await Promise.all([
+    page.waitForResponse(
+      (res) => res.url().includes("/complete") && res.request().method() === "POST",
+    ),
+    completeButton.click(),
+  ]);
+  expect(completeResponse.ok()).toBeTruthy();
+  await expect(page.getByText("Bill completed")).toBeVisible();
+  const completed = (await completeResponse.json()) as { documentNumber: string };
+  await expect(page.getByText(completed.documentNumber)).toBeVisible();
+
+  await page.goto("/bills");
+  const billRow = page.getByRole("row").filter({ hasText: completed.documentNumber });
+  await expect(billRow).toBeVisible();
+  await expect(billRow.getByText("completed")).toBeVisible();
+});
