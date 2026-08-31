@@ -7,15 +7,8 @@ import { writeAuditLog } from "@/lib/security/audit";
 import { apiErrorResponse, parseJsonOrRespond } from "@/lib/validation/response";
 import { withStoreContext } from "@/middleware/scope";
 
-// Typed billing-detail fields — deliberately NOT the Customers master. These
-// live as plain columns directly on the Bill row, with no foreign key: a
-// cashier jotting down a walk-in's name and phone shouldn't create or edit a
-// record in the shared Customers table. The only way to get a real,
-// FK-linked customer on a bill is picking one from the "existing customer"
-// dropdown (billAttachCustomerSchema via PATCH /api/bills/[id]). Typing
-// here always clears any such link — plain entry and a linked record are
-// mutually exclusive, so editing a field after selecting someone detaches
-// them and starts a fresh, unlinked entry from what's currently displayed.
+// Typed billing details, not the Customers master — plain columns on the
+// Bill row, no FK. Always clears any linked customer (see PATCH /api/bills/[id]).
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = asAppSession(await auth());
   if (!session?.user) {

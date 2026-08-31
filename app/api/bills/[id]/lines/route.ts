@@ -1,7 +1,10 @@
 import { auth } from "@/auth";
 import { hasPermission } from "@/lib/auth/rbac";
 import { asAppSession } from "@/lib/auth/types";
-import { replaceBillLineAllocations } from "@/lib/billing/allocateBillLineStock";
+import {
+  blockLineAllocations,
+  replaceBillLineAllocations,
+} from "@/lib/billing/allocateBillLineStock";
 import { getStoreWideAvailable } from "@/lib/billing/getStoreWideAvailable";
 import { getWarehouseAvailability } from "@/lib/billing/getWarehouseAvailability";
 import { recomputeBillTotals } from "@/lib/billing/recomputeBillTotals";
@@ -43,9 +46,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (session.user.storeId && bill.storeId !== session.user.storeId) {
       return apiErrorResponse("not_found", "Bill not found.", 404);
     }
-    if (bill.status !== "draft") {
+    if (bill.status !== "draft" && bill.status !== "held") {
       return apiErrorResponse("bad_request", `Can't add items to a ${bill.status} bill.`, 400);
     }
+    const isHeld = bill.status === "held";
 
     const product = await db.product.findUnique({
       where: { id: data.productId },
@@ -61,23 +65,52 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const existingQuantity = existingLine?.quantity ?? 0;
     const newQuantity = existingQuantity + (data.quantity ?? 1);
 
-    // A draft bill reserves nothing, so oversell here is a warning, not a
-    // hard block — the cashier can still add more than's on hand while
-    // building the cart; real availability is only actually enforced when
-    // the bill is held (see app/api/bills/[id]/hold/route.ts).
     const perWarehouse = product.stockTracked
       ? await getWarehouseAvailability(bill.storeId, data.productId)
       : [];
+
+    // On a held bill, this line's current block already subtracts from
+    // `available` — add it back so editing an already-blocked line isn't
+    // checked against its own reservation.
+    let effectivePerWarehouse = perWarehouse;
+    if (isHeld && existingLine && product.stockTracked) {
+      const existingAllocations = await db.billLineWarehouseAllocation.findMany({
+        where: { billLineId: existingLine.id },
+      });
+      const selfBlocked = new Map<string, number>();
+      await Promise.all(
+        existingAllocations.map(async (alloc) => {
+          const agg = await db.stockBlockItem.aggregate({
+            _sum: { quantityBlocked: true },
+            where: {
+              status: "active",
+              stockBlockMain: { sourceType: "draft_bill_line", sourceId: alloc.id },
+            },
+          });
+          const qty = agg._sum.quantityBlocked ?? 0;
+          selfBlocked.set(alloc.warehouseId, (selfBlocked.get(alloc.warehouseId) ?? 0) + qty);
+        }),
+      );
+      effectivePerWarehouse = perWarehouse.map((w) => ({
+        ...w,
+        available: w.available + (selfBlocked.get(w.warehouseId) ?? 0),
+      }));
+    }
+
+    // Draft reserves nothing, so oversell there is only a warning. Held is
+    // a real reservation, so it's a hard block instead.
     let stockWarning: string | undefined;
     if (product.stockTracked) {
       const storeAvailable = await getStoreWideAvailable(
         bill.storeId,
         data.productId,
-        perWarehouse,
+        effectivePerWarehouse,
       );
       const resultingAvailable = storeAvailable + existingQuantity - newQuantity;
       if (resultingAvailable < 0) {
-        stockWarning = `Only ${storeAvailable + existingQuantity} of ${product.name} available across this store's warehouses.`;
+        const message = `Only ${storeAvailable + existingQuantity} of ${product.name} available across this store's warehouses.`;
+        if (isHeld) return apiErrorResponse("bad_request", message, 400);
+        stockWarning = message;
       }
     }
 
@@ -97,16 +130,32 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           productId: product.id,
           quantity: newQuantity,
           requested: data.allocations,
-          perWarehouse,
+          perWarehouse: effectivePerWarehouse,
         })
       : { allocations: [] };
     if ("error" in allocResult) {
+      if (isHeld) return apiErrorResponse("bad_request", allocResult.error, 400);
       stockWarning = allocResult.error;
     } else if (allocResult.fellBack) {
       stockWarning =
         "The chosen warehouse split was no longer available — reallocated automatically.";
     }
     const allocations = "error" in allocResult ? [] : allocResult.allocations;
+
+    let reasonCodeId: string | null = null;
+    if (isHeld && product.stockTracked) {
+      const reasonCode = await db.reasonCode.findFirst({
+        where: { category: "stock_block", label: "Reserved — pending bill" },
+      });
+      if (!reasonCode) {
+        return apiErrorResponse(
+          "bad_request",
+          "Missing the 'Reserved — pending bill' reason code — contact a Super Admin.",
+          400,
+        );
+      }
+      reasonCodeId = reasonCode.id;
+    }
 
     const result = await db.$transaction(async (tx) => {
       const line = existingLine
@@ -137,6 +186,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           billLineId: line.id,
           allocations,
         });
+        if (isHeld) {
+          await blockLineAllocations(tx, {
+            billLineId: line.id,
+            product,
+            storeId: bill.storeId,
+            financialYearId: bill.financialYearId,
+            userId: session.user.id,
+            reasonCodeId: reasonCodeId!,
+          });
+        }
       }
 
       const updatedBill = await recomputeBillTotals(tx, id);

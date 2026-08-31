@@ -1,20 +1,20 @@
 import { auth } from "@/auth";
 import { hasPermission } from "@/lib/auth/rbac";
 import { asAppSession } from "@/lib/auth/types";
-import { blockLineAllocations } from "@/lib/billing/allocateBillLineStock";
+import {
+  blockLineAllocations,
+  releaseBillLineAllocations,
+} from "@/lib/billing/allocateBillLineStock";
 import { unscoped } from "@/lib/db";
 import { getStockLevels } from "@/lib/stock/getStockLevels";
 import { writeAuditLog } from "@/lib/security/audit";
 import { apiErrorResponse } from "@/lib/validation/response";
 import { withStoreContext } from "@/middleware/scope";
 
-// Park an in-progress bill to serve another customer — lines and customer
-// stay exactly as they were (step5 §11). This is also the ONLY point stock
-// is actually reserved: a draft bill's lines don't block anything (see the
-// comment in app/api/bills/[id]/lines/route.ts), but a held one does, via
-// real StockBlock records (one per line's warehouse allocation, sourceType
-// "draft_bill_line"). Resuming or completing releases them
-// (releaseBillLineAllocations).
+// Park an in-progress bill — the only point stock actually gets reserved
+// (draft blocks nothing; resume doesn't release either, only Cancel/Create
+// does — see resume/route.ts). Hold is idempotent: releases-then-recreates
+// each line's block in one transaction, so re-holding unchanged is a no-op.
 export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = asAppSession(await auth());
   if (!session?.user) {
@@ -57,21 +57,28 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
       (l) => l.product.stockTracked && l.allocations.length > 0,
     );
 
-    // Validate live availability before committing to any block — a bill
-    // can't be held over stock that isn't actually there right now. These
-    // are independent reads, so run them all at once rather than one
-    // allocation at a time.
+    // Add back this bill's own existing block before comparing, so a re-hold
+    // doesn't fail against its own reservation.
     const checks = stockTrackedLines.flatMap((line) =>
       line.allocations.map((alloc) => ({ line, alloc })),
     );
     const results = await Promise.all(
-      checks.map(async ({ line, alloc }) => ({
-        line,
-        alloc,
-        levels: await getStockLevels({ productId: line.productId, warehouseId: alloc.warehouseId }),
-      })),
+      checks.map(async ({ line, alloc }) => {
+        const [levels, selfBlocked] = await Promise.all([
+          getStockLevels({ productId: line.productId, warehouseId: alloc.warehouseId }),
+          db.stockBlockItem.aggregate({
+            _sum: { quantityBlocked: true },
+            where: {
+              status: "active",
+              stockBlockMain: { sourceType: "draft_bill_line", sourceId: alloc.id },
+            },
+          }),
+        ]);
+        const effectiveAvailable = levels.available + (selfBlocked._sum.quantityBlocked ?? 0);
+        return { line, alloc, effectiveAvailable };
+      }),
     );
-    const shortfall = results.find((r) => r.levels.available < r.alloc.quantity);
+    const shortfall = results.find((r) => r.effectiveAvailable < r.alloc.quantity);
     if (shortfall) {
       return apiErrorResponse(
         "bad_request",
@@ -97,6 +104,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
 
     const updated = await db.$transaction(async (tx) => {
       for (const line of stockTrackedLines) {
+        await releaseBillLineAllocations(tx, line.id, session.user.id);
         await blockLineAllocations(tx, {
           billLineId: line.id,
           product: line.product,

@@ -48,14 +48,9 @@ interface CartLine {
   quantity: number;
   discountApplied: number;
   discountReasonCodeId: string | null;
-  // null = use whatever the server auto-allocates; set = the cashier's
-  // manual override, sent as `requested` on the next save. The server
-  // falls back to auto-allocation if this has gone stale by save time.
+  // null = auto-allocate; set = manual override sent as `requested`.
   manualAllocations: Allocation[] | null;
-  // Sync bookkeeping — null until this line has actually been saved to the
-  // server at least once. syncedQuantity/syncedDiscount/syncedAllocations
-  // track what the server currently has, so a later save only sends what
-  // changed.
+  // Sync bookkeeping — null until saved once; synced* track server state.
   serverId: string | null;
   syncedQuantity: number;
   syncedDiscount: number;
@@ -147,11 +142,7 @@ const emptyPreview: PreviewTotals = {
   grandTotal: 0,
 };
 
-// The whole cart — products, quantities, discounts, customer details,
-// payment — lives only in this component's state. Nothing reaches the
-// server until the cashier explicitly clicks Save draft, Hold, or Create
-// bill (syncCart, below); those are the only three points where anything
-// here is actually persisted.
+// The cart lives only in local state until Save draft/Hold/Create (syncCart).
 export default function BillingPage() {
   const { data } = useSession();
   const session = asAppSession(data ?? null);
@@ -169,15 +160,15 @@ export default function BillingPage() {
   const [terminalId, setTerminalId] = useState<string | null>(null);
   const [started, setStarted] = useState(false);
 
-  // Set once a save has actually created the bill on the server — reused so
-  // a later save updates that same bill instead of creating a duplicate.
+  // Set once a save creates the bill server-side, so later saves update it.
   const [savedBillId, setSavedBillId] = useState<string | null>(null);
   const [savedDocumentNumber, setSavedDocumentNumber] = useState<string | null>(null);
+  // null = not saved yet (behaves like draft). "held" shows Save/Make draft;
+  // anything else shows Save draft/Hold.
+  const [billStatus, setBillStatus] = useState<"draft" | "held" | null>(null);
 
   const [cartLines, setCartLines] = useState<CartLine[]>([]);
-  // A line removed locally after it was already synced (has a serverId)
-  // has to be voided server-side on the next save too — otherwise it just
-  // silently stays there (and stays blocked, once Hold is involved).
+  // Lines removed after being synced still need voiding server-side.
   const [removedServerLineIds, setRemovedServerLineIds] = useState<string[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [customerDraft, setCustomerDraft] = useState<CustomerDraft>(emptyCustomerDraft);
@@ -190,6 +181,7 @@ export default function BillingPage() {
   const [completedBill, setCompletedBill] = useState<CompletedBill | null>(null);
   const [heldDocumentNumber, setHeldDocumentNumber] = useState<string | null>(null);
   const [heldCount, setHeldCount] = useState(0);
+  const [draftCount, setDraftCount] = useState(0);
 
   const [scanValue, setScanValue] = useState("");
   const [productMatches, setProductMatches] = useState<ProductMatch[]>([]);
@@ -206,9 +198,9 @@ export default function BillingPage() {
   const [holding, setHolding] = useState(false);
   const [creating, setCreating] = useState(false);
   const [discarding, setDiscarding] = useState(false);
-  // Save draft / Hold / Create bill all sync the same cart to the server —
-  // letting two of them fire at once would race. Only one at a time.
-  const busy = savingDraft || holding || creating || discarding;
+  const [makingDraft, setMakingDraft] = useState(false);
+  // Prevents two save actions racing each other.
+  const busy = savingDraft || holding || creating || discarding || makingDraft;
 
   const [preview, setPreview] = useState<PreviewTotals>(emptyPreview);
   const [loadingPreview, setLoadingPreview] = useState(false);
@@ -221,8 +213,19 @@ export default function BillingPage() {
     }
   }
 
+  async function refetchDraftCount() {
+    const res = await fetch("/api/bills?status=draft&pageSize=1&countOnly=1");
+    if (res.ok) {
+      const body = (await res.json()) as { totalRecords: number };
+      setDraftCount(body.totalRecords);
+    }
+  }
+
   useEffect(() => {
-    if (!started) void refetchHeldCount();
+    if (!started) {
+      void refetchHeldCount();
+      void refetchDraftCount();
+    }
   }, [started]);
 
   useEffect(() => {
@@ -234,10 +237,7 @@ export default function BillingPage() {
     if (started) scanInputRef.current?.focus();
   }, [started]);
 
-  // Resuming a held bill: it already exists on the server with real lines,
-  // so load it into the same local cart state everything else uses —
-  // further edits stay local until the next explicit save, same as a bill
-  // that's brand new.
+  // Resuming loads the held bill's real lines into local cart state.
   useEffect(() => {
     const resumeId = searchParams.get("billId");
     if (resumeId) void loadForResume(resumeId);
@@ -250,6 +250,7 @@ export default function BillingPage() {
     const b = await res.json();
     setBillType(b.billType);
     setTerminalId(b.terminalId);
+    setBillStatus(b.status === "held" ? "held" : "draft");
     setSavedBillId(b.id);
     setSavedDocumentNumber(b.documentNumber);
     setCartLines(
@@ -357,8 +358,7 @@ export default function BillingPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedScanValue]);
 
-  // Purely local — no request. The same product scanned again just
-  // increments the existing cart line instead of creating a second one.
+  // Purely local — scanning the same product again just increments it.
   function addProduct(product: ProductMatch) {
     setCartLines((prev) => {
       const idx = prev.findIndex((l) => l.productId === product.id);
@@ -401,10 +401,7 @@ export default function BillingPage() {
     });
   }
 
-  // Changing quantity invalidates any manual warehouse split (it no longer
-  // sums to the new quantity) — reverts to automatic, matching the
-  // established rule that allocation is redone by default on every
-  // quantity change.
+  // Quantity change invalidates any manual split — reverts to automatic.
   function updateLineQuantity(productId: string, quantity: number) {
     setCartLines((prev) =>
       prev.map((l) =>
@@ -446,8 +443,7 @@ export default function BillingPage() {
     setCustomerStateId(next.stateId);
   }
 
-  // Read-only totals preview (including real GST tax rules) for the cart as
-  // it stands right now — a pure computation, nothing here is persisted.
+  // Read-only totals preview — nothing here is persisted.
   const previewKey = JSON.stringify({
     lines: cartLines.map((l) => ({
       productId: l.productId,
@@ -505,19 +501,14 @@ export default function BillingPage() {
     return preview.lines.find((l) => l.productId === productId)?.warehouseAvailability ?? [];
   }
 
-  // Truly out of stock — resolveAllocations couldn't find anywhere to put
-  // it at all — as opposed to a stale manual override that still resolved
-  // fine via automatic fallback (has a warning but real allocations too).
+  // Truly out of stock, vs. a stale override that still resolved fine.
   function isOutOfStock(productId: string): boolean {
     return (
       allocationWarningForLine(productId) !== null && allocationsForLine(productId).length === 0
     );
   }
 
-  // The only place anything here actually reaches the server. Creates the
-  // bill on first save; on every save after that it only sends whatever
-  // changed since the last one (new lines, changed quantities/discounts,
-  // customer, whole-bill discount).
+  // The only place this reaches the server — sends only what changed.
   async function syncCart(): Promise<string | null> {
     let billId = savedBillId;
     if (!billId) {
@@ -539,6 +530,7 @@ export default function BillingPage() {
       billId = created.id;
       setSavedBillId(created.id);
       setSavedDocumentNumber(created.documentNumber);
+      setBillStatus("draft");
     }
 
     for (const lineId of removedServerLineIds) {
@@ -668,7 +660,7 @@ export default function BillingPage() {
     setSavingDraft(true);
     try {
       const billId = await syncCart();
-      if (billId) toast.success("Draft saved.");
+      if (billId) toast.success(billStatus === "held" ? "Saved." : "Draft saved.");
     } finally {
       setSavingDraft(false);
     }
@@ -687,6 +679,7 @@ export default function BillingPage() {
     setPaymentMethodId(null);
     setSavedBillId(null);
     setSavedDocumentNumber(null);
+    setBillStatus(null);
     setPreview(emptyPreview);
     setStarted(false);
   }
@@ -712,6 +705,23 @@ export default function BillingPage() {
       resetCart();
     } finally {
       setHolding(false);
+    }
+  }
+
+  async function makeDraft() {
+    if (!savedBillId) return;
+    setMakingDraft(true);
+    try {
+      const res = await fetch(`/api/bills/${savedBillId}/make-draft`, { method: "POST" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        toast.error(body?.error?.message ?? "Failed to make draft.");
+        return;
+      }
+      toast.success("Bill is a draft again — stock released.");
+      setBillStatus("draft");
+    } finally {
+      setMakingDraft(false);
     }
   }
 
@@ -873,12 +883,20 @@ export default function BillingPage() {
       <div className="space-y-4 p-8">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-semibold">Billing</h1>
-          <Link
-            href="/billing/held"
-            className={buttonVariants({ variant: heldCount > 0 ? "default" : "outline" })}
-          >
-            Held bills{heldCount > 0 ? ` (${heldCount})` : ""}
-          </Link>
+          <div className="flex gap-2">
+            <Link
+              href="/billing/drafts"
+              className={buttonVariants({ variant: draftCount > 0 ? "default" : "outline" })}
+            >
+              Draft bills{draftCount > 0 ? ` (${draftCount})` : ""}
+            </Link>
+            <Link
+              href="/billing/held"
+              className={buttonVariants({ variant: heldCount > 0 ? "default" : "outline" })}
+            >
+              Held bills{heldCount > 0 ? ` (${heldCount})` : ""}
+            </Link>
+          </div>
         </div>
 
         {session && !session.user.storeId ? (
@@ -955,17 +973,30 @@ export default function BillingPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          {cartLines.length === 0 && (
-            <Button variant="outline" onClick={discardCart} disabled={busy}>
-              {discarding ? "Discarding…" : "Discard"}
-            </Button>
+          {billStatus === "held" ? (
+            <>
+              <Button variant="outline" onClick={saveDraft} disabled={busy}>
+                {savingDraft ? "Saving…" : "Save"}
+              </Button>
+              <Button variant="outline" onClick={makeDraft} disabled={busy}>
+                {makingDraft ? "Making draft…" : "Make draft"}
+              </Button>
+            </>
+          ) : (
+            <>
+              {cartLines.length === 0 && (
+                <Button variant="outline" onClick={discardCart} disabled={busy}>
+                  {discarding ? "Discarding…" : "Discard"}
+                </Button>
+              )}
+              <Button variant="outline" onClick={saveDraft} disabled={busy}>
+                {savingDraft ? "Saving…" : "Save draft"}
+              </Button>
+              <Button variant="outline" onClick={holdBill} disabled={busy}>
+                {holding ? "Holding…" : "Hold"}
+              </Button>
+            </>
           )}
-          <Button variant="outline" onClick={saveDraft} disabled={busy}>
-            {savingDraft ? "Saving…" : "Save draft"}
-          </Button>
-          <Button variant="outline" onClick={holdBill} disabled={busy}>
-            {holding ? "Holding…" : "Hold"}
-          </Button>
         </div>
       </div>
 

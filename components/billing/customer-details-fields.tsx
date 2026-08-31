@@ -25,14 +25,7 @@ export const emptyCustomerDraft: CustomerDraft = {
   pincode: "",
 };
 
-// Billing detail fields, not a "create customer" form — always visible, no
-// submit button, no network calls of its own, and no foreign key to the
-// Customers master. Purely controlled: the parent owns the draft and the
-// selected-customer id, and decides when (if ever) to actually save any of
-// it — nothing here saves anything until the bill itself is saved. Picking
-// someone from the "Existing customer" dropdown is the only way this ends
-// up FK-linked when the parent does save; editing a field afterward is the
-// parent's job to treat as detaching back to plain, unlinked entry.
+// Purely controlled — no network calls, no FK. Parent decides when to save.
 export function CustomerDetailsFields({
   selectedCustomerId,
   draft,

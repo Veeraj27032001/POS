@@ -15,16 +15,10 @@ interface ProductSnapshot {
   hsnCode: { hsnCode: string } | null;
 }
 
-// Every scan/quantity change replaces a line's warehouse allocations from
-// scratch rather than diffing old vs new — simpler, and available stock is
-// always computed fresh anyway so there's no running total to keep in
-// sync. This only records WHICH warehouse each line's stock will come
-// from — it does NOT reserve anything. A draft bill blocks no stock at
-// all; the actual reservation only happens at Hold, via blockLineStock
-// below, using whatever allocation rows this leaves in place. If a line
-// being edited happens to still have an active block (shouldn't normally
-// happen — resuming a held bill always releases first — but defensively
-// covered here), that block is released before its allocation is replaced.
+// Replaces a line's warehouse allocations from scratch. Records which
+// warehouse the stock comes from — does NOT reserve anything (see
+// blockLineAllocations below for that). Releases any block still tied to
+// the old allocation first, defensively.
 export async function replaceBillLineAllocations(
   tx: Prisma.TransactionClient,
   params: {
@@ -59,10 +53,8 @@ export async function replaceBillLineAllocations(
   }
 }
 
-// The actual stock reservation — called only when a bill is held (see
-// app/api/bills/[id]/hold/route.ts), one StockBlock per current allocation
-// row on the given line. Assumes availability was already checked by the
-// caller; this just writes the block.
+// The actual stock reservation, called only from Hold — one StockBlock per
+// current allocation row. Assumes availability was already checked.
 export async function blockLineAllocations(
   tx: Prisma.TransactionClient,
   params: {
@@ -113,10 +105,7 @@ export async function blockLineAllocations(
 }
 
 // Releases every active stock block reserving a bill line's allocations —
-// called when the line is voided or the bill is cancelled/completed (a
-// completed bill's stock deduction takes over via the Bill Line Warehouse
-// Allocation term in getStockLevels, so the temporary block is no longer
-// needed).
+// called on void/cancel/complete.
 export async function releaseBillLineAllocations(
   tx: Prisma.TransactionClient,
   billLineId: string,

@@ -3,7 +3,7 @@ import { apiErrorResponse } from "@/lib/validation/response";
 
 // Shared guard for every bill-line mutation route (quantity, discount,
 // void): the line must belong to the given bill, the caller's store, an
-// in-progress (draft) bill, and still be active.
+// in-progress (draft or held) bill, and still be active.
 export async function loadEditableLine(
   db: ReturnType<typeof unscoped>,
   billId: string,
@@ -22,7 +22,7 @@ export async function loadEditableLine(
   if (storeId && line.bill.storeId !== storeId) {
     return { error: apiErrorResponse("not_found", "Line not found.", 404) } as const;
   }
-  if (line.bill.status !== "draft") {
+  if (line.bill.status !== "draft" && line.bill.status !== "held") {
     return {
       error: apiErrorResponse(
         "bad_request",

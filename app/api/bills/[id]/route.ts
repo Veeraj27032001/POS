@@ -45,11 +45,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   });
 }
 
-// Attaches (or changes) a customer on an in-progress bill via the "existing
-// customer" dropdown — a real FK link to the Customers master. Typed detail
-// fields (POST .../customer-details) are the other, unlinked path: no FK,
-// just plain fields on the bill itself. Selecting a customer here clears
-// those plain fields since the linked record is now the source of truth.
+// Attaches a customer via the "existing customer" dropdown — a real FK
+// link, clearing any typed plain fields (see POST .../customer-details).
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = asAppSession(await auth());
   if (!session?.user) {
@@ -118,11 +115,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   });
 }
 
-// Discards a bill that's still a draft — the cashier's cart is built
-// entirely client-side and only reaches the server via an explicit Save
-// draft/Hold/Create action, so a "draft" bill here means one of those was
-// used at least once and the cashier has now decided to abandon it. Once
-// held or completed it's no longer discardable this way.
+// Discards a bill that's still a draft — held/completed can't use this.
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = asAppSession(await auth());
   if (!session?.user) {
