@@ -1,5 +1,6 @@
 "use client";
 
+import { Loader2Icon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -10,7 +11,7 @@ import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 
 interface CustomerInfo {
-  id: string;
+  id: string | null;
   name: string | null;
   phone: string | null;
   email: string | null;
@@ -43,11 +44,12 @@ function draftFromCustomer(customer: CustomerInfo | null): Draft {
 }
 
 // Billing detail fields, not a "create customer" form — always visible, no
-// submit button. Typing auto-saves (debounced): first meaningful input
-// creates a customer record and attaches it to the bill; further edits
-// update that same record; clearing everything detaches it back to a
-// walk-in. The dropdown is just a shortcut that fills these same fields
-// from an existing customer.
+// submit button, no foreign key to the Customers master. Typing auto-saves
+// (debounced) as plain fields on the bill itself. Picking someone from the
+// "Existing customer" dropdown is the only way to get a real linked
+// customer — it fills these same fields from that record; editing a field
+// afterward detaches the link and reverts to plain, unlinked entry (see
+// app/api/bills/[id]/customer-details/route.ts).
 export function CustomerDetailsFields({
   billId,
   customer,
@@ -72,6 +74,7 @@ export function CustomerDetailsFields({
 
   const syncedCustomerId = useRef<string | null>(customer?.id ?? null);
   const lastSentPayload = useRef(JSON.stringify(draftFromCustomer(customer)));
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     if (customer?.id === syncedCustomerId.current) return;
@@ -91,25 +94,30 @@ export function CustomerDetailsFields({
   }, [debouncedDraft]);
 
   async function sync(values: Draft) {
-    const res = await fetch(`/api/bills/${billId}/customer-details`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: values.name || null,
-        phone: values.phone || null,
-        email: values.email || null,
-        address: values.address || null,
-        countryId: values.countryId,
-        stateId: values.stateId,
-        pincode: values.pincode || null,
-      }),
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => null);
-      toast.error(body?.error?.message ?? "Failed to update customer details.");
-      return;
+    setSyncing(true);
+    try {
+      const res = await fetch(`/api/bills/${billId}/customer-details`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: values.name || null,
+          phone: values.phone || null,
+          email: values.email || null,
+          address: values.address || null,
+          countryId: values.countryId,
+          stateId: values.stateId,
+          pincode: values.pincode || null,
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        toast.error(body?.error?.message ?? "Failed to update customer details.");
+        return;
+      }
+      onUpdated();
+    } finally {
+      setSyncing(false);
     }
-    onUpdated();
   }
 
   function set<K extends keyof Draft>(key: K, value: Draft[K]) {
@@ -119,7 +127,10 @@ export function CustomerDetailsFields({
   return (
     <div className="space-y-3">
       <div className="space-y-1.5">
-        <Label>Existing customer</Label>
+        <div className="flex items-center gap-1.5">
+          <Label>Existing customer</Label>
+          {syncing && <Loader2Icon className="text-muted-foreground size-3.5 animate-spin" />}
+        </div>
         <SearchableSelect
           options={customers}
           value={customer?.id ?? null}

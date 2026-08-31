@@ -46,6 +46,7 @@ model Country {
   warehouses Warehouse[]
   customers  Customer[]
   suppliers  Supplier[]
+  bills      Bill[]
 
   @@map("countries")
 }
@@ -63,6 +64,7 @@ model State {
   warehouses Warehouse[]
   customers  Customer[]
   suppliers  Supplier[]
+  bills      Bill[]
 
   @@unique([countryId, code])
   @@map("states")
@@ -1238,6 +1240,15 @@ model Bill {
   cashierUser          User          @relation(fields: [cashierUserId], references: [id])
   customerId           String?       @map("customer_id")
   customer             Customer?     @relation(fields: [customerId], references: [id])
+  customerName         String?       @map("customer_name")
+  customerPhone        String?       @map("customer_phone")
+  customerEmail        String?       @map("customer_email")
+  customerAddress      String?       @map("customer_address")
+  customerCountryId    String?       @map("customer_country_id")
+  customerCountry      Country?      @relation(fields: [customerCountryId], references: [id])
+  customerStateId      String?       @map("customer_state_id")
+  customerState        State?        @relation(fields: [customerStateId], references: [id])
+  customerPincode      String?       @map("customer_pincode")
   status               BillStatus    @default(draft)
   subtotal             Decimal       @default(0) @db.Decimal(12, 2)
   discountTotal        Decimal       @default(0) @map("discount_total") @db.Decimal(12, 2)
@@ -1284,6 +1295,7 @@ model BillLine {
   voidedByUserId       String?        @map("voided_by_user_id")
   voidedByUser         User?          @relation(fields: [voidedByUserId], references: [id])
   voidedAt             DateTime?      @map("voided_at")
+  createdAt            DateTime       @default(now()) @map("created_at")
 
   allocations BillLineWarehouseAllocation[]
   returnLines BillReturnLine[]

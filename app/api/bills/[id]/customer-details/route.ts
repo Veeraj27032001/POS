@@ -7,13 +7,15 @@ import { writeAuditLog } from "@/lib/security/audit";
 import { apiErrorResponse, parseJsonOrRespond } from "@/lib/validation/response";
 import { withStoreContext } from "@/middleware/scope";
 
-// Billing detail fields, not a separate "create customer" step: whatever's
-// in these fields just is the customer attached to this bill. First
-// meaningful input creates the customer record and attaches it; further
-// edits update that same record; clearing everything detaches it (walk-in).
-// Selecting an existing customer from the dropdown (billAttachCustomerSchema
-// via PATCH /api/bills/[id]) and then editing a field here updates that same
-// shared record — same as picking someone and correcting their address.
+// Typed billing-detail fields — deliberately NOT the Customers master. These
+// live as plain columns directly on the Bill row, with no foreign key: a
+// cashier jotting down a walk-in's name and phone shouldn't create or edit a
+// record in the shared Customers table. The only way to get a real,
+// FK-linked customer on a bill is picking one from the "existing customer"
+// dropdown (billAttachCustomerSchema via PATCH /api/bills/[id]). Typing
+// here always clears any such link — plain entry and a linked record are
+// mutually exclusive, so editing a field after selecting someone detaches
+// them and starts a fresh, unlinked entry from what's currently displayed.
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = asAppSession(await auth());
   if (!session?.user) {
@@ -48,44 +50,22 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       !data.stateId &&
       !data.pincode;
 
-    if (allEmpty) {
-      if (bill.billType === "credit_bill") {
-        return apiErrorResponse("bad_request", "A Credit Bill requires a customer.", 400);
-      }
-      if (!bill.customerId) {
-        return Response.json(bill);
-      }
-      const updated = await db.bill.update({
-        where: { id },
-        data: { customerId: null },
-        include: { customer: true },
-      });
-      return Response.json(updated);
-    }
-
-    const customerData = {
-      name: data.name ?? null,
-      phone: data.phone ?? null,
-      email: data.email ?? null,
-      address: data.address ?? null,
-      countryId: data.countryId ?? null,
-      stateId: data.stateId ?? null,
-      pincode: data.pincode ?? null,
-    };
-
-    let customerId = bill.customerId;
-    if (customerId) {
-      await db.customer.update({ where: { id: customerId }, data: customerData });
-    } else {
-      const created = await db.customer.create({
-        data: { ...customerData, stores: { connect: [{ id: bill.storeId }] } },
-      });
-      customerId = created.id;
+    if (allEmpty && bill.billType === "credit_bill") {
+      return apiErrorResponse("bad_request", "A Credit Bill requires a customer.", 400);
     }
 
     const updated = await db.bill.update({
       where: { id },
-      data: { customerId },
+      data: {
+        customerId: null,
+        customerName: data.name ?? null,
+        customerPhone: data.phone ?? null,
+        customerEmail: data.email ?? null,
+        customerAddress: data.address ?? null,
+        customerCountryId: data.countryId ?? null,
+        customerStateId: data.stateId ?? null,
+        customerPincode: data.pincode ?? null,
+      },
       include: { customer: true },
     });
 

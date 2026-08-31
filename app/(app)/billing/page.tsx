@@ -7,9 +7,9 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { CustomerDetailsFields } from "@/components/billing/customer-details-fields";
 import { EditableLineValue } from "@/components/billing/editable-line-value";
 import { LineWarehouseSplit } from "@/components/billing/line-warehouse-split";
-import { NewCustomerInlineForm } from "@/components/billing/new-customer-inline-form";
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 import { RequiredMark } from "@/components/required-mark";
 import { SearchableSelect } from "@/components/searchable-select";
@@ -61,7 +61,23 @@ interface BillDetail {
   documentNumber: string;
   billType: string;
   status: string;
-  customer: { id: string; name: string; phone: string | null } | null;
+  customer: {
+    id: string;
+    name: string | null;
+    phone: string | null;
+    email: string | null;
+    address: string | null;
+    countryId: string | null;
+    stateId: string | null;
+    pincode: string | null;
+  } | null;
+  customerName: string | null;
+  customerPhone: string | null;
+  customerEmail: string | null;
+  customerAddress: string | null;
+  customerCountryId: string | null;
+  customerStateId: string | null;
+  customerPincode: string | null;
   subtotal: string;
   discountTotal: string;
   overallDiscount: string;
@@ -97,9 +113,6 @@ export default function BillingPage() {
 
   const [billType, setBillType] = useState<"cash_bill" | "credit_bill">("cash_bill");
   const [terminalId, setTerminalId] = useState<string | null>(null);
-  const [customerId, setCustomerId] = useState<string | null>(null);
-  const [newCustomer, setNewCustomer] = useState<{ id: string; name: string } | null>(null);
-  const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
   const [starting, setStarting] = useState(false);
 
   const [bill, setBill] = useState<BillDetail | null>(null);
@@ -167,16 +180,12 @@ export default function BillingPage() {
       toast.error("Select a terminal.");
       return;
     }
-    if (billType === "credit_bill" && !customerId) {
-      toast.error("A Credit Bill requires a customer.");
-      return;
-    }
     setStarting(true);
     try {
       const res = await fetch("/api/bills", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ billType, terminalId, customerId }),
+        body: JSON.stringify({ billType, terminalId }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
@@ -404,7 +413,6 @@ export default function BillingPage() {
     setCompletedBill(null);
     setHeldDocumentNumber(null);
     setBill(null);
-    setCustomerId(null);
     setTerminalId(rememberedTerminalId);
   }
 
@@ -526,49 +534,6 @@ export default function BillingPage() {
                 placeholder="Select terminal…"
               />
             </div>
-
-            {billType === "credit_bill" && (
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <Label>
-                    Customer
-                    <RequiredMark />
-                  </Label>
-                  {!showNewCustomerForm && (
-                    <button
-                      type="button"
-                      className="text-primary text-xs hover:underline"
-                      onClick={() => setShowNewCustomerForm(true)}
-                    >
-                      + New customer
-                    </button>
-                  )}
-                </div>
-
-                {showNewCustomerForm ? (
-                  <NewCustomerInlineForm
-                    storeId={session?.user.storeId ?? ""}
-                    onCancel={() => setShowNewCustomerForm(false)}
-                    onCreated={(created) => {
-                      setNewCustomer(created);
-                      setCustomerId(created.id);
-                      setShowNewCustomerForm(false);
-                    }}
-                  />
-                ) : (
-                  <SearchableSelect
-                    options={
-                      newCustomer && !customers.some((c) => c.value === newCustomer.id)
-                        ? [{ value: newCustomer.id, label: newCustomer.name }, ...customers]
-                        : customers
-                    }
-                    value={customerId}
-                    onChange={setCustomerId}
-                    placeholder="Select customer…"
-                  />
-                )}
-              </div>
-            )}
           </CardContent>
           <CardFooter className="justify-end">
             <Button onClick={startBill} disabled={starting}>
@@ -611,28 +576,24 @@ export default function BillingPage() {
         <CardHeader>
           <CardTitle className="text-base">Customer</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="space-y-1.5">
-            <Label>Existing customer</Label>
-            <SearchableSelect
-              options={
-                newCustomer && !customers.some((c) => c.value === newCustomer.id)
-                  ? [{ value: newCustomer.id, label: newCustomer.name }, ...customers]
-                  : customers
+        <CardContent>
+          <CustomerDetailsFields
+            billId={bill.id}
+            customer={
+              bill.customer ?? {
+                id: null,
+                name: bill.customerName,
+                phone: bill.customerPhone,
+                email: bill.customerEmail,
+                address: bill.customerAddress,
+                countryId: bill.customerCountryId,
+                stateId: bill.customerStateId,
+                pincode: bill.customerPincode,
               }
-              value={bill.customer?.id ?? null}
-              onChange={(v) => {
-                if (v) void attachCustomer(v);
-              }}
-              placeholder="Select customer…"
-            />
-          </div>
-          <NewCustomerInlineForm
-            storeId={session?.user.storeId ?? ""}
-            onCreated={(created) => {
-              setNewCustomer(created);
-              void attachCustomer(created.id);
-            }}
+            }
+            customers={customers}
+            onSelectExisting={(v) => void attachCustomer(v)}
+            onUpdated={() => void refetchBill(bill.id)}
           />
         </CardContent>
       </Card>

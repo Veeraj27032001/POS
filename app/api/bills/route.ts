@@ -72,14 +72,6 @@ export async function POST(request: Request) {
   if ("response" in parsed) return parsed.response;
   const data = parsed.data;
 
-  if (data.billType !== "cash_bill" && !data.customerId) {
-    return apiErrorResponse(
-      "bad_request",
-      `A customer is required for a ${data.billType === "credit_bill" ? "Credit" : "Online"} Bill.`,
-      400,
-    );
-  }
-
   return withStoreContext(async () => {
     const db = unscoped();
     const terminal = await db.terminal.findUnique({ where: { id: data.terminalId } });

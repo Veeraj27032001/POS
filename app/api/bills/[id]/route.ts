@@ -27,6 +27,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
         terminal: true,
         cashierUser: { select: { id: true, name: true } },
         lines: {
+          orderBy: { createdAt: "asc" },
           include: {
             allocations: { include: { warehouse: { select: { id: true, name: true } } } },
           },
@@ -43,11 +44,11 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   });
 }
 
-// Attaches (or changes) a customer on an in-progress bill — the golden path
-// defers this off the "start a bill" screen entirely for a Cash Bill; it's
-// only required up front for a Credit Bill (needs a customer to exist
-// before it can be created at all, for the credit-limit check at
-// completion).
+// Attaches (or changes) a customer on an in-progress bill via the "existing
+// customer" dropdown — a real FK link to the Customers master. Typed detail
+// fields (POST .../customer-details) are the other, unlinked path: no FK,
+// just plain fields on the bill itself. Selecting a customer here clears
+// those plain fields since the linked record is now the source of truth.
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = asAppSession(await auth());
   if (!session?.user) {
@@ -85,7 +86,20 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     const updated = await db.bill.update({
       where: { id },
-      data: { customerId: data.customerId },
+      data: {
+        customerId: data.customerId,
+        ...(data.customerId
+          ? {
+              customerName: null,
+              customerPhone: null,
+              customerEmail: null,
+              customerAddress: null,
+              customerCountryId: null,
+              customerStateId: null,
+              customerPincode: null,
+            }
+          : {}),
+      },
       include: { customer: true },
     });
 
