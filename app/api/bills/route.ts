@@ -81,53 +81,61 @@ export async function POST(request: Request) {
   }
 
   return withStoreContext(async () => {
-    const db = unscoped();
-    const terminal = await db.terminal.findUnique({ where: { id: data.terminalId } });
-    if (!terminal || terminal.storeId !== session.user.storeId) {
-      return apiErrorResponse("bad_request", "Select a terminal belonging to your store.", 400);
-    }
-
-    if (data.customerId) {
-      const customer = await db.customer.findUnique({ where: { id: data.customerId } });
-      if (!customer) {
-        return apiErrorResponse("bad_request", "Customer not found.", 400);
+    try {
+      const db = unscoped();
+      const terminal = await db.terminal.findUnique({ where: { id: data.terminalId } });
+      if (!terminal || terminal.storeId !== session.user.storeId) {
+        return apiErrorResponse("bad_request", "Select a terminal belonging to your store.", 400);
       }
-    }
 
-    const openShift = await db.shift.findFirst({
-      where: { terminalId: data.terminalId, cashierUserId: session.user.id, status: "open" },
-    });
+      if (data.customerId) {
+        const customer = await db.customer.findUnique({ where: { id: data.customerId } });
+        if (!customer) {
+          return apiErrorResponse("bad_request", "Customer not found.", 400);
+        }
+      }
 
-    const result = await db.$transaction(async (tx) => {
-      const { documentNumber } = await allocateDocumentNumber(tx, {
-        seriesType: data.billType,
-        storeId: session.user.storeId!,
-        financialYearId: session.user.financialYearId!,
+      const openShift = await db.shift.findFirst({
+        where: { terminalId: data.terminalId, cashierUserId: session.user.id, status: "open" },
       });
 
-      return tx.bill.create({
-        data: {
-          documentNumber,
-          financialYearId: session.user.financialYearId!,
-          billType: data.billType,
+      const result = await db.$transaction(async (tx) => {
+        const { documentNumber } = await allocateDocumentNumber(tx, {
+          seriesType: data.billType,
           storeId: session.user.storeId!,
-          terminalId: data.terminalId,
-          cashierUserId: session.user.id,
-          customerId: data.customerId ?? null,
-          shiftId: openShift?.id ?? null,
-        },
+          financialYearId: session.user.financialYearId!,
+        });
+
+        return tx.bill.create({
+          data: {
+            documentNumber,
+            financialYearId: session.user.financialYearId!,
+            billType: data.billType,
+            storeId: session.user.storeId!,
+            terminalId: data.terminalId,
+            cashierUserId: session.user.id,
+            customerId: data.customerId ?? null,
+            shiftId: openShift?.id ?? null,
+          },
+        });
       });
-    });
 
-    await writeAuditLog({
-      userId: session.user.id,
-      storeId: session.user.storeId,
-      action: "create",
-      entityType: "bill",
-      entityId: result.id,
-      afterData: result,
-    });
+      await writeAuditLog({
+        userId: session.user.id,
+        storeId: session.user.storeId,
+        action: "create",
+        entityType: "bill",
+        entityId: result.id,
+        afterData: result,
+      });
 
-    return Response.json(result, { status: 201 });
+      return Response.json(result, { status: 201 });
+    } catch (error) {
+      console.error("DEBUG POST /api/bills failed:", error);
+      return Response.json(
+        { debug: String(error), stack: error instanceof Error ? error.stack : null },
+        { status: 500 },
+      );
+    }
   });
 }

@@ -2235,7 +2235,16 @@ test("Billing: cash bill golden path — scan, pay, complete", async ({ page }) 
   await page.getByRole("button", { name: "Cash Bill" }).click();
   await page.getByText("Select terminal…").click();
   await page.getByRole("option", { name: terminalName, exact: true }).click();
-  await page.getByRole("button", { name: "Start bill" }).click();
+  const [startBillResponse] = await Promise.all([
+    page.waitForResponse(
+      (res) => res.url().endsWith("/api/bills") && res.request().method() === "POST",
+    ),
+    page.getByRole("button", { name: "Start bill" }).click(),
+  ]);
+  if (!startBillResponse.ok()) {
+    console.log("Start bill failed:", startBillResponse.status(), await startBillResponse.text());
+  }
+  expect(startBillResponse.ok()).toBeTruthy();
 
   await expect(page.getByPlaceholder("Scan or search a product…")).toBeVisible();
   await page.getByPlaceholder("Scan or search a product…").fill(productName);
