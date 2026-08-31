@@ -152,15 +152,38 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       );
     }
 
+    // This transfer's own pending quantity is already subtracted from
+    // `available` via its active source block — add it back per product
+    // before checking the new quantity, or a same-or-smaller edit would be
+    // wrongly rejected.
+    const oldItems = await db.stockTransferItem.findMany({ where: { stockTransferMainId: id } });
+    const oldQtyByProduct = new Map<string, number>();
+    for (const item of oldItems) {
+      oldQtyByProduct.set(
+        item.productId,
+        (oldQtyByProduct.get(item.productId) ?? 0) + item.quantity,
+      );
+    }
+    const newQtyByProduct = new Map<string, number>();
     for (const item of parsed.data.items) {
+      newQtyByProduct.set(
+        item.productId,
+        (newQtyByProduct.get(item.productId) ?? 0) + item.quantity,
+      );
+    }
+
+    for (const productId of new Set([...oldQtyByProduct.keys(), ...newQtyByProduct.keys()])) {
+      const oldQty = oldQtyByProduct.get(productId) ?? 0;
+      const newQty = newQtyByProduct.get(productId) ?? 0;
+      if (newQty <= oldQty) continue;
       const { available } = await getStockLevels({
-        productId: item.productId,
+        productId,
         warehouseId: existing.sourceWarehouseId,
       });
-      if (item.quantity > available) {
+      if (available + oldQty - newQty < 0) {
         return apiErrorResponse(
           "bad_request",
-          `Cannot transfer ${item.quantity} — only ${available} available at the source warehouse.`,
+          `Cannot transfer ${newQty} — only ${available + oldQty} available at the source warehouse.`,
           400,
         );
       }

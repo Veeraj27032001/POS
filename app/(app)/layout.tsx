@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  AlertTriangle,
   ArrowLeftRight,
   Banknote,
   Barcode,
@@ -83,6 +84,7 @@ const NAV_ITEM_MODULE: Record<string, string> = {
   "/stock-negative-adjustments": "stock",
   "/stock-openings": "stock",
   "/entry-corrections": "stock",
+  "/low-stock": "stock",
   "/settings/hsn-codes": "hsn_codes",
   "/settings/tax-engine": "stores",
   "/settings/financial-years": "financial_years",
@@ -168,6 +170,11 @@ const NAV_GROUPS: AppNavGroup[] = [
         href: "/entry-corrections",
         label: "Entry Correction",
         icon: <ClipboardEdit className="h-4 w-4" />,
+      },
+      {
+        href: "/low-stock",
+        label: "Low Stock",
+        icon: <AlertTriangle className="h-4 w-4" />,
       },
     ],
   },

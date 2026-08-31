@@ -97,7 +97,7 @@ export default function NewEntryCorrectionPage() {
   const guardedSubmit = useSubmitGuard(onSubmit);
 
   return (
-    <div className="max-w-2xl space-y-4 p-8">
+    <div className="space-y-4 p-8">
       <Link href="/entry-corrections" className="text-muted-foreground text-sm hover:underline">
         ← Back to Entry Correction
       </Link>
@@ -111,68 +111,72 @@ export default function NewEntryCorrectionPage() {
               this correction is logged for audit.
             </p>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-1.5">
-              <Label>
-                Source document type
-                <RequiredMark />
-              </Label>
-              <Controller
-                name="sourceItemType"
-                control={control}
-                render={({ field }) => (
-                  <SearchableSelect
-                    options={SOURCE_TYPE_OPTIONS}
-                    value={field.value ?? null}
-                    onChange={(v) => field.onChange(v ?? "")}
-                    placeholder="Select a document type…"
-                  />
+          <CardContent className="space-y-6">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div className="space-y-1.5">
+                <Label>
+                  Source document type
+                  <RequiredMark />
+                </Label>
+                <Controller
+                  name="sourceItemType"
+                  control={control}
+                  render={({ field }) => (
+                    <SearchableSelect
+                      options={SOURCE_TYPE_OPTIONS}
+                      value={field.value ?? null}
+                      onChange={(v) => field.onChange(v ?? "")}
+                      placeholder="Select a document type…"
+                    />
+                  )}
+                />
+                {errors.sourceItemType && (
+                  <p className="text-sm text-red-600">{errors.sourceItemType.message}</p>
                 )}
-              />
-              {errors.sourceItemType && (
-                <p className="text-sm text-red-600">{errors.sourceItemType.message}</p>
-              )}
-            </div>
+              </div>
 
-            <div className="space-y-1.5">
-              <Label>
-                Document
-                <RequiredMark />
-              </Label>
-              <SearchableSelect
-                options={documents}
-                value={mainId || null}
-                onChange={(v) => setMainId(v ?? "")}
-                placeholder={sourceItemType ? "Select a document…" : "Select a document type first"}
-                disabled={!sourceItemType}
-              />
-            </div>
+              <div className="space-y-1.5">
+                <Label>
+                  Document
+                  <RequiredMark />
+                </Label>
+                <SearchableSelect
+                  options={documents}
+                  value={mainId || null}
+                  onChange={(v) => setMainId(v ?? "")}
+                  placeholder={
+                    sourceItemType ? "Select a document…" : "Select a document type first"
+                  }
+                  disabled={!sourceItemType}
+                />
+              </div>
 
-            <div className="space-y-1.5">
-              <Label>
-                Item
-                <RequiredMark />
-              </Label>
-              <Controller
-                name="sourceItemId"
-                control={control}
-                render={({ field }) => (
-                  <SearchableSelect
-                    options={items}
-                    value={field.value || null}
-                    onChange={(v) => field.onChange(v ?? "")}
-                    placeholder={mainId ? "Select an item…" : "Select a document first"}
-                    disabled={!mainId}
-                  />
+              <div className="space-y-1.5">
+                <Label>
+                  Item
+                  <RequiredMark />
+                </Label>
+                <Controller
+                  name="sourceItemId"
+                  control={control}
+                  render={({ field }) => (
+                    <SearchableSelect
+                      options={items}
+                      value={field.value || null}
+                      onChange={(v) => field.onChange(v ?? "")}
+                      placeholder={mainId ? "Select an item…" : "Select a document first"}
+                      disabled={!mainId}
+                    />
+                  )}
+                />
+                {errors.sourceItemId && (
+                  <p className="text-sm text-red-600">{errors.sourceItemId.message}</p>
                 )}
-              />
-              {errors.sourceItemId && (
-                <p className="text-sm text-red-600">{errors.sourceItemId.message}</p>
-              )}
+              </div>
             </div>
 
             {selectedItem && sourceItemType && (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div className="space-y-1.5">
                   <Label>
                     Current {SOURCE_TYPE_CONFIG[sourceItemType].fieldLabel.toLowerCase()}

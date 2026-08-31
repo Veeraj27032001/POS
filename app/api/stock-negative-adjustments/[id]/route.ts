@@ -38,23 +38,52 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       return apiErrorResponse("not_found", "Record not found.", 404);
     }
 
+    // Editing this document's own quantity down doesn't need re-checking —
+    // it only frees up stock. An increase (or a warehouse change, which
+    // moves the effect to a warehouse this item never subtracted from) is
+    // checked against what's available once this item's own old
+    // contribution to that figure is accounted for.
+    const oldItems = await db.stockNegativeAdjustmentItem.findMany({
+      where: { stockNegativeAdjustmentMainId: id },
+    });
+    const oldQtyByProduct = new Map<string, number>();
+    for (const item of oldItems) {
+      oldQtyByProduct.set(
+        item.productId,
+        (oldQtyByProduct.get(item.productId) ?? 0) + item.quantity,
+      );
+    }
+    const newQtyByProduct = new Map<string, number>();
+    for (const item of parsed.data.items) {
+      newQtyByProduct.set(
+        item.productId,
+        (newQtyByProduct.get(item.productId) ?? 0) + item.quantity,
+      );
+    }
+    const sameWarehouse = parsed.data.warehouseId === existing.warehouseId;
+
+    for (const productId of new Set([...oldQtyByProduct.keys(), ...newQtyByProduct.keys()])) {
+      const oldQty = sameWarehouse ? (oldQtyByProduct.get(productId) ?? 0) : 0;
+      const newQty = newQtyByProduct.get(productId) ?? 0;
+      if (newQty <= oldQty) continue;
+      const { available } = await getStockLevels({
+        productId,
+        warehouseId: parsed.data.warehouseId,
+      });
+      if (available + oldQty - newQty < 0) {
+        return apiErrorResponse(
+          "bad_request",
+          `Cannot reduce ${newQty} — only ${available + oldQty} available at this warehouse.`,
+          400,
+        );
+      }
+    }
+
     try {
       const result = await db.$transaction(async (tx) => {
         await tx.stockNegativeAdjustmentItem.deleteMany({
           where: { stockNegativeAdjustmentMainId: id },
         });
-
-        for (const item of parsed.data.items) {
-          const { available } = await getStockLevels({
-            productId: item.productId,
-            warehouseId: parsed.data.warehouseId,
-          });
-          if (item.quantity > available) {
-            throw new ValidationError(
-              `Cannot reduce ${item.quantity} — only ${available} available at this warehouse.`,
-            );
-          }
-        }
 
         const updated = await tx.stockNegativeAdjustmentMain.update({
           where: { id },

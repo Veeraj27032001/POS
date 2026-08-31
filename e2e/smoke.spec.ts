@@ -2135,3 +2135,47 @@ test("Entry Correction: corrects a source document's quantity and logs it", asyn
   await expect(page.getByText("Opening Balance")).toBeVisible();
   await expect(page.getByText("Recount found fewer units.")).toBeVisible();
 });
+
+test("Low Stock: flags a product at or below its reorder level for a warehouse", async ({
+  page,
+}) => {
+  test.skip(!ADMIN2_EMAIL || !ADMIN2_PASSWORD, "SEED_ADMIN2_EMAIL/PASSWORD not configured");
+
+  const productName = `Test Low Stock Product ${Date.now()}`;
+  await login(page);
+  await page.goto("/products");
+  await page.getByRole("button", { name: "New Product" }).click();
+  await page.getByLabel("Name").fill(productName);
+  await page.getByText("Select category…").click();
+  await page.getByRole("option").first().click();
+  await page.getByText("Select HSN code…").click();
+  await page.getByRole("option").first().click();
+  await page.getByText("Select UOM…").click();
+  await page.getByRole("option").first().click();
+  await page.getByLabel("Price").fill("25");
+  await page.getByLabel("Reorder level (optional)").fill("5");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText(productName)).toBeVisible();
+
+  await page.getByRole("button", { name: "Account menu" }).click();
+  await page.getByRole("button", { name: "Sign out" }).click();
+  await expect(page).toHaveURL(/\/login/);
+
+  await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
+  await page.goto("/stock-openings/new");
+  await page.getByText("Select warehouse…").click();
+  const warehouseName = (await page.getByRole("option").first().textContent())!.trim();
+  await page.getByRole("option").first().click();
+  await page.getByText("Select product…").click();
+  await page.getByRole("option", { name: productName, exact: true }).click();
+  await page.getByPlaceholder("Qty").fill("3");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Opening balance recorded.")).toBeVisible();
+
+  await page.goto("/low-stock");
+  await page.getByText("Select warehouse…").click();
+  await page.getByRole("option", { name: warehouseName, exact: true }).click();
+  const row = page.getByRole("row").filter({ hasText: productName });
+  await expect(row).toBeVisible();
+  await expect(row.getByText("Low", { exact: true })).toBeVisible();
+});
