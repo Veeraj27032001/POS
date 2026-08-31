@@ -15,6 +15,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { asAppSession } from "@/lib/auth/types";
+import { useSelectedTerminal } from "@/lib/billing/useSelectedTerminal";
+import { useOptionsList } from "@/lib/masters/useOptionsList";
 
 interface FinancialYearOption {
   id: string;
@@ -39,6 +41,8 @@ function SelectFinancialYearForm() {
   const [selected, setSelected] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const terminals = useOptionsList("terminals", "name");
+  const { terminalId, setTerminalId } = useSelectedTerminal();
 
   useEffect(() => {
     fetch("/api/financial-years")
@@ -107,6 +111,34 @@ function SelectFinancialYearForm() {
             </SelectContent>
           </Select>
         </div>
+
+        {terminals.length > 0 && (
+          <div className="space-y-1.5">
+            <Label>
+              Terminal
+              <span className="text-muted-foreground ml-1 font-normal">(optional)</span>
+            </Label>
+            <Select
+              value={terminalId ?? ""}
+              onValueChange={(v) => setTerminalId(v || null)}
+              items={terminals}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select terminal…" />
+              </SelectTrigger>
+              <SelectContent>
+                {terminals.map((t) => (
+                  <SelectItem key={t.value} value={t.value}>
+                    {t.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-muted-foreground text-xs">
+              Remembered on this device — Billing will use it automatically.
+            </p>
+          </div>
+        )}
 
         {formError && <p className="text-sm text-red-600">{formError}</p>}
 

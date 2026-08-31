@@ -8,7 +8,7 @@ import { customerCreateSchema, customerUpdateSchema } from "@/lib/masters/schema
 interface CustomerRow {
   id: string;
   name: string;
-  phone: string;
+  phone: string | null;
   email: string | null;
   isActive: boolean;
 }
@@ -48,6 +48,7 @@ export default function CustomersPage() {
           dependsOn: "countryId",
           placeholder: "Select state…",
         },
+        { name: "pincode", label: "Pincode", type: "text" },
         {
           name: "storeIds",
           label: "Stores",

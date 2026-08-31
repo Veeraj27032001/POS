@@ -6,10 +6,11 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { NewCustomerInlineForm } from "@/components/billing/new-customer-inline-form";
 import { RequiredMark } from "@/components/required-mark";
 import { SearchableSelect } from "@/components/searchable-select";
 import { asAppSession } from "@/lib/auth/types";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useSelectedTerminal } from "@/lib/billing/useSelectedTerminal";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 
 interface BillLineRow {
@@ -77,14 +79,28 @@ export default function BillingPage() {
   const terminals = useOptionsList("terminals", "name");
   const customers = useOptionsList("customers", "name");
   const paymentMethods = useOptionsList("payment-methods", "name");
+  const { terminalId: rememberedTerminalId, setTerminalId: rememberTerminalId } =
+    useSelectedTerminal();
 
   const [billType, setBillType] = useState<"cash_bill" | "credit_bill">("cash_bill");
   const [terminalId, setTerminalId] = useState<string | null>(null);
   const [customerId, setCustomerId] = useState<string | null>(null);
+  const [newCustomer, setNewCustomer] = useState<{ id: string; name: string } | null>(null);
+  const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
   const [starting, setStarting] = useState(false);
 
   const [bill, setBill] = useState<BillDetail | null>(null);
   const [completedBill, setCompletedBill] = useState<BillDetail | null>(null);
+  const [heldDocumentNumber, setHeldDocumentNumber] = useState<string | null>(null);
+  const [heldCount, setHeldCount] = useState(0);
+
+  async function refetchHeldCount() {
+    const res = await fetch("/api/bills?status=held&pageSize=1&countOnly=1");
+    if (res.ok) {
+      const body = (await res.json()) as { totalRecords: number };
+      setHeldCount(body.totalRecords);
+    }
+  }
 
   const [scanValue, setScanValue] = useState("");
   const [productMatches, setProductMatches] = useState<ProductMatch[]>([]);
@@ -105,6 +121,15 @@ export default function BillingPage() {
     if (resumeId) void refetchBill(resumeId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (rememberedTerminalId && !terminalId) setTerminalId(rememberedTerminalId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rememberedTerminalId]);
+
+  useEffect(() => {
+    if (!bill) void refetchHeldCount();
+  }, [bill]);
 
   useEffect(() => {
     if (bill && bill.status === "draft") scanInputRef.current?.focus();
@@ -132,6 +157,7 @@ export default function BillingPage() {
         return;
       }
       const created = (await res.json()) as { id: string };
+      rememberTerminalId(terminalId);
       await refetchBill(created.id);
     } finally {
       setStarting(false);
@@ -219,6 +245,12 @@ export default function BillingPage() {
       return;
     }
     toast.success("Bill held.");
+    setHeldDocumentNumber(bill.documentNumber);
+    setBill(null);
+  }
+
+  async function discardEmptyBill() {
+    if (!bill) return;
     setBill(null);
   }
 
@@ -243,9 +275,10 @@ export default function BillingPage() {
 
   function startNewBill() {
     setCompletedBill(null);
+    setHeldDocumentNumber(null);
     setBill(null);
     setCustomerId(null);
-    setTerminalId(null);
+    setTerminalId(rememberedTerminalId);
   }
 
   const totalPaid =
@@ -286,13 +319,43 @@ export default function BillingPage() {
     );
   }
 
+  if (heldDocumentNumber) {
+    return (
+      <div className="max-w-lg space-y-4 p-8">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl">Bill held</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm">
+            <p>
+              <span className="text-muted-foreground">Document number: </span>
+              {heldDocumentNumber}
+            </p>
+            <p className="text-muted-foreground mt-2">
+              Pick it back up any time from Held Bills, or start billing another customer now.
+            </p>
+          </CardContent>
+          <CardFooter className="justify-end gap-2">
+            <Link href="/billing/held" className={buttonVariants({ variant: "outline" })}>
+              Held bills
+            </Link>
+            <Button onClick={startNewBill}>Start new bill</Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
+
   if (!bill) {
     return (
       <div className="max-w-lg space-y-4 p-8">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-semibold">Billing</h1>
-          <Link href="/billing/held" className="text-muted-foreground text-sm hover:underline">
-            Held bills
+          <Link
+            href="/billing/held"
+            className={buttonVariants({ variant: heldCount > 0 ? "default" : "outline" })}
+          >
+            Held bills{heldCount > 0 ? ` (${heldCount})` : ""}
           </Link>
         </div>
 
@@ -338,19 +401,47 @@ export default function BillingPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label>
-                Customer
-                {billType === "credit_bill" && <RequiredMark />}
-                {billType === "cash_bill" && (
-                  <span className="text-muted-foreground ml-1 font-normal">(optional)</span>
+              <div className="flex items-center justify-between">
+                <Label>
+                  Customer
+                  {billType === "credit_bill" && <RequiredMark />}
+                  {billType === "cash_bill" && (
+                    <span className="text-muted-foreground ml-1 font-normal">(optional)</span>
+                  )}
+                </Label>
+                {!showNewCustomerForm && (
+                  <button
+                    type="button"
+                    className="text-primary text-xs hover:underline"
+                    onClick={() => setShowNewCustomerForm(true)}
+                  >
+                    + New customer
+                  </button>
                 )}
-              </Label>
-              <SearchableSelect
-                options={customers}
-                value={customerId}
-                onChange={setCustomerId}
-                placeholder="Select customer…"
-              />
+              </div>
+
+              {showNewCustomerForm ? (
+                <NewCustomerInlineForm
+                  storeId={session?.user.storeId ?? ""}
+                  onCancel={() => setShowNewCustomerForm(false)}
+                  onCreated={(created) => {
+                    setNewCustomer(created);
+                    setCustomerId(created.id);
+                    setShowNewCustomerForm(false);
+                  }}
+                />
+              ) : (
+                <SearchableSelect
+                  options={
+                    newCustomer && !customers.some((c) => c.value === newCustomer.id)
+                      ? [{ value: newCustomer.id, label: newCustomer.name }, ...customers]
+                      : customers
+                  }
+                  value={customerId}
+                  onChange={setCustomerId}
+                  placeholder="Select customer…"
+                />
+              )}
             </div>
           </CardContent>
           <CardFooter className="justify-end">
@@ -378,9 +469,11 @@ export default function BillingPage() {
           <Button variant="outline" onClick={holdBill}>
             Hold
           </Button>
-          <Button variant="outline" onClick={startNewBill}>
-            Abandon
-          </Button>
+          {activeLines.length === 0 && (
+            <Button variant="outline" onClick={discardEmptyBill}>
+              Discard
+            </Button>
+          )}
         </div>
       </div>
 

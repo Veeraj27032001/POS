@@ -41,4 +41,14 @@ export const phoneSchema = z
   .trim()
   .regex(/^[0-9+()\-\s]{6,20}$/, "Must be a valid phone number.");
 
+export const optionalPhoneSchema = z
+  .string()
+  .trim()
+  .optional()
+  .nullable()
+  .transform((v) => (v ? v : null))
+  .refine((v) => v === null || /^[0-9+()\-\s]{6,20}$/.test(v), {
+    message: "Must be a valid phone number.",
+  });
+
 export const isActiveSchema = z.boolean().default(true);

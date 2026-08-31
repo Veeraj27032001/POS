@@ -7,6 +7,7 @@ import {
   nonNegativeDecimal,
   nonNegativeInt,
   opaqueIdSchema,
+  optionalPhoneSchema,
   optionalString,
   phoneSchema,
   requiredString,
@@ -77,11 +78,12 @@ export const productSupplierPriceCreateSchema = z.object({
 
 export const customerCreateSchema = z.object({
   name: requiredString("Name"),
-  phone: phoneSchema,
+  phone: optionalPhoneSchema,
   email: emailSchema.optional().nullable(),
   address: optionalString(500),
   countryId: opaqueIdSchema.optional().nullable(),
   stateId: opaqueIdSchema.optional().nullable(),
+  pincode: optionalString(20),
   taxId: optionalString(32),
   creditLimit: nonNegativeDecimal.optional().nullable(),
   loyaltyPoints: nonNegativeInt.optional().nullable(),

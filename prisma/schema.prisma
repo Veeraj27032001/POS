@@ -886,13 +886,14 @@ model PendingMediaUpload {
 model Customer {
   id            String   @id @default(uuid())
   name          String
-  phone         String
+  phone         String?
   email         String?
   address       String?
   countryId     String?  @map("country_id")
   country       Country? @relation(fields: [countryId], references: [id])
   stateId       String?  @map("state_id")
   state         State?   @relation(fields: [stateId], references: [id])
+  pincode       String?
   taxId         String?  @map("tax_id")
   creditLimit   Decimal? @map("credit_limit") @db.Decimal(12, 2)
   loyaltyPoints Int?     @map("loyalty_points")
