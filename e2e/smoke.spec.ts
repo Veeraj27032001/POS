@@ -2257,8 +2257,7 @@ test("Billing: cash bill golden path — scan, pay, complete", async ({ page }) 
 
   await page.getByText("Select payment method…").click();
   await page.getByRole("option", { name: paymentMethodName, exact: true }).click();
-  const amountInput = page.locator('input[type="number"]').last();
-  await amountInput.fill("50");
+  await expect(page.locator("input[readonly]")).toHaveValue("₹50.00");
   await page.getByRole("button", { name: "Record payment" }).click();
   await expect(page.getByText("Payment recorded.")).toBeVisible();
   await expect(page.getByText("₹0.00").last()).toBeVisible();

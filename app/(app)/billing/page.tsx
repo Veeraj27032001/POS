@@ -79,6 +79,7 @@ export default function BillingPage() {
   const terminals = useOptionsList("terminals", "name");
   const customers = useOptionsList("customers", "name");
   const paymentMethods = useOptionsList("payment-methods", "name");
+  const discountReasons = useOptionsList("reason-codes/options", "label", "category=discount");
   const { terminalId: rememberedTerminalId, setTerminalId: rememberTerminalId } =
     useSelectedTerminal();
 
@@ -107,9 +108,12 @@ export default function BillingPage() {
   const scanInputRef = useRef<HTMLInputElement>(null);
 
   const [paymentMethodId, setPaymentMethodId] = useState<string | null>(null);
-  const [paymentAmount, setPaymentAmount] = useState("");
   const [paying, setPaying] = useState(false);
   const [completing, setCompleting] = useState(false);
+
+  const [billDiscountAmount, setBillDiscountAmount] = useState("");
+  const [billDiscountReasonCodeId, setBillDiscountReasonCodeId] = useState<string | null>(null);
+  const [applyingDiscount, setApplyingDiscount] = useState(false);
 
   async function refetchBill(id: string) {
     const res = await fetch(`/api/bills/${id}`);
@@ -215,24 +219,80 @@ export default function BillingPage() {
   }
 
   async function recordPayment() {
-    if (!bill || !paymentMethodId || !paymentAmount) return;
+    if (!bill || !paymentMethodId || remaining <= 0) return;
     setPaying(true);
     try {
       const res = await fetch(`/api/bills/${bill.id}/payments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paymentMethodId, amount: Number(paymentAmount) }),
+        body: JSON.stringify({ paymentMethodId, amount: remaining }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
         toast.error(body?.error?.message ?? "Failed to record payment.");
         return;
       }
-      setPaymentAmount("");
       toast.success("Payment recorded.");
       await refetchBill(bill.id);
     } finally {
       setPaying(false);
+    }
+  }
+
+  async function applyBillDiscount() {
+    if (!bill) return;
+    const totalDiscount = Number(billDiscountAmount);
+    if (!billDiscountAmount || totalDiscount <= 0) {
+      toast.error("Enter a discount amount.");
+      return;
+    }
+    if (!billDiscountReasonCodeId) {
+      toast.error("Select a reason for the discount.");
+      return;
+    }
+    if (activeLines.length === 0) {
+      toast.error("Add items first.");
+      return;
+    }
+
+    const lineSubtotals = activeLines.map((l) => Number(l.unitPrice) * l.quantity);
+    const sumSubtotal = lineSubtotals.reduce((a, b) => a + b, 0);
+    if (totalDiscount > sumSubtotal) {
+      toast.error(`Discount can't exceed the bill's subtotal of ₹${sumSubtotal.toFixed(2)}.`);
+      return;
+    }
+
+    setApplyingDiscount(true);
+    try {
+      let allocated = 0;
+      for (let i = 0; i < activeLines.length; i++) {
+        const isLast = i === activeLines.length - 1;
+        const share = isLast
+          ? Math.round((totalDiscount - allocated) * 100) / 100
+          : Math.round(totalDiscount * (lineSubtotals[i] / sumSubtotal) * 100) / 100;
+        allocated += share;
+
+        const res = await fetch(`/api/bills/${bill.id}/lines/${activeLines[i].id}/discount`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            discountApplied: share,
+            discountReasonCodeId: billDiscountReasonCodeId,
+          }),
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => null);
+          toast.error(
+            body?.error?.message ?? `Failed to apply discount to ${activeLines[i].productName}.`,
+          );
+          return;
+        }
+      }
+      toast.success("Discount applied to the bill.");
+      setBillDiscountAmount("");
+      await refetchBill(bill.id);
+    } finally {
+      setApplyingDiscount(false);
     }
   }
 
@@ -571,6 +631,37 @@ export default function BillingPage() {
               <span className="text-muted-foreground">Discount</span>
               <span>₹{money(bill.discountTotal)}</span>
             </div>
+
+            <div className="grid grid-cols-[1fr_1fr_auto] items-end gap-2 py-2">
+              <div className="space-y-1">
+                <Label className="text-xs">Discount whole bill</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={billDiscountAmount}
+                  onChange={(e) => setBillDiscountAmount(e.target.value)}
+                  placeholder="0.00"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Reason</Label>
+                <SearchableSelect
+                  options={discountReasons}
+                  value={billDiscountReasonCodeId}
+                  onChange={setBillDiscountReasonCodeId}
+                  placeholder="Select reason…"
+                />
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={applyBillDiscount}
+                disabled={applyingDiscount}
+              >
+                {applyingDiscount ? "Applying…" : "Apply"}
+              </Button>
+            </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Tax</span>
               <span>₹{money(bill.taxTotal)}</span>
@@ -611,18 +702,12 @@ export default function BillingPage() {
             </div>
             <div className="space-y-1.5">
               <Label>Amount</Label>
-              <Input
-                type="number"
-                min={0}
-                value={paymentAmount}
-                onChange={(e) => setPaymentAmount(e.target.value)}
-                placeholder={remaining.toFixed(2)}
-              />
+              <Input type="text" value={`₹${remaining.toFixed(2)}`} readOnly disabled />
             </div>
             <Button
               variant="outline"
               onClick={recordPayment}
-              disabled={paying || !paymentMethodId || !paymentAmount}
+              disabled={paying || !paymentMethodId || remaining <= 0}
             >
               {paying ? "Recording…" : "Record payment"}
             </Button>

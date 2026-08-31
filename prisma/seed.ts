@@ -105,6 +105,21 @@ async function main() {
     }
   }
 
+  console.log("Seeding payment methods…");
+  const PAYMENT_METHODS = [{ name: "Cash", type: "cash", requiresReference: false }] as const;
+  for (const method of PAYMENT_METHODS) {
+    const existing = await db.paymentMethod.findFirst({ where: { name: method.name } });
+    if (!existing) {
+      await db.paymentMethod.create({
+        data: {
+          name: method.name,
+          type: method.type as never,
+          requiresReference: method.requiresReference,
+        },
+      });
+    }
+  }
+
   console.log("Seeding roles + RBAC rights…");
   const roleIds: Record<string, string> = {};
   for (const roleDef of ROLE_SEED_DATA) {
