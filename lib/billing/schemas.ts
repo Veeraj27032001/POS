@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import {
   emailSchema,
+  isoDateOnlySchema,
   opaqueIdSchema,
   optionalPhoneSchema,
   optionalString,
@@ -12,12 +13,14 @@ export const billTypeSchema = z.enum(["cash_bill", "credit_bill", "online_bill"]
 
 export const billCreateSchema = z.object({
   billType: billTypeSchema,
+  billDate: isoDateOnlySchema,
   terminalId: opaqueIdSchema,
   customerId: opaqueIdSchema.optional().nullable(),
 });
 
 export const billAttachCustomerSchema = z.object({
-  customerId: opaqueIdSchema.nullable(),
+  customerId: opaqueIdSchema.optional().nullable(),
+  billDate: isoDateOnlySchema.optional(),
 });
 
 export const billLineAllocationSchema = z.object({

@@ -1234,6 +1234,7 @@ model Bill {
   financialYearId      String        @map("financial_year_id")
   financialYear        FinancialYear @relation(fields: [financialYearId], references: [id])
   billType             BillType      @map("bill_type")
+  billDate             DateTime      @map("bill_date") @db.Date
   storeId              String        @map("store_id")
   store                Store         @relation(fields: [storeId], references: [id])
   terminalId           String        @map("terminal_id")

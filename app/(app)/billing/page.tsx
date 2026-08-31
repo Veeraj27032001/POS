@@ -78,6 +78,7 @@ interface PreviewLine {
 interface PreviewTotals {
   lines: PreviewLine[];
   subtotal: number;
+  lineDiscountTotal: number;
   discountTotal: number;
   taxTotal: number;
   grandTotal: number;
@@ -131,6 +132,7 @@ function draftFrom(c: Partial<CustomerRecord> | null): CustomerDraft {
 const emptyPreview: PreviewTotals = {
   lines: [],
   subtotal: 0,
+  lineDiscountTotal: 0,
   discountTotal: 0,
   taxTotal: 0,
   grandTotal: 0,
@@ -151,6 +153,8 @@ export default function BillingPage() {
   const currencySymbol = useStoreCurrencySymbol();
 
   const [billType, setBillType] = useState<"cash_bill" | "credit_bill">("cash_bill");
+  const [billDate, setBillDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [syncedBillDate, setSyncedBillDate] = useState<string | null>(null);
   const [terminalId, setTerminalId] = useState<string | null>(null);
   const [started, setStarted] = useState(false);
   // True from first render whenever the URL already carries ?billId= — hides
@@ -253,6 +257,9 @@ export default function BillingPage() {
     setBillStatus(b.status === "held" ? "held" : "draft");
     setSavedBillId(b.id);
     setSavedDocumentNumber(b.documentNumber);
+    const loadedBillDate = String(b.billDate).slice(0, 10);
+    setBillDate(loadedBillDate);
+    setSyncedBillDate(loadedBillDate);
     setCartLines(
       (b.lines as Array<Record<string, unknown>>)
         .filter((l) => l.status === "active")
@@ -512,6 +519,11 @@ export default function BillingPage() {
 
   // The only place this reaches the server — sends only what changed.
   async function syncCart(): Promise<string | null> {
+    if (!billDate) {
+      toast.error("Enter a bill date.");
+      return null;
+    }
+
     let billId = savedBillId;
     if (!billId) {
       if (!terminalId) {
@@ -521,7 +533,7 @@ export default function BillingPage() {
       const res = await fetch("/api/bills", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ billType, terminalId }),
+        body: JSON.stringify({ billType, billDate, terminalId }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
@@ -533,6 +545,19 @@ export default function BillingPage() {
       setSavedBillId(created.id);
       setSavedDocumentNumber(created.documentNumber);
       setBillStatus("draft");
+      setSyncedBillDate(billDate);
+    } else if (billDate !== syncedBillDate) {
+      const res = await fetch(`/api/bills/${billId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ billDate }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        toast.error(body?.error?.message ?? "Failed to update the bill date.");
+        return null;
+      }
+      setSyncedBillDate(billDate);
     }
 
     for (const lineId of removedServerLineIds) {
@@ -681,6 +706,8 @@ export default function BillingPage() {
     setSavedBillId(null);
     setSavedDocumentNumber(null);
     setBillStatus(null);
+    setBillDate(new Date().toISOString().slice(0, 10));
+    setSyncedBillDate(null);
     setPreview(emptyPreview);
     setStarted(false);
   }
@@ -800,6 +827,7 @@ export default function BillingPage() {
     .filter((p) => p.status === "success")
     .reduce((s, p) => s + Number(p.amount), 0);
   const remaining = Math.max(0, preview.grandTotal - totalPaid);
+  const maxOverallDiscount = Math.max(0, preview.subtotal - preview.lineDiscountTotal);
   const customerSummary = selectedCustomerId
     ? (customers.find((c) => c.value === selectedCustomerId)?.label ?? null)
     : customerDraft.name || null;
@@ -995,6 +1023,18 @@ export default function BillingPage() {
       </div>
 
       <Card>
+        <CardContent className="pt-6">
+          <div className="max-w-xs space-y-1.5">
+            <Label>
+              Bill date
+              <RequiredMark />
+            </Label>
+            <Input type="date" value={billDate} onChange={(e) => setBillDate(e.target.value)} />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
         <CardHeader>
           <CardTitle className="text-base">Customer</CardTitle>
         </CardHeader>
@@ -1135,6 +1175,8 @@ export default function BillingPage() {
                   <EditableLineValue
                     value={line.discountApplied}
                     min={0}
+                    max={line.price * line.quantity}
+                    maxMessage={`Can't exceed ${currencySymbol}${money(line.price * line.quantity)}.`}
                     onCommit={(next) => updateLineDiscount(line.productId, next)}
                   />
                 </TableCell>
@@ -1194,6 +1236,12 @@ export default function BillingPage() {
                   onChange={(e) => setOverallDiscount(e.target.value)}
                   placeholder="0.00"
                 />
+                {Number(overallDiscount) > maxOverallDiscount && (
+                  <div className="text-warning text-xs">
+                    Cannot exceed {currencySymbol}
+                    {money(maxOverallDiscount)}.
+                  </div>
+                )}
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Reason</Label>

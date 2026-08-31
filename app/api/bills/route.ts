@@ -3,6 +3,7 @@ import { hasPermission } from "@/lib/auth/rbac";
 import { asAppSession } from "@/lib/auth/types";
 import { billCreateSchema } from "@/lib/billing/schemas";
 import { unscoped } from "@/lib/db";
+import { dateOnlyToUtcMidnight, toDateOnly } from "@/lib/datetime/dateOnly";
 import { allocateDocumentNumber } from "@/lib/numbering/allocateDocumentNumber";
 import { formatTempBillNumber } from "@/lib/numbering/formatTempBillNumber";
 import { writeAuditLog } from "@/lib/security/audit";
@@ -109,9 +110,10 @@ export async function POST(request: Request) {
         storeId: session.user.storeId!,
         financialYearId: session.user.financialYearId!,
       });
+      const financialYearLabel = allocated.documentNumber.split("/")[1];
       const finalDocumentNumber =
         data.billType === "cash_bill" || data.billType === "credit_bill"
-          ? formatTempBillNumber(data.billType, allocated.number, "draft")
+          ? formatTempBillNumber(data.billType, allocated.number, "draft", financialYearLabel)
           : allocated.documentNumber;
 
       return tx.bill.create({
@@ -119,6 +121,7 @@ export async function POST(request: Request) {
           documentNumber: finalDocumentNumber,
           financialYearId: session.user.financialYearId!,
           billType: data.billType,
+          billDate: dateOnlyToUtcMidnight(toDateOnly(data.billDate)),
           storeId: session.user.storeId!,
           terminalId: data.terminalId,
           cashierUserId: session.user.id,

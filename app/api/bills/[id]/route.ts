@@ -3,6 +3,7 @@ import { hasPermission } from "@/lib/auth/rbac";
 import { asAppSession } from "@/lib/auth/types";
 import { billAttachCustomerSchema } from "@/lib/billing/schemas";
 import { unscoped } from "@/lib/db";
+import { dateOnlyToUtcMidnight, toDateOnly } from "@/lib/datetime/dateOnly";
 import { writeAuditLog } from "@/lib/security/audit";
 import { apiErrorResponse, parseJsonOrRespond } from "@/lib/validation/response";
 import { withStoreContext } from "@/middleware/scope";
@@ -71,33 +72,38 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (bill.status !== "draft" && bill.status !== "held") {
       return apiErrorResponse("bad_request", `Can't update a ${bill.status} bill.`, 400);
     }
-    if (bill.billType === "credit_bill" && data.customerId === null) {
-      return apiErrorResponse("bad_request", "A Credit Bill requires a customer.", 400);
+
+    const updates: Record<string, unknown> = {};
+
+    if (data.customerId !== undefined) {
+      if (bill.billType === "credit_bill" && data.customerId === null) {
+        return apiErrorResponse("bad_request", "A Credit Bill requires a customer.", 400);
+      }
+      if (data.customerId) {
+        const customer = await db.customer.findUnique({ where: { id: data.customerId } });
+        if (!customer) {
+          return apiErrorResponse("bad_request", "Customer not found.", 400);
+        }
+      }
+      updates.customerId = data.customerId;
+      if (data.customerId) {
+        updates.customerName = null;
+        updates.customerPhone = null;
+        updates.customerEmail = null;
+        updates.customerAddress = null;
+        updates.customerCountryId = null;
+        updates.customerStateId = null;
+        updates.customerPincode = null;
+      }
     }
 
-    if (data.customerId) {
-      const customer = await db.customer.findUnique({ where: { id: data.customerId } });
-      if (!customer) {
-        return apiErrorResponse("bad_request", "Customer not found.", 400);
-      }
+    if (data.billDate !== undefined) {
+      updates.billDate = dateOnlyToUtcMidnight(toDateOnly(data.billDate));
     }
 
     const updated = await db.bill.update({
       where: { id },
-      data: {
-        customerId: data.customerId,
-        ...(data.customerId
-          ? {
-              customerName: null,
-              customerPhone: null,
-              customerEmail: null,
-              customerAddress: null,
-              customerCountryId: null,
-              customerStateId: null,
-              customerPincode: null,
-            }
-          : {}),
-      },
+      data: updates,
       include: { customer: true },
     });
 
