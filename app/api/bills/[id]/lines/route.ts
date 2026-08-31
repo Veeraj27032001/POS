@@ -12,8 +12,6 @@ import { writeAuditLog } from "@/lib/security/audit";
 import { apiErrorResponse, parseJsonOrRespond } from "@/lib/validation/response";
 import { withStoreContext } from "@/middleware/scope";
 
-class ValidationError extends Error {}
-
 // Scan-to-add: exact-match on a productId already resolved client-side by
 // barcode or search — adds a new line at quantity 1, or increments the
 // existing active line for that product by 1 (step5 §7).
@@ -81,70 +79,66 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     });
     const lineTotal = lineSubtotal + tax.taxAmount;
 
-    try {
-      const result = await db.$transaction(async (tx) => {
-        const allocResult = product.stockTracked
-          ? await resolveAllocations(tx, {
-              storeId: bill.storeId,
-              quantity: newQuantity,
-              requested: data.allocations,
-            })
-          : { allocations: [] };
-        if ("error" in allocResult) throw new ValidationError(allocResult.error);
-
-        const line = existingLine
-          ? await tx.billLine.update({
-              where: { id: existingLine.id },
-              data: {
-                quantity: newQuantity,
-                unitPrice: product.price,
-                taxBreakdown: tax as never,
-                lineTotal,
-              },
-            })
-          : await tx.billLine.create({
-              data: {
-                billId: id,
-                productId: product.id,
-                productName: product.name,
-                productBarcode: product.systemBarcode,
-                quantity: newQuantity,
-                unitPrice: product.price,
-                taxBreakdown: tax as never,
-                lineTotal,
-              },
-            });
-
-        if (product.stockTracked) {
-          await replaceBillLineAllocations(tx, {
-            billLineId: line.id,
-            product,
-            storeId: bill.storeId,
-            financialYearId: bill.financialYearId,
-            userId: session.user.id,
-            allocations: allocResult.allocations,
-          });
-        }
-
-        const updatedBill = await recomputeBillTotals(tx, id);
-        return { line, bill: updatedBill };
-      });
-
-      await writeAuditLog({
-        userId: session.user.id,
-        storeId: session.user.storeId,
-        action: existingLine ? "update" : "create",
-        entityType: "bill_line",
-        entityId: result.line.id,
-        afterData: result.line,
-      });
-
-      return Response.json(result, { status: 201 });
-    } catch (error) {
-      if (error instanceof ValidationError) {
-        return apiErrorResponse("bad_request", error.message, 400);
-      }
-      throw error;
+    const allocResult = product.stockTracked
+      ? await resolveAllocations({
+          storeId: bill.storeId,
+          productId: product.id,
+          quantity: newQuantity,
+          requested: data.allocations,
+        })
+      : { allocations: [] };
+    if ("error" in allocResult) {
+      return apiErrorResponse("bad_request", allocResult.error, 400);
     }
+
+    const result = await db.$transaction(async (tx) => {
+      const line = existingLine
+        ? await tx.billLine.update({
+            where: { id: existingLine.id },
+            data: {
+              quantity: newQuantity,
+              unitPrice: product.price,
+              taxBreakdown: tax as never,
+              lineTotal,
+            },
+          })
+        : await tx.billLine.create({
+            data: {
+              billId: id,
+              productId: product.id,
+              productName: product.name,
+              productBarcode: product.systemBarcode,
+              quantity: newQuantity,
+              unitPrice: product.price,
+              taxBreakdown: tax as never,
+              lineTotal,
+            },
+          });
+
+      if (product.stockTracked) {
+        await replaceBillLineAllocations(tx, {
+          billLineId: line.id,
+          product,
+          storeId: bill.storeId,
+          financialYearId: bill.financialYearId,
+          userId: session.user.id,
+          allocations: allocResult.allocations,
+        });
+      }
+
+      const updatedBill = await recomputeBillTotals(tx, id);
+      return { line, bill: updatedBill };
+    });
+
+    await writeAuditLog({
+      userId: session.user.id,
+      storeId: session.user.storeId,
+      action: existingLine ? "update" : "create",
+      entityType: "bill_line",
+      entityId: result.line.id,
+      afterData: result.line,
+    });
+
+    return Response.json(result, { status: 201 });
   });
 }

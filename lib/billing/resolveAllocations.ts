@@ -1,19 +1,25 @@
-import type { Prisma } from "@/generated/prisma/client";
+import { unscoped } from "@/lib/db";
 
+import { autoAllocateWarehouses } from "./autoAllocateWarehouses";
 import type { BillLineAllocationInput } from "./allocateBillLineStock";
 
 export type ResolveAllocationsResult =
   { allocations: BillLineAllocationInput[] } | { error: string };
 
 // With one warehouse in the store, the split is invisible — the whole
-// quantity allocates there automatically. With more than one, the cashier
-// has to say how the quantity splits, so an explicit `requested` array is
-// required and validated to sum to `quantity`.
-export async function resolveAllocations(
-  tx: Prisma.TransactionClient,
-  params: { storeId: string; quantity: number; requested?: BillLineAllocationInput[] },
-): Promise<ResolveAllocationsResult> {
-  const warehouses = await tx.warehouse.findMany({
+// quantity allocates there automatically. With more than one and no
+// explicit split from the cashier, autoAllocateWarehouses picks it
+// (oldest-stocked warehouse first, preferring a single warehouse over a
+// split). An explicit `requested` array — the cashier's manual override —
+// is validated to sum to `quantity` and always wins over the automatic pick.
+export async function resolveAllocations(params: {
+  storeId: string;
+  productId: string;
+  quantity: number;
+  requested?: BillLineAllocationInput[];
+}): Promise<ResolveAllocationsResult> {
+  const db = unscoped();
+  const warehouses = await db.warehouse.findMany({
     where: { storeId: params.storeId, isActive: true, isDeleted: false },
     select: { id: true },
   });
@@ -41,8 +47,9 @@ export async function resolveAllocations(
     return { allocations: [{ warehouseId: warehouses[0].id, quantity: params.quantity }] };
   }
 
-  return {
-    error:
-      "This store has more than one warehouse — choose how to split this quantity across them.",
-  };
+  return autoAllocateWarehouses({
+    storeId: params.storeId,
+    productId: params.productId,
+    quantity: params.quantity,
+  });
 }

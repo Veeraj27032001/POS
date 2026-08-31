@@ -16,8 +16,6 @@ import { writeAuditLog } from "@/lib/security/audit";
 import { apiErrorResponse, parseJsonOrRespond } from "@/lib/validation/response";
 import { withStoreContext } from "@/middleware/scope";
 
-class ValidationError extends Error {}
-
 // Manual quantity override — the bulk-entry escape hatch alongside repeated
 // scanning (step5 §7.6).
 export async function PATCH(
@@ -71,58 +69,54 @@ export async function PATCH(
     });
     const lineTotal = lineSubtotal + tax.taxAmount;
 
-    try {
-      const result = await db.$transaction(async (tx) => {
-        const allocResult = product.stockTracked
-          ? await resolveAllocations(tx, {
-              storeId: line.bill.storeId,
-              quantity: data.quantity,
-              requested: data.allocations,
-            })
-          : { allocations: [] };
-        if ("error" in allocResult) throw new ValidationError(allocResult.error);
-
-        const updated = await tx.billLine.update({
-          where: { id: lineId },
-          data: {
-            quantity: data.quantity,
-            taxBreakdown: tax as never,
-            lineTotal,
-          },
-        });
-
-        if (product.stockTracked) {
-          await replaceBillLineAllocations(tx, {
-            billLineId: lineId,
-            product,
-            storeId: line.bill.storeId,
-            financialYearId: line.bill.financialYearId,
-            userId: session.user.id,
-            allocations: allocResult.allocations,
-          });
-        }
-
-        const updatedBill = await recomputeBillTotals(tx, id);
-        return { line: updated, bill: updatedBill };
-      });
-
-      await writeAuditLog({
-        userId: session.user.id,
-        storeId: session.user.storeId,
-        action: "update",
-        entityType: "bill_line",
-        entityId: lineId,
-        beforeData: line,
-        afterData: result.line,
-      });
-
-      return Response.json(result);
-    } catch (error) {
-      if (error instanceof ValidationError) {
-        return apiErrorResponse("bad_request", error.message, 400);
-      }
-      throw error;
+    const allocResult = product.stockTracked
+      ? await resolveAllocations({
+          storeId: line.bill.storeId,
+          productId: product.id,
+          quantity: data.quantity,
+          requested: data.allocations,
+        })
+      : { allocations: [] };
+    if ("error" in allocResult) {
+      return apiErrorResponse("bad_request", allocResult.error, 400);
     }
+
+    const result = await db.$transaction(async (tx) => {
+      const updated = await tx.billLine.update({
+        where: { id: lineId },
+        data: {
+          quantity: data.quantity,
+          taxBreakdown: tax as never,
+          lineTotal,
+        },
+      });
+
+      if (product.stockTracked) {
+        await replaceBillLineAllocations(tx, {
+          billLineId: lineId,
+          product,
+          storeId: line.bill.storeId,
+          financialYearId: line.bill.financialYearId,
+          userId: session.user.id,
+          allocations: allocResult.allocations,
+        });
+      }
+
+      const updatedBill = await recomputeBillTotals(tx, id);
+      return { line: updated, bill: updatedBill };
+    });
+
+    await writeAuditLog({
+      userId: session.user.id,
+      storeId: session.user.storeId,
+      action: "update",
+      entityType: "bill_line",
+      entityId: lineId,
+      beforeData: line,
+      afterData: result.line,
+    });
+
+    return Response.json(result);
   });
 }
 
