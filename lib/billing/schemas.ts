@@ -27,6 +27,7 @@ export const billLineAllocationSchema = z.object({
 
 export const billLineAddSchema = z.object({
   productId: opaqueIdSchema,
+  quantity: positiveInt.optional(),
   allocations: z.array(billLineAllocationSchema).optional(),
 });
 
@@ -58,6 +59,24 @@ export const billCustomerDetailsSchema = z.object({
   countryId: opaqueIdSchema.optional().nullable(),
   stateId: opaqueIdSchema.optional().nullable(),
   pincode: optionalString(20),
+});
+
+// Preview: computes totals (including real GST tax rules) for a cart that
+// hasn't been saved anywhere yet — a pure read, no bill/lines/reservation
+// created. Line items are keyed by productId directly rather than a real
+// line id, since none exists until the cart is actually submitted.
+export const billPreviewSchema = z.object({
+  lines: z
+    .array(
+      z.object({
+        productId: opaqueIdSchema,
+        quantity: positiveInt,
+        discountApplied: z.coerce.number().min(0, "Must be zero or greater.").default(0),
+      }),
+    )
+    .default([]),
+  overallDiscount: z.coerce.number().min(0, "Must be zero or greater.").default(0),
+  customerStateId: opaqueIdSchema.optional().nullable(),
 });
 
 export const billPaymentCreateSchema = z.object({

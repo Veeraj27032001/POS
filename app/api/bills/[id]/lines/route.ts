@@ -13,9 +13,12 @@ import { writeAuditLog } from "@/lib/security/audit";
 import { apiErrorResponse, parseJsonOrRespond } from "@/lib/validation/response";
 import { withStoreContext } from "@/middleware/scope";
 
-// Scan-to-add: exact-match on a productId already resolved client-side by
-// barcode or search — adds a new line at quantity 1, or increments the
-// existing active line for that product by 1 (step5 §7).
+// Adds a product as a bill line, at the given quantity (defaulting to 1) —
+// or, if that product already has an active line on this bill, increments
+// it by that amount. The billing screen's cart is built entirely client
+// side now, so in practice this is called once per product, with the
+// cart's full accumulated quantity, when the cashier explicitly saves
+// (Save draft/Hold/Create bill) rather than once per scan.
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = asAppSession(await auth());
   if (!session?.user) {
@@ -56,7 +59,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       where: { billId: id, productId: data.productId, status: "active" },
     });
     const existingQuantity = existingLine?.quantity ?? 0;
-    const newQuantity = existingQuantity + 1;
+    const newQuantity = existingQuantity + (data.quantity ?? 1);
 
     const perWarehouse = product.stockTracked
       ? await getWarehouseAvailability(bill.storeId, data.productId)
@@ -149,6 +152,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       afterData: result.line,
     });
 
-    return Response.json(result, { status: 201 });
+    return Response.json(
+      {
+        ...result,
+        warning:
+          "fellBack" in allocResult && allocResult.fellBack
+            ? "The chosen warehouse split was no longer available — reallocated automatically."
+            : undefined,
+      },
+      { status: 201 },
+    );
   });
 }

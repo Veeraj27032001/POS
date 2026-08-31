@@ -116,3 +116,45 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return Response.json(updated);
   });
 }
+
+// Discards a bill that's still a draft — the cashier's cart is built
+// entirely client-side and only reaches the server via an explicit Save
+// draft/Hold/Create action, so a "draft" bill here means one of those was
+// used at least once and the cashier has now decided to abandon it. Once
+// held or completed it's no longer discardable this way.
+export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const session = asAppSession(await auth());
+  if (!session?.user) {
+    return apiErrorResponse("unauthorized", "You must be signed in.", 401);
+  }
+  if (!hasPermission(session.user.permissions, "billing", "update")) {
+    return apiErrorResponse("forbidden", "You don't have permission to update bills.", 403);
+  }
+
+  const { id } = await params;
+
+  return withStoreContext(async () => {
+    const db = unscoped();
+    const bill = await db.bill.findUnique({ where: { id } });
+    if (!bill) return apiErrorResponse("not_found", "Bill not found.", 404);
+    if (session.user.storeId && bill.storeId !== session.user.storeId) {
+      return apiErrorResponse("not_found", "Bill not found.", 404);
+    }
+    if (bill.status !== "draft") {
+      return apiErrorResponse("bad_request", `Can't discard a ${bill.status} bill.`, 400);
+    }
+
+    await db.bill.delete({ where: { id } });
+
+    await writeAuditLog({
+      userId: session.user.id,
+      storeId: session.user.storeId,
+      action: "delete",
+      entityType: "bill",
+      entityId: id,
+      beforeData: bill,
+    });
+
+    return Response.json({ ok: true });
+  });
+}

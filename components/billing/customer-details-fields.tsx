@@ -1,27 +1,11 @@
 "use client";
 
-import { Loader2Icon } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
-
 import { SearchableSelect, type SearchableSelectOption } from "@/components/searchable-select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 
-interface CustomerInfo {
-  id: string | null;
-  name: string | null;
-  phone: string | null;
-  email: string | null;
-  address: string | null;
-  countryId: string | null;
-  stateId: string | null;
-  pincode: string | null;
-}
-
-interface Draft {
+export interface CustomerDraft {
   name: string;
   phone: string;
   email: string;
@@ -31,109 +15,55 @@ interface Draft {
   pincode: string;
 }
 
-function draftFromCustomer(customer: CustomerInfo | null): Draft {
-  return {
-    name: customer?.name ?? "",
-    phone: customer?.phone ?? "",
-    email: customer?.email ?? "",
-    address: customer?.address ?? "",
-    countryId: customer?.countryId ?? null,
-    stateId: customer?.stateId ?? null,
-    pincode: customer?.pincode ?? "",
-  };
-}
+export const emptyCustomerDraft: CustomerDraft = {
+  name: "",
+  phone: "",
+  email: "",
+  address: "",
+  countryId: null,
+  stateId: null,
+  pincode: "",
+};
 
 // Billing detail fields, not a "create customer" form — always visible, no
-// submit button, no foreign key to the Customers master. Typing auto-saves
-// (debounced) as plain fields on the bill itself. Picking someone from the
-// "Existing customer" dropdown is the only way to get a real linked
-// customer — it fills these same fields from that record; editing a field
-// afterward detaches the link and reverts to plain, unlinked entry (see
-// app/api/bills/[id]/customer-details/route.ts).
+// submit button, no network calls of its own, and no foreign key to the
+// Customers master. Purely controlled: the parent owns the draft and the
+// selected-customer id, and decides when (if ever) to actually save any of
+// it — nothing here saves anything until the bill itself is saved. Picking
+// someone from the "Existing customer" dropdown is the only way this ends
+// up FK-linked when the parent does save; editing a field afterward is the
+// parent's job to treat as detaching back to plain, unlinked entry.
 export function CustomerDetailsFields({
-  billId,
-  customer,
+  selectedCustomerId,
+  draft,
   customers,
   onSelectExisting,
-  onUpdated,
+  onChange,
 }: {
-  billId: string;
-  customer: CustomerInfo | null;
+  selectedCustomerId: string | null;
+  draft: CustomerDraft;
   customers: SearchableSelectOption[];
   onSelectExisting: (customerId: string) => void;
-  onUpdated: () => void;
+  onChange: (draft: CustomerDraft) => void;
 }) {
   const countries = useOptionsList("countries", "name");
-
-  const [draft, setDraft] = useState<Draft>(() => draftFromCustomer(customer));
   const states = useOptionsList(
     "states",
     "name",
     draft.countryId ? `countryId=${draft.countryId}` : undefined,
   );
 
-  const syncedCustomerId = useRef<string | null>(customer?.id ?? null);
-  const lastSentPayload = useRef(JSON.stringify(draftFromCustomer(customer)));
-  const [syncing, setSyncing] = useState(false);
-
-  useEffect(() => {
-    if (customer?.id === syncedCustomerId.current) return;
-    syncedCustomerId.current = customer?.id ?? null;
-    const next = draftFromCustomer(customer);
-    setDraft(next);
-    lastSentPayload.current = JSON.stringify(next);
-  }, [customer]);
-
-  const debouncedDraft = useDebouncedValue(draft, 600);
-  useEffect(() => {
-    const payload = JSON.stringify(debouncedDraft);
-    if (payload === lastSentPayload.current) return;
-    lastSentPayload.current = payload;
-    void sync(debouncedDraft);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedDraft]);
-
-  async function sync(values: Draft) {
-    setSyncing(true);
-    try {
-      const res = await fetch(`/api/bills/${billId}/customer-details`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: values.name || null,
-          phone: values.phone || null,
-          email: values.email || null,
-          address: values.address || null,
-          countryId: values.countryId,
-          stateId: values.stateId,
-          pincode: values.pincode || null,
-        }),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        toast.error(body?.error?.message ?? "Failed to update customer details.");
-        return;
-      }
-      onUpdated();
-    } finally {
-      setSyncing(false);
-    }
-  }
-
-  function set<K extends keyof Draft>(key: K, value: Draft[K]) {
-    setDraft((d) => ({ ...d, [key]: value }));
+  function set<K extends keyof CustomerDraft>(key: K, value: CustomerDraft[K]) {
+    onChange({ ...draft, [key]: value });
   }
 
   return (
     <div className="space-y-3">
       <div className="space-y-1.5">
-        <div className="flex items-center gap-1.5">
-          <Label>Existing customer</Label>
-          {syncing && <Loader2Icon className="text-muted-foreground size-3.5 animate-spin" />}
-        </div>
+        <Label>Existing customer</Label>
         <SearchableSelect
           options={customers}
-          value={customer?.id ?? null}
+          value={selectedCustomerId}
           onChange={(v) => {
             if (v) onSelectExisting(v);
           }}
@@ -162,7 +92,7 @@ export function CustomerDetailsFields({
           <SearchableSelect
             options={countries}
             value={draft.countryId}
-            onChange={(v) => setDraft((d) => ({ ...d, countryId: v, stateId: null }))}
+            onChange={(v) => onChange({ ...draft, countryId: v, stateId: null })}
             placeholder="Select country…"
           />
         </div>
