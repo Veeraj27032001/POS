@@ -34,6 +34,11 @@ export const billLineDiscountSchema = z.object({
   discountReasonCodeId: opaqueIdSchema.optional().nullable(),
 });
 
+export const billDiscountSchema = z.object({
+  overallDiscount: z.coerce.number().min(0, "Must be zero or greater."),
+  discountReasonCodeId: opaqueIdSchema.optional().nullable(),
+});
+
 export const billPaymentCreateSchema = z.object({
   paymentMethodId: opaqueIdSchema,
   amount: z.coerce.number().positive("Must be a positive amount."),

@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { EditableLineValue } from "@/components/billing/editable-line-value";
 import { LineWarehouseSplit } from "@/components/billing/line-warehouse-split";
 import { NewCustomerInlineForm } from "@/components/billing/new-customer-inline-form";
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
@@ -59,9 +60,10 @@ interface BillDetail {
   documentNumber: string;
   billType: string;
   status: string;
-  customer: { id: string; name: string; phone: string } | null;
+  customer: { id: string; name: string; phone: string | null } | null;
   subtotal: string;
   discountTotal: string;
+  overallDiscount: string;
   taxTotal: string;
   grandTotal: string;
   lines: BillLineRow[];
@@ -148,6 +150,14 @@ export default function BillingPage() {
     if (bill && bill.status === "draft") scanInputRef.current?.focus();
   }, [bill]);
 
+  // Pre-fill the whole-bill discount input from what's already on the bill
+  // when switching to it — but only on that switch, not on every refetch,
+  // so it doesn't fight with the cashier's own in-progress typing.
+  useEffect(() => {
+    if (bill) setBillDiscountAmount(Number(bill.overallDiscount) > 0 ? bill.overallDiscount : "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bill?.id]);
+
   async function startBill() {
     if (!terminalId) {
       toast.error("Select a terminal.");
@@ -229,6 +239,52 @@ export default function BillingPage() {
     await refetchBill(bill.id);
   }
 
+  async function attachCustomer(newCustomerId: string | null) {
+    if (!bill) return;
+    const res = await fetch(`/api/bills/${bill.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ customerId: newCustomerId }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      toast.error(body?.error?.message ?? "Failed to update customer.");
+      return;
+    }
+    toast.success("Customer updated.");
+    await refetchBill(bill.id);
+  }
+
+  async function updateLineQuantity(lineId: string, quantity: number) {
+    if (!bill) return;
+    const res = await fetch(`/api/bills/${bill.id}/lines/${lineId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ quantity }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      toast.error(body?.error?.message ?? "Failed to update quantity.");
+      return;
+    }
+    await refetchBill(bill.id);
+  }
+
+  async function updateLineDiscount(lineId: string, discountApplied: number) {
+    if (!bill) return;
+    const res = await fetch(`/api/bills/${bill.id}/lines/${lineId}/discount`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ discountApplied }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      toast.error(body?.error?.message ?? "Failed to update discount.");
+      return;
+    }
+    await refetchBill(bill.id);
+  }
+
   async function recordPayment() {
     if (!bill || !paymentMethodId || remaining <= 0) return;
     setPaying(true);
@@ -252,8 +308,8 @@ export default function BillingPage() {
 
   async function applyBillDiscount() {
     if (!bill) return;
-    const totalDiscount = Number(billDiscountAmount);
-    if (!billDiscountAmount || totalDiscount <= 0) {
+    const overallDiscount = Number(billDiscountAmount);
+    if (!billDiscountAmount || overallDiscount <= 0) {
       toast.error("Enter a discount amount.");
       return;
     }
@@ -262,38 +318,20 @@ export default function BillingPage() {
       return;
     }
 
-    const lineSubtotals = activeLines.map((l) => Number(l.unitPrice) * l.quantity);
-    const sumSubtotal = lineSubtotals.reduce((a, b) => a + b, 0);
-    if (totalDiscount > sumSubtotal) {
-      toast.error(`Discount can't exceed the bill's subtotal of ₹${sumSubtotal.toFixed(2)}.`);
-      return;
-    }
-
     setApplyingDiscount(true);
     try {
-      let allocated = 0;
-      for (let i = 0; i < activeLines.length; i++) {
-        const isLast = i === activeLines.length - 1;
-        const share = isLast
-          ? Math.round((totalDiscount - allocated) * 100) / 100
-          : Math.round(totalDiscount * (lineSubtotals[i] / sumSubtotal) * 100) / 100;
-        allocated += share;
-
-        const res = await fetch(`/api/bills/${bill.id}/lines/${activeLines[i].id}/discount`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            discountApplied: share,
-            discountReasonCodeId: billDiscountReasonCodeId,
-          }),
-        });
-        if (!res.ok) {
-          const body = await res.json().catch(() => null);
-          toast.error(
-            body?.error?.message ?? `Failed to apply discount to ${activeLines[i].productName}.`,
-          );
-          return;
-        }
+      const res = await fetch(`/api/bills/${bill.id}/discount`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          overallDiscount,
+          discountReasonCodeId: billDiscountReasonCodeId,
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        toast.error(body?.error?.message ?? "Failed to apply discount.");
+        return;
       }
       toast.success("Discount applied to the bill.");
       await refetchBill(bill.id);
@@ -532,11 +570,24 @@ export default function BillingPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">{bill.documentNumber}</h1>
-          <p className="text-muted-foreground text-sm">
-            {bill.customer ? `${bill.customer.name} — ${bill.customer.phone}` : "Walk-in customer"}
-            {" · "}
-            {bill.billType === "credit_bill" ? "Credit Bill" : "Cash Bill"}
-          </p>
+          <div className="text-muted-foreground flex items-center gap-1.5 text-sm">
+            <span>
+              {bill.customer
+                ? `${bill.customer.name}${bill.customer.phone ? ` — ${bill.customer.phone}` : ""}`
+                : "Walk-in customer"}
+            </span>
+            <span>·</span>
+            <span>{bill.billType === "credit_bill" ? "Credit Bill" : "Cash Bill"}</span>
+            {!showNewCustomerForm && bill.billType !== "credit_bill" && (
+              <button
+                type="button"
+                className="text-primary hover:underline"
+                onClick={() => setShowNewCustomerForm(true)}
+              >
+                {bill.customer ? "Change" : "Add customer"}
+              </button>
+            )}
+          </div>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={holdBill}>
@@ -549,6 +600,37 @@ export default function BillingPage() {
           )}
         </div>
       </div>
+
+      {showNewCustomerForm && (
+        <Card>
+          <CardContent className="space-y-3 pt-6">
+            <div className="space-y-1.5">
+              <Label>Existing customer</Label>
+              <SearchableSelect
+                options={customers}
+                value={customerId}
+                onChange={(v) => {
+                  setCustomerId(v);
+                  if (v) {
+                    void attachCustomer(v);
+                    setShowNewCustomerForm(false);
+                  }
+                }}
+                placeholder="Select customer…"
+              />
+            </div>
+            <NewCustomerInlineForm
+              storeId={session?.user.storeId ?? ""}
+              onCancel={() => setShowNewCustomerForm(false)}
+              onCreated={(created) => {
+                setNewCustomer(created);
+                void attachCustomer(created.id);
+                setShowNewCustomerForm(false);
+              }}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardContent className="space-y-2 pt-6">
@@ -621,10 +703,20 @@ export default function BillingPage() {
                     />
                   )}
                 </TableCell>
-                <TableCell>{line.quantity}</TableCell>
+                <TableCell>
+                  <EditableLineValue
+                    value={line.quantity}
+                    min={1}
+                    onCommit={(next) => void updateLineQuantity(line.id, next)}
+                  />
+                </TableCell>
                 <TableCell>₹{money(line.unitPrice)}</TableCell>
                 <TableCell>
-                  {line.discountApplied ? `₹${money(line.discountApplied)}` : "—"}
+                  <EditableLineValue
+                    value={Number(line.discountApplied ?? 0)}
+                    min={0}
+                    onCommit={(next) => void updateLineDiscount(line.id, next)}
+                  />
                 </TableCell>
                 <TableCell>₹{money(line.taxBreakdown?.taxAmount ?? 0)}</TableCell>
                 <TableCell>₹{money(line.lineTotal)}</TableCell>
