@@ -719,8 +719,10 @@ export default function BillingPage() {
         toast.error(body?.error?.message ?? "Failed to make draft.");
         return;
       }
+      const updated = (await res.json()) as { documentNumber: string };
       toast.success("Bill is a draft again — stock released.");
       setBillStatus("draft");
+      setSavedDocumentNumber(updated.documentNumber);
     } finally {
       setMakingDraft(false);
     }

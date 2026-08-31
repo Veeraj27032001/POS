@@ -190,6 +190,8 @@ model FinancialYear {
 enum SeriesType {
   cash_bill
   credit_bill
+  draft_cash_bill
+  draft_credit_bill
   stock_inward
   credit_note
   stock_damage

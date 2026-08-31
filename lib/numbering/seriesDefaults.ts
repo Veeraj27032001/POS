@@ -1,6 +1,8 @@
 export const SERIES_TYPES = [
   "cash_bill",
   "credit_bill",
+  "draft_cash_bill",
+  "draft_credit_bill",
   "stock_inward",
   "credit_note",
   "stock_damage",
@@ -24,6 +26,8 @@ export const SERIES_TYPES = [
 export const SERIES_PREFIXES: Record<(typeof SERIES_TYPES)[number], string> = {
   cash_bill: "CB",
   credit_bill: "CR",
+  draft_cash_bill: "DRFTCB",
+  draft_credit_bill: "DRFTCR",
   stock_inward: "SI",
   credit_note: "CN",
   stock_damage: "SD",

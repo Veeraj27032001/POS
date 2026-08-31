@@ -7,6 +7,7 @@ import {
 } from "@/lib/billing/allocateBillLineStock";
 import { getSelfBlockedByWarehouse } from "@/lib/billing/getSelfBlockedByWarehouse";
 import { unscoped } from "@/lib/db";
+import { swapTempBillNumberPrefix } from "@/lib/numbering/formatTempBillNumber";
 import { getStockLevels } from "@/lib/stock/getStockLevels";
 import { writeAuditLog } from "@/lib/security/audit";
 import { apiErrorResponse } from "@/lib/validation/response";
@@ -112,7 +113,11 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
 
       return tx.bill.update({
         where: { id },
-        data: { status: "held", heldAt: new Date() },
+        data: {
+          status: "held",
+          heldAt: new Date(),
+          documentNumber: swapTempBillNumberPrefix(bill.documentNumber, "held"),
+        },
       });
     });
 

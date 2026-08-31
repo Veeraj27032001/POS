@@ -3,6 +3,7 @@ import { hasPermission } from "@/lib/auth/rbac";
 import { asAppSession } from "@/lib/auth/types";
 import { releaseBillLineAllocations } from "@/lib/billing/allocateBillLineStock";
 import { unscoped } from "@/lib/db";
+import { swapTempBillNumberPrefix } from "@/lib/numbering/formatTempBillNumber";
 import { writeAuditLog } from "@/lib/security/audit";
 import { apiErrorResponse } from "@/lib/validation/response";
 import { withStoreContext } from "@/middleware/scope";
@@ -41,7 +42,13 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
       for (const line of activeLines) {
         await releaseBillLineAllocations(tx, line.id, session.user.id);
       }
-      return tx.bill.update({ where: { id }, data: { status: "draft" } });
+      return tx.bill.update({
+        where: { id },
+        data: {
+          status: "draft",
+          documentNumber: swapTempBillNumberPrefix(bill.documentNumber, "draft"),
+        },
+      });
     });
 
     await writeAuditLog({

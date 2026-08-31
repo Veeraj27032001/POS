@@ -4,6 +4,7 @@ import { asAppSession } from "@/lib/auth/types";
 import { billCreateSchema } from "@/lib/billing/schemas";
 import { unscoped } from "@/lib/db";
 import { allocateDocumentNumber } from "@/lib/numbering/allocateDocumentNumber";
+import { formatTempBillNumber } from "@/lib/numbering/formatTempBillNumber";
 import { writeAuditLog } from "@/lib/security/audit";
 import { apiErrorResponse, parseJsonOrRespond } from "@/lib/validation/response";
 import { withStoreContext } from "@/middleware/scope";
@@ -90,16 +91,32 @@ export async function POST(request: Request) {
       where: { terminalId: data.terminalId, cashierUserId: session.user.id, status: "open" },
     });
 
+    // A draft never touches the real cash_bill/credit_bill series — that's
+    // only allocated at Create bill (see complete/route.ts). Until then it
+    // gets a temp number from a separate series so nothing about the real
+    // numbering is consumed by a bill that might be discarded, stay held
+    // forever, or get cancelled.
+    const tempSeriesType =
+      data.billType === "cash_bill"
+        ? "draft_cash_bill"
+        : data.billType === "credit_bill"
+          ? "draft_credit_bill"
+          : data.billType;
+
     const result = await db.$transaction(async (tx) => {
-      const { documentNumber } = await allocateDocumentNumber(tx, {
-        seriesType: data.billType,
+      const allocated = await allocateDocumentNumber(tx, {
+        seriesType: tempSeriesType,
         storeId: session.user.storeId!,
         financialYearId: session.user.financialYearId!,
       });
+      const finalDocumentNumber =
+        data.billType === "cash_bill" || data.billType === "credit_bill"
+          ? formatTempBillNumber(data.billType, allocated.number, "draft")
+          : allocated.documentNumber;
 
       return tx.bill.create({
         data: {
-          documentNumber,
+          documentNumber: finalDocumentNumber,
           financialYearId: session.user.financialYearId!,
           billType: data.billType,
           storeId: session.user.storeId!,
