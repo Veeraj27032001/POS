@@ -3,6 +3,7 @@ import { hasPermission } from "@/lib/auth/rbac";
 import { asAppSession } from "@/lib/auth/types";
 import { replaceBillLineAllocations } from "@/lib/billing/allocateBillLineStock";
 import { getStoreWideAvailable } from "@/lib/billing/getStoreWideAvailable";
+import { getWarehouseAvailability } from "@/lib/billing/getWarehouseAvailability";
 import { recomputeBillTotals } from "@/lib/billing/recomputeBillTotals";
 import { resolveAllocations } from "@/lib/billing/resolveAllocations";
 import { resolveTax } from "@/lib/billing/resolveTax";
@@ -57,8 +58,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const existingQuantity = existingLine?.quantity ?? 0;
     const newQuantity = existingQuantity + 1;
 
+    const perWarehouse = product.stockTracked
+      ? await getWarehouseAvailability(bill.storeId, data.productId)
+      : [];
+
     if (product.stockTracked) {
-      const storeAvailable = await getStoreWideAvailable(bill.storeId, data.productId);
+      const storeAvailable = await getStoreWideAvailable(
+        bill.storeId,
+        data.productId,
+        perWarehouse,
+      );
       const resultingAvailable = storeAvailable + existingQuantity - newQuantity;
       if (resultingAvailable < 0) {
         return apiErrorResponse(
@@ -85,6 +94,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           productId: product.id,
           quantity: newQuantity,
           requested: data.allocations,
+          perWarehouse,
         })
       : { allocations: [] };
     if ("error" in allocResult) {

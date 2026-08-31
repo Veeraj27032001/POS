@@ -54,6 +54,10 @@ export function NewCustomerInlineForm({
       toast.error("Name is required.");
       return;
     }
+    if (!address.trim()) {
+      toast.error("Address is required.");
+      return;
+    }
     setSaving(true);
     try {
       const res = await fetch("/api/customers", {
@@ -107,7 +111,8 @@ export function NewCustomerInlineForm({
         </div>
         <div className="space-y-1.5">
           <Label>
-            Address <span className="text-muted-foreground font-normal">(optional)</span>
+            Address
+            <RequiredMark />
           </Label>
           <Input value={address} onChange={(e) => setAddress(e.target.value)} />
         </div>

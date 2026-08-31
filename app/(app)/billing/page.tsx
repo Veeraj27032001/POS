@@ -8,6 +8,7 @@ import { toast } from "sonner";
 
 import { LineWarehouseSplit } from "@/components/billing/line-warehouse-split";
 import { NewCustomerInlineForm } from "@/components/billing/new-customer-inline-form";
+import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 import { RequiredMark } from "@/components/required-mark";
 import { SearchableSelect } from "@/components/searchable-select";
 import { asAppSession } from "@/lib/auth/types";
@@ -176,10 +177,11 @@ export default function BillingPage() {
     }
   }
 
-  async function handleScanSubmit() {
-    const term = scanValue.trim();
-    if (!term || !bill) return;
-
+  async function searchProducts(term: string) {
+    if (!term || !bill) {
+      setProductMatches([]);
+      return;
+    }
     const res = await fetch(`/api/products?search=${encodeURIComponent(term)}&pageSize=10`);
     const body = (await res.json().catch(() => null)) as { data: ProductMatch[] } | null;
     const products = body?.data ?? [];
@@ -189,13 +191,14 @@ export default function BillingPage() {
       await addProduct(exact.id);
       return;
     }
-    if (products.length === 0) {
-      toast.error(`No product matches "${term}".`);
-      scanInputRef.current?.focus();
-      return;
-    }
     setProductMatches(products);
   }
+
+  const debouncedScanValue = useDebouncedValue(scanValue, 300);
+  useEffect(() => {
+    void searchProducts(debouncedScanValue.trim());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedScanValue]);
 
   async function addProduct(productId: string) {
     if (!bill) return;
@@ -254,10 +257,6 @@ export default function BillingPage() {
       toast.error("Enter a discount amount.");
       return;
     }
-    if (!billDiscountReasonCodeId) {
-      toast.error("Select a reason for the discount.");
-      return;
-    }
     if (activeLines.length === 0) {
       toast.error("Add items first.");
       return;
@@ -297,12 +296,19 @@ export default function BillingPage() {
         }
       }
       toast.success("Discount applied to the bill.");
-      setBillDiscountAmount("");
       await refetchBill(bill.id);
     } finally {
       setApplyingDiscount(false);
     }
   }
+
+  const debouncedBillDiscountAmount = useDebouncedValue(billDiscountAmount, 600);
+  useEffect(() => {
+    if (!bill) return;
+    if (!debouncedBillDiscountAmount || Number(debouncedBillDiscountAmount) <= 0) return;
+    void applyBillDiscount();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedBillDiscountAmount, billDiscountReasonCodeId]);
 
   async function holdBill() {
     if (!bill) return;
@@ -358,7 +364,7 @@ export default function BillingPage() {
 
   if (completedBill) {
     return (
-      <div className="max-w-lg space-y-4 p-8">
+      <div className="space-y-4 p-8">
         <Card>
           <CardHeader>
             <CardTitle className="text-xl">Bill completed</CardTitle>
@@ -389,7 +395,7 @@ export default function BillingPage() {
 
   if (heldDocumentNumber) {
     return (
-      <div className="max-w-lg space-y-4 p-8">
+      <div className="space-y-4 p-8">
         <Card>
           <CardHeader>
             <CardTitle className="text-xl">Bill held</CardTitle>
@@ -416,7 +422,7 @@ export default function BillingPage() {
 
   if (!bill) {
     return (
-      <div className="max-w-lg space-y-4 p-8">
+      <div className="space-y-4 p-8">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-semibold">Billing</h1>
           <Link
@@ -468,49 +474,48 @@ export default function BillingPage() {
               />
             </div>
 
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <Label>
-                  Customer
-                  {billType === "credit_bill" && <RequiredMark />}
-                  {billType === "cash_bill" && (
-                    <span className="text-muted-foreground ml-1 font-normal">(optional)</span>
+            {billType === "credit_bill" && (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label>
+                    Customer
+                    <RequiredMark />
+                  </Label>
+                  {!showNewCustomerForm && (
+                    <button
+                      type="button"
+                      className="text-primary text-xs hover:underline"
+                      onClick={() => setShowNewCustomerForm(true)}
+                    >
+                      + New customer
+                    </button>
                   )}
-                </Label>
-                {!showNewCustomerForm && (
-                  <button
-                    type="button"
-                    className="text-primary text-xs hover:underline"
-                    onClick={() => setShowNewCustomerForm(true)}
-                  >
-                    + New customer
-                  </button>
+                </div>
+
+                {showNewCustomerForm ? (
+                  <NewCustomerInlineForm
+                    storeId={session?.user.storeId ?? ""}
+                    onCancel={() => setShowNewCustomerForm(false)}
+                    onCreated={(created) => {
+                      setNewCustomer(created);
+                      setCustomerId(created.id);
+                      setShowNewCustomerForm(false);
+                    }}
+                  />
+                ) : (
+                  <SearchableSelect
+                    options={
+                      newCustomer && !customers.some((c) => c.value === newCustomer.id)
+                        ? [{ value: newCustomer.id, label: newCustomer.name }, ...customers]
+                        : customers
+                    }
+                    value={customerId}
+                    onChange={setCustomerId}
+                    placeholder="Select customer…"
+                  />
                 )}
               </div>
-
-              {showNewCustomerForm ? (
-                <NewCustomerInlineForm
-                  storeId={session?.user.storeId ?? ""}
-                  onCancel={() => setShowNewCustomerForm(false)}
-                  onCreated={(created) => {
-                    setNewCustomer(created);
-                    setCustomerId(created.id);
-                    setShowNewCustomerForm(false);
-                  }}
-                />
-              ) : (
-                <SearchableSelect
-                  options={
-                    newCustomer && !customers.some((c) => c.value === newCustomer.id)
-                      ? [{ value: newCustomer.id, label: newCustomer.name }, ...customers]
-                      : customers
-                  }
-                  value={customerId}
-                  onChange={setCustomerId}
-                  placeholder="Select customer…"
-                />
-              )}
-            </div>
+            )}
           </CardContent>
           <CardFooter className="justify-end">
             <Button onClick={startBill} disabled={starting}>
@@ -554,7 +559,7 @@ export default function BillingPage() {
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
-                void handleScanSubmit();
+                void searchProducts(scanValue.trim());
               }
             }}
             placeholder="Scan or search a product…"
@@ -649,9 +654,11 @@ export default function BillingPage() {
               <span>₹{money(bill.discountTotal)}</span>
             </div>
 
-            <div className="grid grid-cols-[1fr_1fr_auto] items-end gap-2 py-2">
+            <div className="grid grid-cols-2 items-end gap-2 py-2">
               <div className="space-y-1">
-                <Label className="text-xs">Discount whole bill</Label>
+                <Label className="text-xs">
+                  Discount whole bill{applyingDiscount ? " — applying…" : ""}
+                </Label>
                 <Input
                   type="number"
                   min={0}
@@ -669,15 +676,6 @@ export default function BillingPage() {
                   placeholder="Select reason…"
                 />
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={applyBillDiscount}
-                disabled={applyingDiscount}
-              >
-                {applyingDiscount ? "Applying…" : "Apply"}
-              </Button>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Tax</span>

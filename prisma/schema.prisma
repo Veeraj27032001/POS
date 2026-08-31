@@ -1085,6 +1085,7 @@ model ReasonCode {
   billLines         BillLine[]
   billCancellations BillCancellation[]
   billReturns       BillReturn[]
+  bills             Bill[]
 
   @@map("reason_codes")
 }
@@ -1224,32 +1225,35 @@ enum ShiftCashCountType {
 }
 
 model Bill {
-  id              String        @id @default(uuid())
-  documentNumber  String        @map("document_number")
-  financialYearId String        @map("financial_year_id")
-  financialYear   FinancialYear @relation(fields: [financialYearId], references: [id])
-  billType        BillType      @map("bill_type")
-  storeId         String        @map("store_id")
-  store           Store         @relation(fields: [storeId], references: [id])
-  terminalId      String        @map("terminal_id")
-  terminal        Terminal      @relation(fields: [terminalId], references: [id])
-  cashierUserId   String        @map("cashier_user_id")
-  cashierUser     User          @relation(fields: [cashierUserId], references: [id])
-  customerId      String?       @map("customer_id")
-  customer        Customer?     @relation(fields: [customerId], references: [id])
-  status          BillStatus    @default(draft)
-  subtotal        Decimal       @default(0) @db.Decimal(12, 2)
-  discountTotal   Decimal       @default(0) @map("discount_total") @db.Decimal(12, 2)
-  taxTotal        Decimal       @default(0) @map("tax_total") @db.Decimal(12, 2)
-  grandTotal      Decimal       @default(0) @map("grand_total") @db.Decimal(12, 2)
-  dueDate         DateTime?     @map("due_date") @db.Date
-  receiptSnapshot Json?         @map("receipt_snapshot")
-  heldAt          DateTime?     @map("held_at")
-  resumedAt       DateTime?     @map("resumed_at")
-  shiftId         String?       @map("shift_id")
-  shift           Shift?        @relation(fields: [shiftId], references: [id])
-  createdAt       DateTime      @default(now()) @map("created_at")
-  completedAt     DateTime?     @map("completed_at")
+  id                   String        @id @default(uuid())
+  documentNumber       String        @map("document_number")
+  financialYearId      String        @map("financial_year_id")
+  financialYear        FinancialYear @relation(fields: [financialYearId], references: [id])
+  billType             BillType      @map("bill_type")
+  storeId              String        @map("store_id")
+  store                Store         @relation(fields: [storeId], references: [id])
+  terminalId           String        @map("terminal_id")
+  terminal             Terminal      @relation(fields: [terminalId], references: [id])
+  cashierUserId        String        @map("cashier_user_id")
+  cashierUser          User          @relation(fields: [cashierUserId], references: [id])
+  customerId           String?       @map("customer_id")
+  customer             Customer?     @relation(fields: [customerId], references: [id])
+  status               BillStatus    @default(draft)
+  subtotal             Decimal       @default(0) @db.Decimal(12, 2)
+  discountTotal        Decimal       @default(0) @map("discount_total") @db.Decimal(12, 2)
+  overallDiscount      Decimal       @default(0) @map("overall_discount") @db.Decimal(12, 2)
+  discountReasonCodeId String?       @map("discount_reason_code_id")
+  discountReasonCode   ReasonCode?   @relation(fields: [discountReasonCodeId], references: [id])
+  taxTotal             Decimal       @default(0) @map("tax_total") @db.Decimal(12, 2)
+  grandTotal           Decimal       @default(0) @map("grand_total") @db.Decimal(12, 2)
+  dueDate              DateTime?     @map("due_date") @db.Date
+  receiptSnapshot      Json?         @map("receipt_snapshot")
+  heldAt               DateTime?     @map("held_at")
+  resumedAt            DateTime?     @map("resumed_at")
+  shiftId              String?       @map("shift_id")
+  shift                Shift?        @relation(fields: [shiftId], references: [id])
+  createdAt            DateTime      @default(now()) @map("created_at")
+  completedAt          DateTime?     @map("completed_at")
 
   lines           BillLine[]
   payments        BillPayment[]

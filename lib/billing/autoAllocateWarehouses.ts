@@ -1,7 +1,7 @@
 import { unscoped } from "@/lib/db";
-import { getStockLevels } from "@/lib/stock/getStockLevels";
 
 import type { BillLineAllocationInput } from "./allocateBillLineStock";
+import { getWarehouseAvailability, type WarehouseAvailability } from "./getWarehouseAvailability";
 
 // There's no per-unit lot/batch tracking in this system — stock is
 // aggregate per warehouse. The earliest date this product ever entered a
@@ -58,35 +58,31 @@ export type AutoAllocateResult = { allocations: BillLineAllocationInput[] } | { 
 // entry first, for one that alone covers the full quantity (so a line
 // doesn't get split just because the very oldest warehouse is short) —
 // only falls back to filling across several, oldest-first, once no single
-// one can cover it alone.
+// one can cover it alone. Pass an already-computed `perWarehouse` list to
+// skip re-querying availability that's already been looked up.
 export async function autoAllocateWarehouses(params: {
   storeId: string;
   productId: string;
   quantity: number;
+  perWarehouse?: WarehouseAvailability[];
 }): Promise<AutoAllocateResult> {
-  const db = unscoped();
-  const warehouses = await db.warehouse.findMany({
-    where: { storeId: params.storeId, isActive: true, isDeleted: false },
-    select: { id: true },
-  });
-  if (warehouses.length === 0) {
+  const levels =
+    params.perWarehouse ?? (await getWarehouseAvailability(params.storeId, params.productId));
+  if (levels.length === 0) {
     return { error: "This store has no active warehouse to allocate stock from." };
   }
 
-  const candidates: { warehouseId: string; available: number; oldestEntryDate: number }[] = [];
-  for (const warehouse of warehouses) {
-    const { available } = await getStockLevels({
-      productId: params.productId,
-      warehouseId: warehouse.id,
-    });
-    if (available <= 0) continue;
-    const oldestEntryDate = await getOldestStockEntryDate(params.productId, warehouse.id);
-    candidates.push({
-      warehouseId: warehouse.id,
-      available,
-      oldestEntryDate: oldestEntryDate?.getTime() ?? Number.MAX_SAFE_INTEGER,
-    });
-  }
+  const withStock = levels.filter((l) => l.available > 0);
+  const candidates = await Promise.all(
+    withStock.map(async (level) => {
+      const oldestEntryDate = await getOldestStockEntryDate(params.productId, level.warehouseId);
+      return {
+        warehouseId: level.warehouseId,
+        available: level.available,
+        oldestEntryDate: oldestEntryDate?.getTime() ?? Number.MAX_SAFE_INTEGER,
+      };
+    }),
+  );
 
   candidates.sort((a, b) => a.oldestEntryDate - b.oldestEntryDate);
 

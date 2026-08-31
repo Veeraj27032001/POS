@@ -10,8 +10,7 @@ import { writeAuditLog } from "@/lib/security/audit";
 import { apiErrorResponse, parseJsonOrRespond } from "@/lib/validation/response";
 import { withStoreContext } from "@/middleware/scope";
 
-// Applies a discount to one line — a reason code is required whenever the
-// amount is non-zero (step5 §11's Bill Line fields).
+// Applies a discount to one line — the reason code is optional.
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string; lineId: string }> },
@@ -65,7 +64,7 @@ export async function POST(
         where: { id: lineId },
         data: {
           discountApplied: data.discountApplied,
-          discountReasonCodeId: data.discountReasonCodeId,
+          discountReasonCodeId: data.discountReasonCodeId ?? null,
           taxBreakdown: tax as never,
           lineTotal,
         },

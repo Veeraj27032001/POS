@@ -10,6 +10,10 @@ export const billCreateSchema = z.object({
   customerId: opaqueIdSchema.optional().nullable(),
 });
 
+export const billAttachCustomerSchema = z.object({
+  customerId: opaqueIdSchema.nullable(),
+});
+
 export const billLineAllocationSchema = z.object({
   warehouseId: opaqueIdSchema,
   quantity: positiveInt,
@@ -27,7 +31,7 @@ export const billLineQuantitySchema = z.object({
 
 export const billLineDiscountSchema = z.object({
   discountApplied: z.coerce.number().min(0, "Must be zero or greater."),
-  discountReasonCodeId: opaqueIdSchema,
+  discountReasonCodeId: opaqueIdSchema.optional().nullable(),
 });
 
 export const billPaymentCreateSchema = z.object({
