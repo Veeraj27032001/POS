@@ -27,7 +27,7 @@ export function NewCustomerInlineForm({
 }: {
   storeId: string;
   onCreated: (customer: CreatedCustomer) => void;
-  onCancel: () => void;
+  onCancel?: () => void;
 }) {
   const countries = useOptionsList("countries", "name");
   const [name, setName] = useState("");
@@ -54,10 +54,6 @@ export function NewCustomerInlineForm({
       toast.error("Name is required.");
       return;
     }
-    if (!address.trim()) {
-      toast.error("Address is required.");
-      return;
-    }
     setSaving(true);
     try {
       const res = await fetch("/api/customers", {
@@ -81,6 +77,11 @@ export function NewCustomerInlineForm({
       }
       const created = (await res.json()) as CreatedCustomer;
       toast.success("Customer created.");
+      setName("");
+      setPhone("");
+      setEmail("");
+      setAddress("");
+      setPincode("");
       onCreated(created);
     } finally {
       setSaving(false);
@@ -111,8 +112,7 @@ export function NewCustomerInlineForm({
         </div>
         <div className="space-y-1.5">
           <Label>
-            Address
-            <RequiredMark />
+            Address <span className="text-muted-foreground font-normal">(optional)</span>
           </Label>
           <Input value={address} onChange={(e) => setAddress(e.target.value)} />
         </div>
@@ -150,9 +150,11 @@ export function NewCustomerInlineForm({
         </div>
       </div>
       <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" size="sm" onClick={onCancel}>
-          Cancel
-        </Button>
+        {onCancel && (
+          <Button type="button" variant="outline" size="sm" onClick={onCancel}>
+            Cancel
+          </Button>
+        )}
         <Button type="button" size="sm" onClick={handleCreate} disabled={saving}>
           {saving ? "Creating…" : "Create customer"}
         </Button>

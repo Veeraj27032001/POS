@@ -578,15 +578,6 @@ export default function BillingPage() {
             </span>
             <span>·</span>
             <span>{bill.billType === "credit_bill" ? "Credit Bill" : "Cash Bill"}</span>
-            {!showNewCustomerForm && bill.billType !== "credit_bill" && (
-              <button
-                type="button"
-                className="text-primary hover:underline"
-                onClick={() => setShowNewCustomerForm(true)}
-              >
-                {bill.customer ? "Change" : "Add customer"}
-              </button>
-            )}
           </div>
         </div>
         <div className="flex gap-2">
@@ -601,36 +592,35 @@ export default function BillingPage() {
         </div>
       </div>
 
-      {showNewCustomerForm && (
-        <Card>
-          <CardContent className="space-y-3 pt-6">
-            <div className="space-y-1.5">
-              <Label>Existing customer</Label>
-              <SearchableSelect
-                options={customers}
-                value={customerId}
-                onChange={(v) => {
-                  setCustomerId(v);
-                  if (v) {
-                    void attachCustomer(v);
-                    setShowNewCustomerForm(false);
-                  }
-                }}
-                placeholder="Select customer…"
-              />
-            </div>
-            <NewCustomerInlineForm
-              storeId={session?.user.storeId ?? ""}
-              onCancel={() => setShowNewCustomerForm(false)}
-              onCreated={(created) => {
-                setNewCustomer(created);
-                void attachCustomer(created.id);
-                setShowNewCustomerForm(false);
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Customer</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="space-y-1.5">
+            <Label>Existing customer</Label>
+            <SearchableSelect
+              options={
+                newCustomer && !customers.some((c) => c.value === newCustomer.id)
+                  ? [{ value: newCustomer.id, label: newCustomer.name }, ...customers]
+                  : customers
+              }
+              value={bill.customer?.id ?? null}
+              onChange={(v) => {
+                if (v) void attachCustomer(v);
               }}
+              placeholder="Select customer…"
             />
-          </CardContent>
-        </Card>
-      )}
+          </div>
+          <NewCustomerInlineForm
+            storeId={session?.user.storeId ?? ""}
+            onCreated={(created) => {
+              setNewCustomer(created);
+              void attachCustomer(created.id);
+            }}
+          />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardContent className="space-y-2 pt-6">

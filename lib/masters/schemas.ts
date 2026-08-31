@@ -80,7 +80,7 @@ export const customerCreateSchema = z.object({
   name: requiredString("Name"),
   phone: optionalPhoneSchema,
   email: emailSchema.optional().nullable(),
-  address: requiredString("Address", 500),
+  address: optionalString(500),
   countryId: opaqueIdSchema.optional().nullable(),
   stateId: opaqueIdSchema.optional().nullable(),
   pincode: optionalString(20),
