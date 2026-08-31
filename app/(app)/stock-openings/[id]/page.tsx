@@ -74,7 +74,7 @@ export default function StockOpeningViewPage() {
   }
 
   return (
-    <div className="max-w-4xl space-y-4 p-8">
+    <div className="space-y-4 p-8">
       <Link href="/stock-openings" className="text-muted-foreground text-sm hover:underline">
         ← Back to Opening Balance
       </Link>

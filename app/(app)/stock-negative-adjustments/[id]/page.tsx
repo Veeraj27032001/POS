@@ -76,7 +76,7 @@ export default function StockNegativeAdjustmentViewPage() {
   }
 
   return (
-    <div className="max-w-4xl space-y-4 p-8">
+    <div className="space-y-4 p-8">
       <Link
         href="/stock-negative-adjustments"
         className="text-muted-foreground text-sm hover:underline"

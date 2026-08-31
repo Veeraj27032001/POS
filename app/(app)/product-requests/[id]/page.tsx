@@ -120,7 +120,7 @@ export default function ProductRequestViewPage() {
     row.items.every((item) => item.quantityReceived === 0);
 
   return (
-    <div className="max-w-4xl space-y-4 p-8">
+    <div className="space-y-4 p-8">
       <Link href="/product-requests" className="text-muted-foreground text-sm hover:underline">
         ← Back to Product Requests
       </Link>

@@ -97,7 +97,7 @@ export default function UserViewPage() {
   }
 
   return (
-    <div className="max-w-5xl space-y-4 p-8">
+    <div className="space-y-4 p-8">
       <Link href="/users" className="text-muted-foreground text-sm hover:underline">
         ← Back to Users
       </Link>

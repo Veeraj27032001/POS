@@ -33,7 +33,7 @@ export default function EntryCorrectionViewPage() {
   }, [id]);
 
   return (
-    <div className="max-w-2xl space-y-4 p-8">
+    <div className="space-y-4 p-8">
       <Link href="/entry-corrections" className="text-muted-foreground text-sm hover:underline">
         ← Back to Entry Correction
       </Link>
@@ -48,7 +48,7 @@ export default function EntryCorrectionViewPage() {
             This correction was applied to the source document and logged here for audit.
           </p>
 
-          <dl className="bg-border grid grid-cols-1 gap-px overflow-hidden rounded-lg border sm:grid-cols-2">
+          <dl className="bg-border grid grid-cols-1 gap-px overflow-hidden rounded-lg border sm:grid-cols-2 lg:grid-cols-3">
             {[
               ["Source document", SOURCE_TYPE_CONFIG[row.sourceItemType].label],
               ["Field corrected", SOURCE_TYPE_CONFIG[row.sourceItemType].fieldLabel],

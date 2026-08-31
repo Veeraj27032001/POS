@@ -103,7 +103,7 @@ export default function StockBlockViewPage() {
   const allActive = row ? row.items.every((item) => item.status === "active") : false;
 
   return (
-    <div className="max-w-4xl space-y-4 p-8">
+    <div className="space-y-4 p-8">
       <Link href="/stock-blocks" className="text-muted-foreground text-sm hover:underline">
         ← Back to Stock Block
       </Link>

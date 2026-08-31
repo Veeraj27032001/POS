@@ -105,7 +105,7 @@ export default function RoleDetailPage() {
   }
 
   return (
-    <div className="max-w-3xl space-y-4 p-8">
+    <div className="space-y-4 p-8">
       <div>
         <Link href="/settings/roles" className="text-muted-foreground text-sm hover:underline">
           ← Back to Roles

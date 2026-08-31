@@ -125,7 +125,7 @@ export default function ProductViewPage() {
   }
 
   return (
-    <div className="max-w-5xl space-y-4 p-8">
+    <div className="space-y-4 p-8">
       <Link href="/products" className="text-muted-foreground text-sm hover:underline">
         ← Back to Products
       </Link>

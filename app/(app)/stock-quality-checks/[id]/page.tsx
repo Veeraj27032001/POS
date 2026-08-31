@@ -76,7 +76,7 @@ export default function StockQualityCheckViewPage() {
   }
 
   return (
-    <div className="max-w-4xl space-y-4 p-8">
+    <div className="space-y-4 p-8">
       <Link href="/stock-quality-checks" className="text-muted-foreground text-sm hover:underline">
         ← Back to Quality Check
       </Link>

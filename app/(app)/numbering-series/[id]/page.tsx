@@ -94,7 +94,7 @@ export default function SeriesViewPage() {
   }
 
   return (
-    <div className="max-w-5xl space-y-4 p-8">
+    <div className="space-y-4 p-8">
       <Link href="/numbering-series" className="text-muted-foreground text-sm hover:underline">
         ← Back to Numbering Series
       </Link>

@@ -31,10 +31,10 @@ export default function PreferencesSettingsPage() {
   }
 
   return (
-    <div className="max-w-md space-y-6 p-8">
+    <div className="space-y-6 p-8">
       <h1 className="text-2xl font-semibold">Preferences</h1>
 
-      <div className="space-y-1.5">
+      <div className="max-w-md space-y-1.5">
         <Label>Notification position</Label>
         <Select
           value={position}

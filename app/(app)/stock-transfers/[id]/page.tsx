@@ -132,7 +132,7 @@ export default function StockTransferViewPage() {
   const canDelete = isSource && row?.status !== "accepted";
 
   return (
-    <div className="max-w-4xl space-y-4 p-8">
+    <div className="space-y-4 p-8">
       <Link href="/stock-transfers" className="text-muted-foreground text-sm hover:underline">
         ← Back to Stock Transfer
       </Link>

@@ -208,7 +208,7 @@ export default function SecuritySettingsPage() {
   }
 
   return (
-    <div className="max-w-md space-y-6 p-8">
+    <div className="space-y-6 p-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Security</h1>
         {mfaMethod !== undefined && (
@@ -228,209 +228,216 @@ export default function SecuritySettingsPage() {
         )}
       </div>
 
-      {mfaMethod === undefined && <p className="text-muted-foreground">Loading…</p>}
+      <div className="max-w-md space-y-6">
+        {mfaMethod === undefined && <p className="text-muted-foreground">Loading…</p>}
 
-      {mfaMethod === null && !enrollment && (
-        <div className="space-y-4 rounded-2xl border p-4">
-          <p>Two-factor authentication is not enabled on your account.</p>
-          <div className="flex gap-2">
-            <Button disabled={busy} onClick={startEnroll}>
-              {busyAction === "start-enroll" && <ButtonSpinner />}
-              Set up authenticator app
-            </Button>
-            <Button variant="outline" disabled={busy} onClick={switchToEmailOtp}>
-              {busyAction === "switch-email" && <ButtonSpinner />}
-              Enable email code
-            </Button>
-          </div>
-          {error && <p className="text-sm text-red-600">{error}</p>}
-        </div>
-      )}
-
-      {mfaMethod === "totp" && !enrollment && (
-        <div className="space-y-4 rounded-2xl border p-4">
-          <p>Authenticator app is enabled on your account.</p>
-
-          <ul className="space-y-2" data-testid="mfa-device-list">
-            {devices.map((device) => (
-              <li
-                key={device.id}
-                className="flex items-center justify-between rounded-md border p-2 text-sm"
-              >
-                <div>
-                  <p className="font-medium">{device.label}</p>
-                  <p className="text-muted-foreground text-xs">
-                    {device.lastUsedAt
-                      ? `Last used ${new Date(device.lastUsedAt).toLocaleDateString()}`
-                      : "Never used"}
-                  </p>
-                </div>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  disabled={busy}
-                  onClick={() => removeDevice(device.id, devices.length === 1)}
-                >
-                  {busyAction === `remove-${device.id}` && <ButtonSpinner />}
-                  Remove
-                </Button>
-              </li>
-            ))}
-          </ul>
-
-          {removingDeviceId && (
-            <div className="space-y-1.5 rounded-md border p-3">
-              <Label htmlFor="remove-code">
-                This is your last device. Enter its code to remove it and disable 2FA.
-              </Label>
-              <Input
-                id="remove-code"
-                inputMode="numeric"
-                maxLength={6}
-                value={removeCode}
-                onChange={(e) => setRemoveCode(e.target.value)}
-              />
-              {error && <p className="text-sm text-red-600">{error}</p>}
-              <div className="flex gap-2">
-                <Button size="sm" disabled={busy} onClick={confirmRemoveLastDevice}>
-                  {busyAction === "confirm-remove-last" && <ButtonSpinner />}
-                  Confirm
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={busy}
-                  onClick={() => {
-                    setRemovingDeviceId(null);
-                    setError(null);
-                  }}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          )}
-
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" disabled={busy} onClick={startEnroll}>
-              {busyAction === "start-enroll" && <ButtonSpinner />}
-              Add another device
-            </Button>
-            <Button variant="outline" size="sm" disabled={busy} onClick={switchToEmailOtp}>
-              {busyAction === "switch-email" && <ButtonSpinner />}
-              Switch to email code
-            </Button>
-          </div>
-
-          <div className="space-y-1.5 border-t pt-4">
-            <Label htmlFor="disable-code">Enter a device code to disable two-factor auth</Label>
-            <Input
-              id="disable-code"
-              inputMode="numeric"
-              maxLength={6}
-              value={disableCode}
-              onChange={(e) => setDisableCode(e.target.value)}
-            />
-            {error && <p className="text-sm text-red-600">{error}</p>}
-            <Button variant="destructive" size="sm" disabled={busy} onClick={disable}>
-              {busyAction === "disable" && <ButtonSpinner />}
-              Disable two-factor authentication
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {mfaMethod === "email_otp" && (
-        <div className="space-y-4 rounded-2xl border p-4">
-          <p>Email code is enabled on your account.</p>
-
-          <Button variant="outline" size="sm" disabled={busy} onClick={switchToTotp}>
-            {(busyAction === "switch-totp" || busyAction === "start-enroll") && <ButtonSpinner />}
-            Switch to authenticator app
-          </Button>
-
-          <div className="space-y-1.5 border-t pt-4">
-            {!emailCodeSent ? (
-              <Button variant="outline" size="sm" disabled={busy} onClick={requestEmailDisableCode}>
-                {busyAction === "request-email-code" && <ButtonSpinner />}
-                Send a code to disable two-factor auth
+        {mfaMethod === null && !enrollment && (
+          <div className="space-y-4 rounded-2xl border p-4">
+            <p>Two-factor authentication is not enabled on your account.</p>
+            <div className="flex gap-2">
+              <Button disabled={busy} onClick={startEnroll}>
+                {busyAction === "start-enroll" && <ButtonSpinner />}
+                Set up authenticator app
               </Button>
-            ) : (
-              <>
-                <Label htmlFor="disable-code-email">Enter the emailed code</Label>
+              <Button variant="outline" disabled={busy} onClick={switchToEmailOtp}>
+                {busyAction === "switch-email" && <ButtonSpinner />}
+                Enable email code
+              </Button>
+            </div>
+            {error && <p className="text-sm text-red-600">{error}</p>}
+          </div>
+        )}
+
+        {mfaMethod === "totp" && !enrollment && (
+          <div className="space-y-4 rounded-2xl border p-4">
+            <p>Authenticator app is enabled on your account.</p>
+
+            <ul className="space-y-2" data-testid="mfa-device-list">
+              {devices.map((device) => (
+                <li
+                  key={device.id}
+                  className="flex items-center justify-between rounded-md border p-2 text-sm"
+                >
+                  <div>
+                    <p className="font-medium">{device.label}</p>
+                    <p className="text-muted-foreground text-xs">
+                      {device.lastUsedAt
+                        ? `Last used ${new Date(device.lastUsedAt).toLocaleDateString()}`
+                        : "Never used"}
+                    </p>
+                  </div>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    disabled={busy}
+                    onClick={() => removeDevice(device.id, devices.length === 1)}
+                  >
+                    {busyAction === `remove-${device.id}` && <ButtonSpinner />}
+                    Remove
+                  </Button>
+                </li>
+              ))}
+            </ul>
+
+            {removingDeviceId && (
+              <div className="space-y-1.5 rounded-md border p-3">
+                <Label htmlFor="remove-code">
+                  This is your last device. Enter its code to remove it and disable 2FA.
+                </Label>
                 <Input
-                  id="disable-code-email"
+                  id="remove-code"
                   inputMode="numeric"
                   maxLength={6}
-                  value={disableCode}
-                  onChange={(e) => setDisableCode(e.target.value)}
+                  value={removeCode}
+                  onChange={(e) => setRemoveCode(e.target.value)}
                 />
                 {error && <p className="text-sm text-red-600">{error}</p>}
-                <Button variant="destructive" size="sm" disabled={busy} onClick={disable}>
-                  {busyAction === "disable" && <ButtonSpinner />}
-                  Disable two-factor authentication
-                </Button>
-              </>
+                <div className="flex gap-2">
+                  <Button size="sm" disabled={busy} onClick={confirmRemoveLastDevice}>
+                    {busyAction === "confirm-remove-last" && <ButtonSpinner />}
+                    Confirm
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() => {
+                      setRemovingDeviceId(null);
+                      setError(null);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
             )}
+
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" disabled={busy} onClick={startEnroll}>
+                {busyAction === "start-enroll" && <ButtonSpinner />}
+                Add another device
+              </Button>
+              <Button variant="outline" size="sm" disabled={busy} onClick={switchToEmailOtp}>
+                {busyAction === "switch-email" && <ButtonSpinner />}
+                Switch to email code
+              </Button>
+            </div>
+
+            <div className="space-y-1.5 border-t pt-4">
+              <Label htmlFor="disable-code">Enter a device code to disable two-factor auth</Label>
+              <Input
+                id="disable-code"
+                inputMode="numeric"
+                maxLength={6}
+                value={disableCode}
+                onChange={(e) => setDisableCode(e.target.value)}
+              />
+              {error && <p className="text-sm text-red-600">{error}</p>}
+              <Button variant="destructive" size="sm" disabled={busy} onClick={disable}>
+                {busyAction === "disable" && <ButtonSpinner />}
+                Disable two-factor authentication
+              </Button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {enrollment && (
-        <div className="space-y-4 rounded-2xl border p-4">
-          <p>Scan this QR code with your authenticator app, then enter the code it shows.</p>
-          <Image
-            src={enrollment.qrCodeDataUrl}
-            alt="Authenticator QR code"
-            width={200}
-            height={200}
-            unoptimized
-          />
-          <p className="text-muted-foreground font-mono text-xs break-all">{enrollment.secret}</p>
+        {mfaMethod === "email_otp" && (
+          <div className="space-y-4 rounded-2xl border p-4">
+            <p>Email code is enabled on your account.</p>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="device-label">Device name</Label>
-            <Input
-              id="device-label"
-              placeholder="e.g. My phone"
-              value={deviceLabel}
-              onChange={(e) => setDeviceLabel(e.target.value)}
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="verify-code">Authenticator code</Label>
-            <Input
-              id="verify-code"
-              inputMode="numeric"
-              maxLength={6}
-              value={enrollCode}
-              onChange={(e) => setEnrollCode(e.target.value)}
-            />
-          </div>
-
-          {error && <p className="text-sm text-red-600">{error}</p>}
-
-          <div className="flex gap-2">
-            <Button disabled={busy} onClick={confirmEnroll}>
-              {busyAction === "confirm-enroll" && <ButtonSpinner />}
-              Confirm
+            <Button variant="outline" size="sm" disabled={busy} onClick={switchToTotp}>
+              {(busyAction === "switch-totp" || busyAction === "start-enroll") && <ButtonSpinner />}
+              Switch to authenticator app
             </Button>
-            <Button
-              variant="outline"
-              disabled={busy}
-              onClick={() => {
-                setEnrollment(null);
-                setEnrollCode("");
-                setDeviceLabel("");
-                setError(null);
-              }}
-            >
-              Cancel
-            </Button>
+
+            <div className="space-y-1.5 border-t pt-4">
+              {!emailCodeSent ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={busy}
+                  onClick={requestEmailDisableCode}
+                >
+                  {busyAction === "request-email-code" && <ButtonSpinner />}
+                  Send a code to disable two-factor auth
+                </Button>
+              ) : (
+                <>
+                  <Label htmlFor="disable-code-email">Enter the emailed code</Label>
+                  <Input
+                    id="disable-code-email"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={disableCode}
+                    onChange={(e) => setDisableCode(e.target.value)}
+                  />
+                  {error && <p className="text-sm text-red-600">{error}</p>}
+                  <Button variant="destructive" size="sm" disabled={busy} onClick={disable}>
+                    {busyAction === "disable" && <ButtonSpinner />}
+                    Disable two-factor authentication
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+
+        {enrollment && (
+          <div className="space-y-4 rounded-2xl border p-4">
+            <p>Scan this QR code with your authenticator app, then enter the code it shows.</p>
+            <Image
+              src={enrollment.qrCodeDataUrl}
+              alt="Authenticator QR code"
+              width={200}
+              height={200}
+              unoptimized
+            />
+            <p className="text-muted-foreground font-mono text-xs break-all">{enrollment.secret}</p>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="device-label">Device name</Label>
+              <Input
+                id="device-label"
+                placeholder="e.g. My phone"
+                value={deviceLabel}
+                onChange={(e) => setDeviceLabel(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="verify-code">Authenticator code</Label>
+              <Input
+                id="verify-code"
+                inputMode="numeric"
+                maxLength={6}
+                value={enrollCode}
+                onChange={(e) => setEnrollCode(e.target.value)}
+              />
+            </div>
+
+            {error && <p className="text-sm text-red-600">{error}</p>}
+
+            <div className="flex gap-2">
+              <Button disabled={busy} onClick={confirmEnroll}>
+                {busyAction === "confirm-enroll" && <ButtonSpinner />}
+                Confirm
+              </Button>
+              <Button
+                variant="outline"
+                disabled={busy}
+                onClick={() => {
+                  setEnrollment(null);
+                  setEnrollCode("");
+                  setDeviceLabel("");
+                  setError(null);
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
