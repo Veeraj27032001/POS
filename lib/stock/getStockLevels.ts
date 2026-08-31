@@ -24,7 +24,10 @@ export async function getStockLevels({
   asOfDate,
 }: GetStockLevelsParams): Promise<StockLevels> {
   const db = unscoped();
-  const createdAtCutoff = asOfDate ? { createdAt: { lte: asOfDate } } : {};
+  // Each document's own user-selected movement date gates whether it counts
+  // yet — not when the row was written to the DB. Defaults to now, so a
+  // document dated today counts and one dated after today doesn't.
+  const cutoff = asOfDate ?? new Date();
 
   const [
     inward,
@@ -39,17 +42,14 @@ export async function getStockLevels({
   ] = await Promise.all([
     db.stockInwardItem.aggregate({
       _sum: { quantityAccepted: true },
-      where: { productId, stockInwardMain: { warehouseId, ...createdAtCutoff } },
+      where: { productId, stockInwardMain: { warehouseId, inwardDate: { lte: cutoff } } },
     }),
     db.stockTransferItem.aggregate({
       _sum: { quantityAccepted: true },
       where: {
         productId,
         destinationWarehouseId: warehouseId,
-        stockTransferMain: {
-          status: "accepted",
-          ...(asOfDate ? { respondedAt: { lte: asOfDate } } : {}),
-        },
+        stockTransferMain: { status: "accepted", respondedAt: { lte: cutoff } },
       },
     }),
     db.stockTransferItem.aggregate({
@@ -59,36 +59,42 @@ export async function getStockLevels({
         stockTransferMain: {
           sourceWarehouseId: warehouseId,
           status: "accepted",
-          ...(asOfDate ? { respondedAt: { lte: asOfDate } } : {}),
+          respondedAt: { lte: cutoff },
         },
       },
     }),
     db.stockPositiveAdjustmentItem.aggregate({
       _sum: { quantity: true },
-      where: { productId, stockPositiveAdjustmentMain: { warehouseId, ...createdAtCutoff } },
+      where: {
+        productId,
+        stockPositiveAdjustmentMain: { warehouseId, adjustmentDate: { lte: cutoff } },
+      },
     }),
     db.stockOpeningItem.aggregate({
       _sum: { quantity: true },
-      where: { productId, stockOpeningMain: { warehouseId, ...createdAtCutoff } },
+      where: { productId, stockOpeningMain: { warehouseId, openingDate: { lte: cutoff } } },
     }),
     db.stockDamageItem.aggregate({
       _sum: { quantity: true },
-      where: { productId, stockDamageMain: { warehouseId, ...createdAtCutoff } },
+      where: { productId, stockDamageMain: { warehouseId, damageDate: { lte: cutoff } } },
     }),
     db.stockNegativeAdjustmentItem.aggregate({
       _sum: { quantity: true },
-      where: { productId, stockNegativeAdjustmentMain: { warehouseId, ...createdAtCutoff } },
+      where: {
+        productId,
+        stockNegativeAdjustmentMain: { warehouseId, adjustmentDate: { lte: cutoff } },
+      },
     }),
     db.stockQualityCheckItem.aggregate({
       _sum: { quantity: true },
-      where: { productId, stockQualityCheckMain: { warehouseId, ...createdAtCutoff } },
+      where: { productId, stockQualityCheckMain: { warehouseId, checkDate: { lte: cutoff } } },
     }),
     db.stockBlockItem.aggregate({
       _sum: { quantityBlocked: true },
       where: {
         productId,
         status: "active",
-        stockBlockMain: { warehouseId, ...(asOfDate ? { blockedAt: { lte: asOfDate } } : {}) },
+        stockBlockMain: { warehouseId, blockedAt: { lte: cutoff } },
       },
     }),
   ]);

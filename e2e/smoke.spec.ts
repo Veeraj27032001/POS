@@ -2054,7 +2054,10 @@ test("Opening Balance: cannot reduce quantity below what's already consumed else
   await page.getByText("Select product…").click();
   const productName = (await page.getByRole("option").first().textContent())!.trim();
   await page.getByRole("option").first().click();
-  await page.getByPlaceholder("Qty").fill("100000");
+  // Very large, deliberately lopsided numbers — by this point in the suite a
+  // heavily-reused "first" product can have a large accumulated available
+  // total, so the delta being tested must dwarf any plausible accumulation.
+  await page.getByPlaceholder("Qty").fill("50000000");
   const [openingResponse] = await Promise.all([
     page.waitForResponse(
       (res) => res.url().endsWith("/api/stock-openings") && res.request().method() === "POST",
@@ -2069,7 +2072,7 @@ test("Opening Balance: cannot reduce quantity below what's already consumed else
   await page.getByRole("option", { name: warehouseName, exact: true }).click();
   await page.getByText("Select product…").click();
   await page.getByRole("option", { name: productName, exact: true }).click();
-  await page.getByPlaceholder("Qty").fill("99999");
+  await page.getByPlaceholder("Qty").fill("49999999");
   await page.getByText("Select reason…").click();
   await page.getByRole("option").first().click();
   await page.getByRole("button", { name: "Save" }).click();

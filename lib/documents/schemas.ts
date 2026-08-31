@@ -165,3 +165,17 @@ export const stockOpeningCreateSchema = z.object({
   items: z.array(stockOpeningItemSchema).min(1, "At least one item is required."),
 });
 export const stockOpeningEditSchema = stockOpeningCreateSchema;
+
+export const stockCorrectionSourceTypeSchema = z.enum([
+  "stock_inward_item",
+  "stock_damage_item",
+  "stock_positive_adjustment_item",
+  "stock_negative_adjustment_item",
+  "stock_opening_item",
+]);
+export const stockEntryCorrectionCreateSchema = z.object({
+  sourceItemType: stockCorrectionSourceTypeSchema,
+  sourceItemId: opaqueIdSchema,
+  newValue: nonNegativeInt,
+  notes: optionalString(1000),
+});
