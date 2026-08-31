@@ -58,21 +58,26 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     );
 
     // Validate live availability before committing to any block — a bill
-    // can't be held over stock that isn't actually there right now.
-    for (const line of stockTrackedLines) {
-      for (const alloc of line.allocations) {
-        const levels = await getStockLevels({
-          productId: line.productId,
-          warehouseId: alloc.warehouseId,
-        });
-        if (levels.available < alloc.quantity) {
-          return apiErrorResponse(
-            "bad_request",
-            `Not enough stock of ${line.product.name} left to hold this bill — recheck quantities.`,
-            400,
-          );
-        }
-      }
+    // can't be held over stock that isn't actually there right now. These
+    // are independent reads, so run them all at once rather than one
+    // allocation at a time.
+    const checks = stockTrackedLines.flatMap((line) =>
+      line.allocations.map((alloc) => ({ line, alloc })),
+    );
+    const results = await Promise.all(
+      checks.map(async ({ line, alloc }) => ({
+        line,
+        alloc,
+        levels: await getStockLevels({ productId: line.productId, warehouseId: alloc.warehouseId }),
+      })),
+    );
+    const shortfall = results.find((r) => r.levels.available < r.alloc.quantity);
+    if (shortfall) {
+      return apiErrorResponse(
+        "bad_request",
+        `Not enough stock of ${shortfall.line.product.name} left to hold this bill — recheck quantities.`,
+        400,
+      );
     }
 
     let reasonCodeId: string | null = null;

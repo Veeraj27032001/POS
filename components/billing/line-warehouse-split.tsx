@@ -1,5 +1,6 @@
 "use client";
 
+import { Loader2Icon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -42,6 +43,7 @@ export function LineWarehouseSplit({
   warehouseAvailability,
   hasManualOverride,
   warning,
+  loading,
   onSave,
   onClearOverride,
 }: {
@@ -51,6 +53,7 @@ export function LineWarehouseSplit({
   warehouseAvailability: WarehouseAvailabilityDisplay[];
   hasManualOverride: boolean;
   warning: string | null;
+  loading: boolean;
   onSave: (allocations: { warehouseId: string; quantity: number }[]) => void;
   onClearOverride: () => void;
 }) {
@@ -89,14 +92,15 @@ export function LineWarehouseSplit({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <div className="text-muted-foreground text-xs">
+      <div className="flex items-center gap-1.5 text-xs">
         <DialogTrigger render={<button type="button" className="text-primary hover:underline" />}>
           {allocations.length > 0
             ? allocations.map((a) => `${a.warehouseName}: ${a.quantity}`).join(", ")
             : "Choose warehouses"}
         </DialogTrigger>
-        {warning && <div className="text-warning mt-0.5">{warning}</div>}
+        {loading && <Loader2Icon className="text-muted-foreground size-3 animate-spin" />}
       </div>
+      {warning && <div className="text-warning text-xs">{warning}</div>}
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Warehouse split — {productName}</DialogTitle>

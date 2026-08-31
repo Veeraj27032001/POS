@@ -80,6 +80,10 @@ export const billPreviewSchema = z.object({
   customerStateId: opaqueIdSchema.optional().nullable(),
 });
 
+export const billCancelSchema = z.object({
+  reasonCodeId: opaqueIdSchema,
+});
+
 export const billPaymentCreateSchema = z.object({
   paymentMethodId: opaqueIdSchema,
   amount: z.coerce.number().positive("Must be a positive amount."),

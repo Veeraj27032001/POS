@@ -4,9 +4,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
+import { CancelHeldBillDialog } from "@/components/billing/cancel-held-bill-dialog";
 import { DataTable } from "@/components/data-table/data-table";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { formatTimestamp } from "@/lib/datetime/format";
+import { useInvalidateResource } from "@/lib/pagination/useList";
 
 interface HeldBillRow {
   id: string;
@@ -19,6 +21,7 @@ interface HeldBillRow {
 
 export default function HeldBillsPage() {
   const router = useRouter();
+  const invalidate = useInvalidateResource();
 
   async function resume(id: string) {
     const res = await fetch(`/api/bills/${id}/resume`, { method: "POST" });
@@ -65,9 +68,16 @@ export default function HeldBillsPage() {
             key: "actions",
             header: "",
             render: (row) => (
-              <Button size="sm" onClick={() => void resume(row.id)}>
-                Resume
-              </Button>
+              <div className="flex justify-end gap-2">
+                <Button size="sm" onClick={() => void resume(row.id)}>
+                  Resume
+                </Button>
+                <CancelHeldBillDialog
+                  billId={row.id}
+                  documentNumber={row.documentNumber}
+                  onCancelled={() => invalidate("bills")}
+                />
+              </div>
             ),
           },
         ]}

@@ -193,6 +193,7 @@ export default function BillingPage() {
 
   const [scanValue, setScanValue] = useState("");
   const [productMatches, setProductMatches] = useState<ProductMatch[]>([]);
+  const [searchAvailability, setSearchAvailability] = useState<Record<string, number>>({});
   const [highlightedMatch, setHighlightedMatch] = useState(0);
   const [searching, setSearching] = useState(false);
   const scanInputRef = useRef<HTMLInputElement>(null);
@@ -205,6 +206,9 @@ export default function BillingPage() {
   const [holding, setHolding] = useState(false);
   const [creating, setCreating] = useState(false);
   const [discarding, setDiscarding] = useState(false);
+  // Save draft / Hold / Create bill all sync the same cart to the server —
+  // letting two of them fire at once would race. Only one at a time.
+  const busy = savingDraft || holding || creating || discarding;
 
   const [preview, setPreview] = useState<PreviewTotals>(emptyPreview);
   const [loadingPreview, setLoadingPreview] = useState(false);
@@ -308,6 +312,7 @@ export default function BillingPage() {
   async function searchProducts(term: string) {
     if (!term) {
       setProductMatches([]);
+      setSearchAvailability({});
       return;
     }
     setSearching(true);
@@ -322,9 +327,28 @@ export default function BillingPage() {
       }
       setProductMatches(products);
       setHighlightedMatch(0);
+      void loadSearchAvailability(products);
     } finally {
       setSearching(false);
     }
+  }
+
+  async function loadSearchAvailability(products: ProductMatch[]) {
+    const productIds = products.filter((p) => p.stockTracked).map((p) => p.id);
+    if (productIds.length === 0) {
+      setSearchAvailability({});
+      return;
+    }
+    const res = await fetch("/api/bills/product-availability", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ productIds }),
+    });
+    if (!res.ok) return;
+    const body = (await res.json()) as { availability: { productId: string; available: number }[] };
+    setSearchAvailability(
+      Object.fromEntries(body.availability.map((a) => [a.productId, a.available])),
+    );
   }
 
   const debouncedScanValue = useDebouncedValue(scanValue, 300);
@@ -932,14 +956,14 @@ export default function BillingPage() {
         </div>
         <div className="flex gap-2">
           {cartLines.length === 0 && (
-            <Button variant="outline" onClick={discardCart} disabled={discarding}>
+            <Button variant="outline" onClick={discardCart} disabled={busy}>
               {discarding ? "Discarding…" : "Discard"}
             </Button>
           )}
-          <Button variant="outline" onClick={saveDraft} disabled={savingDraft}>
+          <Button variant="outline" onClick={saveDraft} disabled={busy}>
             {savingDraft ? "Saving…" : "Save draft"}
           </Button>
-          <Button variant="outline" onClick={holdBill} disabled={holding}>
+          <Button variant="outline" onClick={holdBill} disabled={busy}>
             {holding ? "Holding…" : "Hold"}
           </Button>
         </div>
@@ -1006,9 +1030,18 @@ export default function BillingPage() {
                   <span>
                     {p.name} <span className="text-muted-foreground">· {p.systemBarcode}</span>
                   </span>
-                  <span>
+                  <span className="flex items-center gap-2">
                     {currencySymbol}
                     {money(p.price)}
+                    {p.stockTracked && p.id in searchAvailability && (
+                      <span
+                        className={
+                          searchAvailability[p.id] > 0 ? "text-success" : "text-destructive"
+                        }
+                      >
+                        {searchAvailability[p.id]} in stock
+                      </span>
+                    )}
                   </span>
                 </button>
               ))}
@@ -1056,6 +1089,7 @@ export default function BillingPage() {
                       warehouseAvailability={warehouseAvailabilityForLine(line.productId)}
                       hasManualOverride={line.manualAllocations !== null}
                       warning={allocationWarningForLine(line.productId)}
+                      loading={loadingPreview}
                       onSave={(allocations) => setLineAllocations(line.productId, allocations)}
                       onClearOverride={() => clearLineAllocations(line.productId)}
                     />
@@ -1178,7 +1212,7 @@ export default function BillingPage() {
           <CardFooter className="justify-end">
             <Button
               onClick={createBill}
-              disabled={creating || remaining > 0.01 || cartLines.length === 0}
+              disabled={busy || remaining > 0.01 || cartLines.length === 0}
             >
               {creating ? "Creating…" : "Create bill"}
             </Button>
