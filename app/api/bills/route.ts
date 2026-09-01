@@ -127,6 +127,7 @@ export async function POST(request: Request) {
           cashierUserId: session.user.id,
           customerId: data.customerId ?? null,
           shiftId: openShift?.id ?? null,
+          taxExcluded: data.excludeTax,
         },
       });
     });

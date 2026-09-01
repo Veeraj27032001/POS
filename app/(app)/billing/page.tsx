@@ -16,11 +16,13 @@ import { EditableLineValue } from "@/components/billing/editable-line-value";
 import { LineWarehouseSplit } from "@/components/billing/line-warehouse-split";
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 import { useStoreCurrencySymbol } from "@/lib/hooks/useStoreCurrencySymbol";
+import { useStoreDefaultExcludeTax } from "@/lib/hooks/useStoreDefaultExcludeTax";
 import { RequiredMark } from "@/components/required-mark";
 import { SearchableSelect } from "@/components/searchable-select";
 import { asAppSession } from "@/lib/auth/types";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -162,6 +164,7 @@ export default function BillingPage() {
   const [billType, setBillType] = useState<"cash_bill" | "credit_bill">("cash_bill");
   const [billDate, setBillDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [syncedBillDate, setSyncedBillDate] = useState<string | null>(null);
+  const [excludeTax, setExcludeTax] = useState(false);
   const [terminalId, setTerminalId] = useState<string | null>(null);
   const [started, setStarted] = useState(false);
   // True from first render whenever the URL already carries ?billId= — hides
@@ -251,6 +254,14 @@ export default function BillingPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Pre-check Exclude Tax from the store's default — only for a fresh bill,
+  // never overriding a resumed bill's real saved value.
+  const storeDefaultExcludeTax = useStoreDefaultExcludeTax();
+  useEffect(() => {
+    if (resuming || started) return;
+    setExcludeTax(storeDefaultExcludeTax);
+  }, [storeDefaultExcludeTax, resuming, started]);
+
   async function loadForResume(id: string) {
     const res = await fetch(`/api/bills/${id}`);
     if (!res.ok) {
@@ -267,6 +278,7 @@ export default function BillingPage() {
     const loadedBillDate = String(b.billDate).slice(0, 10);
     setBillDate(loadedBillDate);
     setSyncedBillDate(loadedBillDate);
+    setExcludeTax(Boolean(b.taxExcluded));
     setCartLines(
       (b.lines as Array<Record<string, unknown>>)
         .filter((l) => l.status === "active")
@@ -503,6 +515,7 @@ export default function BillingPage() {
     })),
     overallDiscount: Number(overallDiscount) || 0,
     customerStateId,
+    excludeTax,
   });
   const debouncedPreviewKey = useDebouncedValue(previewKey, 400);
   useEffect(() => {
@@ -574,7 +587,7 @@ export default function BillingPage() {
       const res = await fetch("/api/bills", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ billType, billDate, terminalId }),
+        body: JSON.stringify({ billType, billDate, terminalId, excludeTax }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
@@ -1122,6 +1135,20 @@ export default function BillingPage() {
               onChange={(v) => v && void switchTerminal(v)}
               placeholder="Select terminal…"
             />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Exclude tax</Label>
+            <div className="flex items-center gap-2 pt-1.5">
+              <Checkbox
+                id="exclude-tax"
+                checked={excludeTax}
+                disabled={!!savedBillId}
+                onCheckedChange={(checked) => setExcludeTax(checked === true)}
+              />
+              <Label htmlFor="exclude-tax" className="font-normal">
+                Tax-exempt sale — no GST applied
+              </Label>
+            </div>
           </div>
         </CardContent>
       </Card>

@@ -110,6 +110,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       storeTaxEngineCode: bill.store.taxEngine?.code ?? null,
       storeStateId: bill.store.stateId,
       customerStateId: bill.customer?.stateId ?? null,
+      excludeTax: bill.taxExcluded,
     });
     const lineTotal = lineSubtotal + tax.taxAmount;
 

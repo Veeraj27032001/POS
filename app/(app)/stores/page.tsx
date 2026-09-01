@@ -44,6 +44,11 @@ export default function StoresPage() {
         },
         { name: "gstin", label: "GSTIN", type: "text" },
         {
+          name: "defaultExcludeTax",
+          label: "Exclude tax by default on new bills",
+          type: "boolean",
+        },
+        {
           name: "currencyId",
           label: "Currency",
           type: "select",

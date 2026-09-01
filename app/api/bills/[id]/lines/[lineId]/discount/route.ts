@@ -56,6 +56,7 @@ export async function POST(
       storeTaxEngineCode: line.bill.store.taxEngine?.code ?? null,
       storeStateId: line.bill.store.stateId,
       customerStateId: line.bill.customer?.stateId ?? null,
+      excludeTax: line.bill.taxExcluded,
     });
     const lineTotal = lineSubtotal + tax.taxAmount;
 

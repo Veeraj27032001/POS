@@ -103,6 +103,7 @@ model Store {
   state             State?     @relation(fields: [stateId], references: [id])
   taxEngineId       String?    @map("tax_engine_id")
   taxEngine         TaxEngine? @relation(fields: [taxEngineId], references: [id])
+  defaultExcludeTax Boolean    @default(false) @map("default_exclude_tax")
   timezoneId        String?    @map("timezone_id")
   storeTimezone     Timezone?  @relation(fields: [timezoneId], references: [id])
   currencyId        String?    @map("currency_id")
@@ -1259,6 +1260,7 @@ model Bill {
   overallDiscount      Decimal       @default(0) @map("overall_discount") @db.Decimal(12, 2)
   discountReasonCodeId String?       @map("discount_reason_code_id")
   discountReasonCode   ReasonCode?   @relation(fields: [discountReasonCodeId], references: [id])
+  taxExcluded          Boolean       @default(false) @map("tax_excluded")
   taxTotal             Decimal       @default(0) @map("tax_total") @db.Decimal(12, 2)
   grandTotal           Decimal       @default(0) @map("grand_total") @db.Decimal(12, 2)
   dueDate              DateTime?     @map("due_date") @db.Date

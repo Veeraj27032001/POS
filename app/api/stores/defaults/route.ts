@@ -20,17 +20,24 @@ export async function GET() {
       countryId: null,
       stateId: null,
       currencySymbol: FALLBACK_CURRENCY_SYMBOL,
+      defaultExcludeTax: false,
     });
   }
 
   const store = await unscoped().store.findUnique({
     where: { id: session.user.storeId },
-    select: { countryId: true, stateId: true, currency: { select: { symbol: true } } },
+    select: {
+      countryId: true,
+      stateId: true,
+      defaultExcludeTax: true,
+      currency: { select: { symbol: true } },
+    },
   });
 
   return Response.json({
     countryId: store?.countryId ?? null,
     stateId: store?.stateId ?? null,
     currencySymbol: store?.currency?.symbol ?? FALLBACK_CURRENCY_SYMBOL,
+    defaultExcludeTax: store?.defaultExcludeTax ?? false,
   });
 }

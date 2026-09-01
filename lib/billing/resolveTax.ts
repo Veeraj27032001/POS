@@ -14,7 +14,7 @@ function round2(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
-const ZERO_TAX: TaxBreakdown = {
+export const ZERO_TAX: TaxBreakdown = {
   cgstRate: 0,
   sgstRate: 0,
   igstRate: 0,
@@ -37,7 +37,12 @@ export async function resolveTax(params: {
   storeTaxEngineCode: string | null;
   storeStateId: string | null;
   customerStateId: string | null;
+  excludeTax: boolean;
 }): Promise<TaxBreakdown> {
+  if (params.excludeTax) {
+    return ZERO_TAX;
+  }
+
   if (params.storeTaxEngineCode === "india_standard") {
     return resolveIndiaGst(params);
   }

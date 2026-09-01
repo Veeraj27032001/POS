@@ -16,6 +16,7 @@ export const billCreateSchema = z.object({
   billDate: isoDateOnlySchema,
   terminalId: opaqueIdSchema,
   customerId: opaqueIdSchema.optional().nullable(),
+  excludeTax: z.boolean().default(false),
 });
 
 export const billAttachCustomerSchema = z.object({
@@ -83,6 +84,7 @@ export const billPreviewSchema = z.object({
     .default([]),
   overallDiscount: z.coerce.number().min(0, "Must be zero or greater.").default(0),
   customerStateId: opaqueIdSchema.optional().nullable(),
+  excludeTax: z.boolean().default(false),
 });
 
 export const billCancelSchema = z.object({
