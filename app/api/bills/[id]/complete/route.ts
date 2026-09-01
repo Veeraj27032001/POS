@@ -2,7 +2,6 @@ import { auth } from "@/auth";
 import { hasPermission } from "@/lib/auth/rbac";
 import { asAppSession } from "@/lib/auth/types";
 import { releaseBillLineAllocations } from "@/lib/billing/allocateBillLineStock";
-import { getOutstandingBalance } from "@/lib/credit/getOutstandingBalance";
 import { getSelfBlockedByWarehouse } from "@/lib/billing/getSelfBlockedByWarehouse";
 import { unscoped } from "@/lib/db";
 import { allocateDocumentNumber } from "@/lib/numbering/allocateDocumentNumber";
@@ -12,8 +11,8 @@ import { apiErrorResponse } from "@/lib/validation/response";
 import { withStoreContext } from "@/middleware/scope";
 
 // Finalizes a bill — payments must already cover the grand total (§12),
-// a Credit Bill is checked against its customer's credit limit (§13), and
-// the receipt is snapshotted (§11, step3 §7's fidelity rule). Stock isn't
+// a Credit Bill just requires a customer to be attached, and the receipt is
+// snapshotted (§11, step3 §7's fidelity rule). Stock isn't
 // explicitly deducted here: getStockLevels() already subtracts active Bill
 // Line Warehouse Allocations on a `completed` bill, so flipping status is
 // the deduction. A held bill's stock was already hard-checked at Hold time
@@ -94,20 +93,8 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
       );
     }
 
-    if (bill.billType === "credit_bill") {
-      if (!bill.customer) {
-        return apiErrorResponse("bad_request", "A Credit Bill requires a customer.", 400);
-      }
-      if (bill.customer.creditLimit !== null) {
-        const outstanding = await getOutstandingBalance(bill.customer.id);
-        if (outstanding + Number(bill.grandTotal) > Number(bill.customer.creditLimit)) {
-          return apiErrorResponse(
-            "bad_request",
-            `This would put ${bill.customer.name} over their credit limit (limit ${Number(bill.customer.creditLimit)}, currently owing ${outstanding}).`,
-            400,
-          );
-        }
-      }
+    if (bill.billType === "credit_bill" && !bill.customer) {
+      return apiErrorResponse("bad_request", "A Credit Bill requires a customer.", 400);
     }
 
     const receiptSnapshot = {
