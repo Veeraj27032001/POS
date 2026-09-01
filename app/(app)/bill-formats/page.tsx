@@ -28,6 +28,8 @@ const BILL_TYPE_LABELS: Record<string, string> = {
 const FORMAT_KIND_LABELS: Record<string, string> = {
   receipt: "Receipt",
   bill: "Bill",
+  credit_note: "Credit Note",
+  refund: "Refund",
 };
 
 export default function BillFormatsPage() {
@@ -81,6 +83,8 @@ export default function BillFormatsPage() {
               options: [
                 { value: "receipt", label: "Receipt (small, printed at counter)" },
                 { value: "bill", label: "Bill (full tax invoice)" },
+                { value: "credit_note", label: "Credit Note" },
+                { value: "refund", label: "Refund" },
               ],
             },
             {

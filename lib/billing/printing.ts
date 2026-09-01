@@ -81,3 +81,29 @@ export async function printBill(billId: string): Promise<void> {
   }
   openAndPrintHtml(html);
 }
+
+async function printDocument(url: string, missingFormatMessage: string): Promise<void> {
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error("Failed to load the print format.");
+  }
+  const { html } = (await res.json()) as { html: string | null };
+  if (!html) {
+    throw new Error(missingFormatMessage);
+  }
+  openAndPrintHtml(html);
+}
+
+export async function printCreditNote(creditNoteId: string): Promise<void> {
+  await printDocument(
+    `/api/credit-notes/${creditNoteId}/print`,
+    "No credit note format is configured for this store and bill type yet — set one up under Bill Formats.",
+  );
+}
+
+export async function printRefund(refundId: string): Promise<void> {
+  await printDocument(
+    `/api/refunds/${refundId}/print`,
+    "No refund format is configured for this store and bill type yet — set one up under Bill Formats.",
+  );
+}

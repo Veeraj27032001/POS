@@ -3,6 +3,10 @@ import Handlebars from "handlebars";
 Handlebars.registerHelper("money", (value: unknown) => Number(value).toFixed(2));
 Handlebars.registerHelper("index1", (index: unknown) => Number(index) + 1);
 
+function renderTemplate(templateHtml: string, data: Record<string, unknown>): string {
+  return Handlebars.compile(templateHtml)(data);
+}
+
 export interface BillTemplateLine {
   productName: string;
   productBarcode: string;
@@ -35,5 +39,49 @@ export interface BillTemplateData {
 }
 
 export function renderBillTemplate(templateHtml: string, data: BillTemplateData): string {
-  return Handlebars.compile(templateHtml)(data);
+  return renderTemplate(templateHtml, data as unknown as Record<string, unknown>);
+}
+
+export interface CreditNoteTemplateData {
+  documentNumber: string;
+  createdAt: string;
+  storeName: string;
+  storeAddress?: string | null;
+  storeGstin?: string | null;
+  customerName: string;
+  customerPhone: string;
+  originalBillDocumentNumber: string;
+  reasonLabel: string;
+  amount: number;
+  taxBreakdown: {
+    cgstAmount: number;
+    sgstAmount: number;
+    igstAmount: number;
+    taxAmount: number;
+  };
+}
+
+export function renderCreditNoteTemplate(
+  templateHtml: string,
+  data: CreditNoteTemplateData,
+): string {
+  return renderTemplate(templateHtml, data as unknown as Record<string, unknown>);
+}
+
+export interface RefundTemplateData {
+  documentNumber: string;
+  createdAt: string;
+  storeName: string;
+  storeAddress?: string | null;
+  storeGstin?: string | null;
+  originalBillDocumentNumber: string;
+  sourceType: string;
+  sourceDocumentNumber: string;
+  refundMethodName: string;
+  status: string;
+  amount: number;
+}
+
+export function renderRefundTemplate(templateHtml: string, data: RefundTemplateData): string {
+  return renderTemplate(templateHtml, data as unknown as Record<string, unknown>);
 }

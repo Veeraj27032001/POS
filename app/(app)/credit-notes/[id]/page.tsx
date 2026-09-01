@@ -3,9 +3,12 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
+import { Button } from "@/components/ui/button";
 import { useStoreCurrencySymbol } from "@/lib/hooks/useStoreCurrencySymbol";
 import { formatTimestamp } from "@/lib/datetime/format";
+import { printCreditNote } from "@/lib/billing/printing";
 
 interface CreditNoteDetail {
   id: string;
@@ -29,6 +32,7 @@ const BILL_TYPE_LABELS: Record<string, string> = {
 export default function CreditNoteDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [detail, setDetail] = useState<CreditNoteDetail | null | undefined>(undefined);
+  const [printing, setPrinting] = useState(false);
   const currencySymbol = useStoreCurrencySymbol();
 
   useEffect(() => {
@@ -36,6 +40,18 @@ export default function CreditNoteDetailPage() {
       .then((res) => (res.ok ? res.json() : null))
       .then((body) => setDetail(body));
   }, [id]);
+
+  async function handlePrint() {
+    if (!detail) return;
+    setPrinting(true);
+    try {
+      await printCreditNote(detail.id);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to print the credit note.");
+    } finally {
+      setPrinting(false);
+    }
+  }
 
   return (
     <div className="space-y-4 p-8">
@@ -48,7 +64,12 @@ export default function CreditNoteDetailPage() {
             ← Back to Credit Notes
           </Link>
 
-          <h1 className="text-2xl font-semibold">{detail.documentNumber}</h1>
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-semibold">{detail.documentNumber}</h1>
+            <Button variant="outline" size="sm" onClick={handlePrint} disabled={printing}>
+              {printing ? "Printing…" : "Print"}
+            </Button>
+          </div>
 
           <dl className="bg-border grid grid-cols-1 gap-px overflow-hidden rounded-lg border sm:grid-cols-2 lg:grid-cols-3">
             {[

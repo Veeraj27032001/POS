@@ -1285,6 +1285,8 @@ model Bill {
 enum BillFormatKind {
   receipt
   bill
+  credit_note
+  refund
 }
 
 model BillFormat {

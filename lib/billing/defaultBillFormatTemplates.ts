@@ -124,3 +124,96 @@ export const DEFAULT_RECEIPT_TEMPLATE_HTML = `<!doctype html>
   {{#if returnPolicyText}}<div class="center" style="font-size:10px">{{returnPolicyText}}</div>{{/if}}
 </body>
 </html>`;
+
+export const DEFAULT_CREDIT_NOTE_TEMPLATE_HTML = `<!doctype html>
+<html>
+<head>
+<style>
+  body { font-family: Arial, sans-serif; font-size: 12px; color: #111; margin: 24px; }
+  .header { text-align: center; margin-bottom: 8px; }
+  .header h1 { margin: 0; font-size: 18px; }
+  .header p { margin: 2px 0; }
+  .title { text-align: center; font-weight: bold; text-decoration: underline; margin: 12px 0; }
+  table.meta { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+  table.meta td { padding: 4px 0; }
+  table.totals { width: 40%; margin-left: auto; border-collapse: collapse; margin-top: 16px; }
+  table.totals td { padding: 2px 6px; }
+  table.totals td.num { text-align: right; }
+</style>
+</head>
+<body>
+  <div class="header">
+    <h1>{{storeName}}</h1>
+    {{#if storeAddress}}<p>{{storeAddress}}</p>{{/if}}
+    {{#if storeGstin}}<p>GSTIN: {{storeGstin}}</p>{{/if}}
+  </div>
+
+  <div class="title">CREDIT NOTE</div>
+
+  <table class="meta">
+    <tr>
+      <td><strong>Credit Note No:</strong> {{documentNumber}}</td>
+      <td><strong>Date:</strong> {{createdAt}}</td>
+    </tr>
+    <tr>
+      <td><strong>Customer:</strong> {{customerName}}</td>
+      <td><strong>Phone:</strong> {{customerPhone}}</td>
+    </tr>
+    <tr>
+      <td><strong>Against Bill:</strong> {{originalBillDocumentNumber}}</td>
+      <td><strong>Reason:</strong> {{reasonLabel}}</td>
+    </tr>
+  </table>
+
+  <table class="totals">
+    <tr><td>Tax</td><td class="num">{{money taxBreakdown.taxAmount}}</td></tr>
+    <tr><td><strong>Credit Amount</strong></td><td class="num"><strong>{{money amount}}</strong></td></tr>
+  </table>
+</body>
+</html>`;
+
+export const DEFAULT_REFUND_TEMPLATE_HTML = `<!doctype html>
+<html>
+<head>
+<style>
+  body { font-family: Arial, sans-serif; font-size: 12px; color: #111; margin: 24px; }
+  .header { text-align: center; margin-bottom: 8px; }
+  .header h1 { margin: 0; font-size: 18px; }
+  .header p { margin: 2px 0; }
+  .title { text-align: center; font-weight: bold; text-decoration: underline; margin: 12px 0; }
+  table.meta { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+  table.meta td { padding: 4px 0; }
+  table.totals { width: 40%; margin-left: auto; border-collapse: collapse; margin-top: 16px; }
+  table.totals td { padding: 2px 6px; }
+  table.totals td.num { text-align: right; }
+</style>
+</head>
+<body>
+  <div class="header">
+    <h1>{{storeName}}</h1>
+    {{#if storeAddress}}<p>{{storeAddress}}</p>{{/if}}
+    {{#if storeGstin}}<p>GSTIN: {{storeGstin}}</p>{{/if}}
+  </div>
+
+  <div class="title">REFUND</div>
+
+  <table class="meta">
+    <tr>
+      <td><strong>Refund No:</strong> {{documentNumber}}</td>
+      <td><strong>Date:</strong> {{createdAt}}</td>
+    </tr>
+    <tr>
+      <td><strong>Against Bill:</strong> {{originalBillDocumentNumber}}</td>
+      <td><strong>{{sourceType}}:</strong> {{sourceDocumentNumber}}</td>
+    </tr>
+    <tr>
+      <td><strong>Method:</strong> {{refundMethodName}}</td>
+      <td><strong>Status:</strong> {{status}}</td>
+    </tr>
+  </table>
+
+  <table class="totals">
+    <tr><td><strong>Refund Amount</strong></td><td class="num"><strong>{{money amount}}</strong></td></tr>
+  </table>
+</body>
+</html>`;
