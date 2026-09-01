@@ -1,22 +1,28 @@
+const SHARED_DOC_STYLE = `
+  body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 12px; color: #1a1a1a; margin: 32px; }
+  .header { text-align: center; padding-bottom: 14px; border-bottom: 3px solid #1e3a8a; margin-bottom: 18px; }
+  .header h1 { margin: 0 0 4px; font-size: 21px; color: #1e3a8a; letter-spacing: 0.3px; }
+  .header p { margin: 2px 0; color: #666; font-size: 11px; }
+  .title { text-align: center; font-size: 13px; font-weight: 700; letter-spacing: 3px; color: #1e3a8a; margin: 18px 0; text-transform: uppercase; }
+  table.meta { width: 100%; border-collapse: collapse; margin-bottom: 18px; }
+  table.meta td { padding: 4px 0; font-size: 11.5px; vertical-align: top; }
+  table.meta td.label { color: #777; width: 90px; }
+  table.totals { width: 45%; margin-left: auto; margin-top: 14px; border-collapse: collapse; }
+  table.totals td { padding: 4px 6px; font-size: 11.5px; }
+  table.totals td.num { text-align: right; }
+  table.totals tr.grand td { font-size: 14.5px; font-weight: 700; border-top: 2px solid #1e3a8a; padding-top: 8px; color: #1e3a8a; }
+  .footer { margin-top: 28px; padding-top: 12px; border-top: 1px solid #e5e7eb; font-size: 9.5px; color: #888; text-align: center; }
+`;
+
 export const DEFAULT_BILL_TEMPLATE_HTML = `<!doctype html>
 <html>
 <head>
 <style>
-  body { font-family: Arial, sans-serif; font-size: 12px; color: #111; margin: 24px; }
-  .header { text-align: center; margin-bottom: 8px; }
-  .header h1 { margin: 0; font-size: 18px; }
-  .header p { margin: 2px 0; }
-  .title { text-align: center; font-weight: bold; text-decoration: underline; margin: 12px 0; }
-  table.meta { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
-  table.meta td { padding: 2px 0; }
+${SHARED_DOC_STYLE}
   table.items { width: 100%; border-collapse: collapse; margin-top: 8px; }
-  table.items th, table.items td { border: 1px solid #333; padding: 4px 6px; font-size: 11px; }
-  table.items th { background: #eee; text-align: left; }
+  table.items th { background: #eef2ff; color: #1e3a8a; text-align: left; padding: 8px 6px; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.3px; border-bottom: 2px solid #1e3a8a; }
+  table.items td { padding: 7px 6px; border-bottom: 1px solid #e5e7eb; font-size: 11.5px; }
   table.items td.num { text-align: right; }
-  table.totals { width: 40%; margin-left: auto; border-collapse: collapse; margin-top: 8px; }
-  table.totals td { padding: 2px 6px; }
-  table.totals td.num { text-align: right; }
-  .footer { margin-top: 24px; font-size: 10px; text-align: center; }
 </style>
 </head>
 <body>
@@ -26,20 +32,20 @@ export const DEFAULT_BILL_TEMPLATE_HTML = `<!doctype html>
     {{#if storeGstin}}<p>GSTIN: {{storeGstin}}</p>{{/if}}
   </div>
 
-  <div class="title">TAX INVOICE</div>
+  <div class="title">Tax Invoice</div>
 
   <table class="meta">
     <tr>
-      <td><strong>Bill No:</strong> {{documentNumber}}</td>
-      <td><strong>Bill Date:</strong> {{billDate}}</td>
+      <td class="label">Bill No.</td><td><strong>{{documentNumber}}</strong></td>
+      <td class="label">Bill Date</td><td>{{billDate}}</td>
     </tr>
     <tr>
-      <td><strong>Customer:</strong> {{#if customerName}}{{customerName}}{{else}}Walk-in{{/if}}</td>
-      <td><strong>Phone:</strong> {{customerPhone}}</td>
+      <td class="label">Customer</td><td>{{#if customerName}}{{customerName}}{{else}}Walk-in{{/if}}</td>
+      <td class="label">Phone</td><td>{{customerPhone}}</td>
     </tr>
     <tr>
-      <td><strong>Terminal:</strong> {{terminalName}}</td>
-      <td><strong>Cashier:</strong> {{cashierName}}</td>
+      <td class="label">Terminal</td><td>{{terminalName}}</td>
+      <td class="label">Cashier</td><td>{{cashierName}}</td>
     </tr>
   </table>
 
@@ -74,7 +80,7 @@ export const DEFAULT_BILL_TEMPLATE_HTML = `<!doctype html>
     <tr><td>Subtotal</td><td class="num">{{money subtotal}}</td></tr>
     <tr><td>Discount</td><td class="num">{{money discountTotal}}</td></tr>
     <tr><td>Tax</td><td class="num">{{money taxTotal}}</td></tr>
-    <tr><td><strong>Grand Total</strong></td><td class="num"><strong>{{money grandTotal}}</strong></td></tr>
+    <tr class="grand"><td>Grand Total</td><td class="num">{{money grandTotal}}</td></tr>
   </table>
 
   <div class="footer">
@@ -88,20 +94,21 @@ export const DEFAULT_RECEIPT_TEMPLATE_HTML = `<!doctype html>
 <html>
 <head>
 <style>
-  body { font-family: monospace; width: 300px; margin: 0 auto; padding: 12px; font-size: 12px; }
-  table { width: 100%; border-collapse: collapse; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; width: 300px; margin: 0 auto; padding: 16px; font-size: 12px; color: #1a1a1a; }
   .center { text-align: center; }
-  table.items td { padding: 2px 0; }
-  table.totals td { padding: 4px 6px; font-weight: bold; border: 1px solid #000; }
-  hr { border: none; border-top: 1px dashed #000; }
+  .store { font-size: 15px; font-weight: 700; color: #1e3a8a; }
+  table { width: 100%; border-collapse: collapse; }
+  table.items td { padding: 4px 0; border-bottom: 1px dashed #ddd; }
+  table.totals td { padding: 3px 0; font-size: 11.5px; }
+  table.totals tr.grand td { font-weight: 700; font-size: 13.5px; border-top: 2px solid #1e3a8a; padding-top: 6px; color: #1e3a8a; }
+  hr { border: none; border-top: 1px dashed #ccc; margin: 10px 0; }
+  .footer { margin-top: 12px; font-size: 9.5px; color: #888; text-align: center; }
 </style>
 </head>
 <body>
-  <div class="center"><strong>{{storeName}}</strong></div>
+  <div class="center store">{{storeName}}</div>
   {{#if headerText}}<div class="center">{{headerText}}</div>{{/if}}
-  <hr />
-  <div>{{documentNumber}}</div>
-  <div>{{billDate}}</div>
+  <div class="center">{{documentNumber}} &middot; {{billDate}}</div>
   <hr />
   <table class="items">
     {{#each lines}}
@@ -113,15 +120,16 @@ export const DEFAULT_RECEIPT_TEMPLATE_HTML = `<!doctype html>
     </tr>
     {{/each}}
   </table>
-  <hr />
   <table class="totals">
     <tr><td>Subtotal</td><td style="text-align:right">{{money subtotal}}</td></tr>
     <tr><td>Discount</td><td style="text-align:right">{{money discountTotal}}</td></tr>
     <tr><td>Tax</td><td style="text-align:right">{{money taxTotal}}</td></tr>
-    <tr><td>Total</td><td style="text-align:right">{{money grandTotal}}</td></tr>
+    <tr class="grand"><td>Total</td><td style="text-align:right">{{money grandTotal}}</td></tr>
   </table>
-  {{#if footerText}}<hr /><div class="center">{{footerText}}</div>{{/if}}
-  {{#if returnPolicyText}}<div class="center" style="font-size:10px">{{returnPolicyText}}</div>{{/if}}
+  <div class="footer">
+    {{#if footerText}}<p>{{footerText}}</p>{{/if}}
+    {{#if returnPolicyText}}<p>{{returnPolicyText}}</p>{{/if}}
+  </div>
 </body>
 </html>`;
 
@@ -129,16 +137,7 @@ export const DEFAULT_CREDIT_NOTE_TEMPLATE_HTML = `<!doctype html>
 <html>
 <head>
 <style>
-  body { font-family: Arial, sans-serif; font-size: 12px; color: #111; margin: 24px; }
-  .header { text-align: center; margin-bottom: 8px; }
-  .header h1 { margin: 0; font-size: 18px; }
-  .header p { margin: 2px 0; }
-  .title { text-align: center; font-weight: bold; text-decoration: underline; margin: 12px 0; }
-  table.meta { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
-  table.meta td { padding: 4px 0; }
-  table.totals { width: 40%; margin-left: auto; border-collapse: collapse; margin-top: 16px; }
-  table.totals td { padding: 2px 6px; }
-  table.totals td.num { text-align: right; }
+${SHARED_DOC_STYLE}
 </style>
 </head>
 <body>
@@ -148,27 +147,31 @@ export const DEFAULT_CREDIT_NOTE_TEMPLATE_HTML = `<!doctype html>
     {{#if storeGstin}}<p>GSTIN: {{storeGstin}}</p>{{/if}}
   </div>
 
-  <div class="title">CREDIT NOTE</div>
+  <div class="title">Credit Note</div>
 
   <table class="meta">
     <tr>
-      <td><strong>Credit Note No:</strong> {{documentNumber}}</td>
-      <td><strong>Date:</strong> {{createdAt}}</td>
+      <td class="label">Credit Note No.</td><td><strong>{{documentNumber}}</strong></td>
+      <td class="label">Date</td><td>{{createdAt}}</td>
     </tr>
     <tr>
-      <td><strong>Customer:</strong> {{customerName}}</td>
-      <td><strong>Phone:</strong> {{customerPhone}}</td>
+      <td class="label">Customer</td><td>{{customerName}}</td>
+      <td class="label">Phone</td><td>{{customerPhone}}</td>
     </tr>
     <tr>
-      <td><strong>Against Bill:</strong> {{originalBillDocumentNumber}}</td>
-      <td><strong>Reason:</strong> {{reasonLabel}}</td>
+      <td class="label">Against Bill</td><td>{{originalBillDocumentNumber}}</td>
+      <td class="label">Reason</td><td>{{reasonLabel}}</td>
     </tr>
   </table>
 
   <table class="totals">
     <tr><td>Tax</td><td class="num">{{money taxBreakdown.taxAmount}}</td></tr>
-    <tr><td><strong>Credit Amount</strong></td><td class="num"><strong>{{money amount}}</strong></td></tr>
+    <tr class="grand"><td>Credit Amount</td><td class="num">{{money amount}}</td></tr>
   </table>
+
+  <div class="footer">
+    <p>This credit note reduces the amount owed on the bill referenced above.</p>
+  </div>
 </body>
 </html>`;
 
@@ -176,16 +179,7 @@ export const DEFAULT_REFUND_TEMPLATE_HTML = `<!doctype html>
 <html>
 <head>
 <style>
-  body { font-family: Arial, sans-serif; font-size: 12px; color: #111; margin: 24px; }
-  .header { text-align: center; margin-bottom: 8px; }
-  .header h1 { margin: 0; font-size: 18px; }
-  .header p { margin: 2px 0; }
-  .title { text-align: center; font-weight: bold; text-decoration: underline; margin: 12px 0; }
-  table.meta { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
-  table.meta td { padding: 4px 0; }
-  table.totals { width: 40%; margin-left: auto; border-collapse: collapse; margin-top: 16px; }
-  table.totals td { padding: 2px 6px; }
-  table.totals td.num { text-align: right; }
+${SHARED_DOC_STYLE}
 </style>
 </head>
 <body>
@@ -195,25 +189,29 @@ export const DEFAULT_REFUND_TEMPLATE_HTML = `<!doctype html>
     {{#if storeGstin}}<p>GSTIN: {{storeGstin}}</p>{{/if}}
   </div>
 
-  <div class="title">REFUND</div>
+  <div class="title">Refund</div>
 
   <table class="meta">
     <tr>
-      <td><strong>Refund No:</strong> {{documentNumber}}</td>
-      <td><strong>Date:</strong> {{createdAt}}</td>
+      <td class="label">Refund No.</td><td><strong>{{documentNumber}}</strong></td>
+      <td class="label">Date</td><td>{{createdAt}}</td>
     </tr>
     <tr>
-      <td><strong>Against Bill:</strong> {{originalBillDocumentNumber}}</td>
-      <td><strong>{{sourceType}}:</strong> {{sourceDocumentNumber}}</td>
+      <td class="label">Against Bill</td><td>{{originalBillDocumentNumber}}</td>
+      <td class="label">{{sourceType}}</td><td>{{sourceDocumentNumber}}</td>
     </tr>
     <tr>
-      <td><strong>Method:</strong> {{refundMethodName}}</td>
-      <td><strong>Status:</strong> {{status}}</td>
+      <td class="label">Method</td><td>{{refundMethodName}}</td>
+      <td class="label">Status</td><td>{{status}}</td>
     </tr>
   </table>
 
   <table class="totals">
-    <tr><td><strong>Refund Amount</strong></td><td class="num"><strong>{{money amount}}</strong></td></tr>
+    <tr class="grand"><td>Refund Amount</td><td class="num">{{money amount}}</td></tr>
   </table>
+
+  <div class="footer">
+    <p>Processed against the bill and source document referenced above.</p>
+  </div>
 </body>
 </html>`;

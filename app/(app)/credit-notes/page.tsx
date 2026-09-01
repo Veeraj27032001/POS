@@ -1,8 +1,13 @@
 "use client";
 
+import { useState } from "react";
+import { toast } from "sonner";
+
+import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/data-table/data-table";
 import { useStoreCurrencySymbol } from "@/lib/hooks/useStoreCurrencySymbol";
 import { formatTimestamp } from "@/lib/datetime/format";
+import { printCreditNote } from "@/lib/billing/printing";
 
 interface CreditNoteRow {
   id: string;
@@ -21,6 +26,19 @@ const BILL_TYPE_LABELS: Record<string, string> = {
 
 export default function CreditNotesPage() {
   const currencySymbol = useStoreCurrencySymbol();
+  const [printingId, setPrintingId] = useState<string | null>(null);
+
+  async function handlePrint(row: CreditNoteRow, e: React.MouseEvent) {
+    e.stopPropagation();
+    setPrintingId(row.id);
+    try {
+      await printCreditNote(row.id);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to print the credit note.");
+    } finally {
+      setPrintingId(null);
+    }
+  }
 
   return (
     <div className="space-y-4 p-8">
@@ -48,6 +66,20 @@ export default function CreditNotesPage() {
             key: "createdAt",
             header: "Created",
             render: (row) => formatTimestamp(row.createdAt),
+          },
+          {
+            key: "print",
+            header: "",
+            render: (row) => (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={printingId === row.id}
+                onClick={(e) => handlePrint(row, e)}
+              >
+                {printingId === row.id ? "Printing…" : "Print"}
+              </Button>
+            ),
           },
         ]}
       />

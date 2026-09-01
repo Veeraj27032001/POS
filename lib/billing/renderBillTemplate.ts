@@ -10,9 +10,11 @@ function renderTemplate(templateHtml: string, data: Record<string, unknown>): st
 export interface BillTemplateLine {
   productName: string;
   productBarcode: string;
+  productHsnCode?: string | null;
   quantity: number;
   unitPrice: number;
   discountApplied: number;
+  lineAmount: number;
   lineTotal: number;
 }
 
@@ -24,16 +26,24 @@ export interface BillTemplateData {
   storeName: string;
   storeAddress?: string | null;
   storeGstin?: string | null;
+  storeStateName?: string | null;
+  storeStateCode?: string | null;
   headerText?: string | null;
   footerText?: string | null;
   returnPolicyText?: string | null;
   customerName?: string | null;
   customerPhone?: string | null;
+  customerAddress?: string | null;
+  customerGstin?: string | null;
   cashierName: string;
   terminalName: string;
   lines: BillTemplateLine[];
   subtotal: number;
   discountTotal: number;
+  netSubtotal: number;
+  cgstAmount: number;
+  sgstAmount: number;
+  igstAmount: number;
   taxTotal: number;
   grandTotal: number;
 }
