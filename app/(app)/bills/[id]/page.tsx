@@ -10,7 +10,7 @@ import { useStoreCurrencySymbol } from "@/lib/hooks/useStoreCurrencySymbol";
 import { formatDateOnly, toDateOnly } from "@/lib/datetime/dateOnly";
 import { formatTimestamp } from "@/lib/datetime/format";
 import { printBill, printReceipt } from "@/lib/billing/printing";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -39,6 +39,14 @@ interface BillPaymentRow {
   paymentMethod: { name: string };
 }
 
+interface BillReturnRow {
+  id: string;
+  documentNumber: string;
+  createdAt: string;
+  reasonCode: { label: string };
+  settled: boolean;
+}
+
 interface BillDetail {
   id: string;
   documentNumber: string;
@@ -56,6 +64,7 @@ interface BillDetail {
   completedAt: string | null;
   lines: BillLineRow[];
   payments: BillPaymentRow[];
+  returns: BillReturnRow[];
   receiptSnapshot: {
     storeName: string;
     headerText: string | null;
@@ -137,6 +146,11 @@ export default function BillViewPage() {
               <Button variant="outline" size="sm" onClick={handlePrintBill} disabled={printingBill}>
                 {printingBill ? "Printing…" : "Print Bill"}
               </Button>
+              {bill.status === "completed" && (
+                <Link href={`/bills/${bill.id}/return`} className={buttonVariants({ size: "sm" })}>
+                  Return
+                </Link>
+              )}
             </div>
           </div>
 
@@ -243,6 +257,33 @@ export default function BillViewPage() {
               </div>
             </div>
           </div>
+
+          {bill.returns.length > 0 && (
+            <div className="rounded-lg border">
+              <div className="text-muted-foreground bg-muted/40 border-b p-3 text-xs font-medium">
+                Returns
+              </div>
+              <div className="divide-y">
+                {bill.returns.map((r) => (
+                  <Link
+                    key={r.id}
+                    href={`/bill-returns/${r.id}`}
+                    className="hover:bg-muted/40 flex items-center justify-between p-3 text-sm"
+                  >
+                    <div>
+                      <div>{r.documentNumber}</div>
+                      <div className="text-muted-foreground text-xs">
+                        {r.reasonCode.label} · {formatTimestamp(r.createdAt)}
+                      </div>
+                    </div>
+                    <span className="text-muted-foreground text-xs">
+                      {r.settled ? "Settled" : "Awaiting settlement"}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

@@ -96,3 +96,20 @@ export const billPaymentCreateSchema = z.object({
   amount: z.coerce.number().positive("Must be a positive amount."),
   referenceNumber: optionalString(100),
 });
+
+export const billReturnLineCreateSchema = z.object({
+  billLineId: opaqueIdSchema,
+  quantity: positiveInt,
+  condition: z.enum(["sellable", "damaged"]),
+  warehouseId: opaqueIdSchema,
+});
+
+export const billReturnCreateSchema = z.object({
+  reasonCodeId: opaqueIdSchema,
+  lines: z.array(billReturnLineCreateSchema).min(1, "Add at least one line to return."),
+});
+
+export const refundCreateSchema = z.object({
+  refundMethodId: opaqueIdSchema,
+  amount: z.coerce.number().positive("Must be a positive amount."),
+});

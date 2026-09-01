@@ -90,6 +90,7 @@ const NAV_ITEM_MODULE: Record<string, string> = {
   "/low-stock": "stock",
   "/billing": "billing",
   "/bills": "billing",
+  "/bill-returns": "billing",
   "/settings/hsn-codes": "hsn_codes",
   "/settings/tax-engine": "stores",
   "/settings/financial-years": "financial_years",
@@ -106,6 +107,11 @@ const NAV_GROUPS: AppNavGroup[] = [
     items: [
       { href: "/billing", label: "New Bill", icon: <ShoppingCart className="h-4 w-4" /> },
       { href: "/bills", label: "Bills", icon: <Receipt className="h-4 w-4" /> },
+      {
+        href: "/bill-returns",
+        label: "Returns",
+        icon: <ArrowLeftRight className="h-4 w-4" />,
+      },
     ],
   },
   {

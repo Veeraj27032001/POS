@@ -35,6 +35,14 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
           },
         },
         payments: { include: { paymentMethod: { select: { name: true, type: true } } } },
+        returns: {
+          orderBy: { createdAt: "desc" },
+          include: {
+            lines: true,
+            reasonCode: { select: { label: true } },
+            creditNotes: { select: { id: true } },
+          },
+        },
       },
     });
     if (!bill) return apiErrorResponse("not_found", "Bill not found.", 404);
@@ -42,7 +50,17 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       return apiErrorResponse("not_found", "Bill not found.", 404);
     }
 
-    return Response.json(bill);
+    const refunds = await db.refund.findMany({
+      where: { sourceType: "bill_return", sourceId: { in: bill.returns.map((r) => r.id) } },
+      select: { sourceId: true },
+    });
+    const refundedReturnIds = new Set(refunds.map((r) => r.sourceId));
+    const returnsWithSettled = bill.returns.map((r) => ({
+      ...r,
+      settled: r.creditNotes.length > 0 || refundedReturnIds.has(r.id),
+    }));
+
+    return Response.json({ ...bill, returns: returnsWithSettled });
   });
 }
 
