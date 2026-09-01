@@ -13,6 +13,7 @@ import {
   createNumberingSeriesForNewFinancialYear,
   findReferenceStoreId,
 } from "./copyNumberingSeries";
+import { createDefaultBillFormats } from "./createDefaultBillFormats";
 import { generateSystemBarcode } from "./generateSystemBarcode";
 import * as schemas from "./schemas";
 
@@ -290,6 +291,7 @@ export const storeResource = defineResource({
     } else {
       await createDefaultNumberingSeries(newStoreId);
     }
+    await createDefaultBillFormats(newStoreId);
   },
 });
 
