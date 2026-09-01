@@ -846,7 +846,7 @@ export default function BillingPage() {
       toast.error("Add items first.");
       return;
     }
-    if (remaining > 0.01 && !paymentMethodId) {
+    if (remaining > 0.01 && !paymentMethodId && billType !== "credit_bill") {
       toast.error("Select a payment method.");
       return;
     }
@@ -873,11 +873,12 @@ export default function BillingPage() {
         .reduce((sum, p) => sum + Number(p.amount), 0);
       const serverRemaining = Math.max(0, Number(freshBill.grandTotal) - alreadyPaid);
 
-      if (serverRemaining > 0.01) {
-        if (!paymentMethodId) {
-          toast.error("Select a payment method.");
-          return;
-        }
+      if (serverRemaining > 0.01 && !paymentMethodId && billType !== "credit_bill") {
+        toast.error("Select a payment method.");
+        return;
+      }
+
+      if (serverRemaining > 0.01 && paymentMethodId) {
         const res = await fetch(`/api/bills/${billId}/payments`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1427,7 +1428,11 @@ export default function BillingPage() {
             <CardFooter className="justify-end">
               <Button
                 onClick={createBill}
-                disabled={busy || cartLines.length === 0 || (remaining > 0.01 && !paymentMethodId)}
+                disabled={
+                  busy ||
+                  cartLines.length === 0 ||
+                  (remaining > 0.01 && !paymentMethodId && billType !== "credit_bill")
+                }
               >
                 {creating ? "Creating…" : "Create bill"}
               </Button>
@@ -1447,6 +1452,11 @@ export default function BillingPage() {
                   onChange={setPaymentMethodId}
                   placeholder="Select payment method…"
                 />
+                {billType === "credit_bill" && (
+                  <p className="text-muted-foreground text-xs">
+                    Optional on a Credit Bill — leave unset to bill fully on credit.
+                  </p>
+                )}
               </div>
 
               {existingPayments.length > 0 && (
