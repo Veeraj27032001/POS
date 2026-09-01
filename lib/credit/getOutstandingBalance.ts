@@ -40,3 +40,29 @@ export async function getOutstandingBalance(customerId: string): Promise<number>
     return total + (Number(bill.grandTotal) - creditNotes - payments);
   }, 0);
 }
+
+export async function getBillOutstandingBalance(billId: string): Promise<number> {
+  const db = unscoped();
+
+  const bill = await db.bill.findUnique({
+    where: { id: billId },
+    select: { grandTotal: true },
+  });
+  if (!bill) return 0;
+
+  const [creditNotes, payments] = await Promise.all([
+    db.creditNote.aggregate({
+      _sum: { amount: true },
+      where: { originalBillId: billId },
+    }),
+    db.billPayment.aggregate({
+      _sum: { amount: true },
+      where: { billId, status: "success" },
+    }),
+  ]);
+
+  const creditNoteTotal = Number(creditNotes._sum.amount ?? 0);
+  const paidTotal = Number(payments._sum.amount ?? 0);
+
+  return Math.max(0, Number(bill.grandTotal) - creditNoteTotal - paidTotal);
+}

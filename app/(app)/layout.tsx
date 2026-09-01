@@ -31,8 +31,10 @@ import {
   TrendingDown,
   TrendingUp,
   Truck,
+  Undo2,
   UserCog,
   Users,
+  Wallet,
   Warehouse,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
@@ -91,6 +93,9 @@ const NAV_ITEM_MODULE: Record<string, string> = {
   "/billing": "billing",
   "/bills": "billing",
   "/bill-returns": "billing",
+  "/credit-notes": "billing",
+  "/refunds": "billing",
+  "/shifts": "billing",
   "/settings/hsn-codes": "hsn_codes",
   "/settings/tax-engine": "stores",
   "/settings/financial-years": "financial_years",
@@ -112,6 +117,13 @@ const NAV_GROUPS: AppNavGroup[] = [
         label: "Returns",
         icon: <ArrowLeftRight className="h-4 w-4" />,
       },
+      {
+        href: "/credit-notes",
+        label: "Credit Notes",
+        icon: <Undo2 className="h-4 w-4" />,
+      },
+      { href: "/refunds", label: "Refunds", icon: <Wallet className="h-4 w-4" /> },
+      { href: "/shifts", label: "Shifts", icon: <ClipboardList className="h-4 w-4" /> },
     ],
   },
   {

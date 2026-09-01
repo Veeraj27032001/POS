@@ -10,7 +10,19 @@ import { useStoreCurrencySymbol } from "@/lib/hooks/useStoreCurrencySymbol";
 import { formatDateOnly, toDateOnly } from "@/lib/datetime/dateOnly";
 import { formatTimestamp } from "@/lib/datetime/format";
 import { printBill, printReceipt } from "@/lib/billing/printing";
+import { useOptionsList } from "@/lib/masters/useOptionsList";
+import { SearchableSelect } from "@/components/searchable-select";
 import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -65,6 +77,7 @@ interface BillDetail {
   lines: BillLineRow[];
   payments: BillPaymentRow[];
   returns: BillReturnRow[];
+  outstandingBalance: number;
   receiptSnapshot: {
     storeName: string;
     headerText: string | null;
@@ -82,6 +95,86 @@ const BILL_TYPE_LABELS: Record<string, string> = {
   credit_bill: "Credit Bill",
   online_bill: "Online Bill",
 };
+
+function RecordPaymentDialog({
+  billId,
+  maxAmount,
+  onRecorded,
+}: {
+  billId: string;
+  maxAmount: number;
+  onRecorded: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [paymentMethodId, setPaymentMethodId] = useState<string | null>(null);
+  const [amount, setAmount] = useState(() => money(maxAmount));
+  const [submitting, setSubmitting] = useState(false);
+  const paymentMethods = useOptionsList("payment-methods/options", "name");
+
+  async function submit() {
+    if (!paymentMethodId) {
+      toast.error("Select a payment method.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await fetch(`/api/bills/${billId}/payments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paymentMethodId, amount: Number(amount) }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        toast.error(body?.error?.message ?? "Failed to record payment.");
+        return;
+      }
+      toast.success("Payment recorded.");
+      setOpen(false);
+      onRecorded();
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger render={<Button size="sm" />}>Record payment</DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Record payment</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-1.5">
+          <Label>Method</Label>
+          <SearchableSelect
+            options={paymentMethods}
+            value={paymentMethodId}
+            onChange={setPaymentMethodId}
+            placeholder="Select method…"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label>Amount</Label>
+          <Input
+            type="number"
+            min={0}
+            max={maxAmount}
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+          />
+          <p className="text-muted-foreground text-xs">Up to {money(maxAmount)}.</p>
+        </div>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            Back
+          </Button>
+          <Button type="button" onClick={() => void submit()} disabled={submitting}>
+            {submitting ? "Recording…" : "Record payment"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export default function BillViewPage() {
   const { id } = useParams<{ id: string }>();
@@ -114,11 +207,13 @@ export default function BillViewPage() {
     }
   }
 
-  useEffect(() => {
+  function load() {
     fetch(`/api/bills/${id}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((body) => setBill(body));
-  }, [id]);
+  }
+
+  useEffect(load, [id]);
 
   return (
     <div className="space-y-4 p-8">
@@ -230,9 +325,26 @@ export default function BillViewPage() {
             </dl>
 
             <div className="rounded-lg border">
-              <div className="text-muted-foreground bg-muted/40 border-b p-3 text-xs font-medium">
-                Payments
+              <div className="bg-muted/40 flex items-center justify-between border-b p-3">
+                <span className="text-muted-foreground text-xs font-medium">Payments</span>
+                {bill.status === "completed" &&
+                  bill.billType === "credit_bill" &&
+                  bill.outstandingBalance > 0 && (
+                    <RecordPaymentDialog
+                      billId={bill.id}
+                      maxAmount={bill.outstandingBalance}
+                      onRecorded={load}
+                    />
+                  )}
               </div>
+              {bill.status === "completed" &&
+                bill.billType === "credit_bill" &&
+                bill.outstandingBalance > 0 && (
+                  <div className="text-muted-foreground border-b px-3 py-2 text-xs">
+                    {currencySymbol}
+                    {money(bill.outstandingBalance)} still owed
+                  </div>
+                )}
               {bill.payments.length === 0 && (
                 <p className="text-muted-foreground p-3 text-sm">No payments recorded.</p>
               )}

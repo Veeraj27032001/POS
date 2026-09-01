@@ -1,0 +1,103 @@
+"use client";
+
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { useEffect, useState } from "react";
+
+import { useStoreCurrencySymbol } from "@/lib/hooks/useStoreCurrencySymbol";
+import { formatTimestamp } from "@/lib/datetime/format";
+
+interface RefundDetail {
+  id: string;
+  documentNumber: string;
+  amount: string;
+  status: string;
+  sourceType: string;
+  createdAt: string;
+  completedAt: string | null;
+  refundMethod: { name: string } | null;
+  processedByUser: { name: string };
+  source: {
+    id: string;
+    documentNumber: string;
+    bill: { id: string; documentNumber: string };
+  } | null;
+}
+
+export default function RefundDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  const [detail, setDetail] = useState<RefundDetail | null | undefined>(undefined);
+  const currencySymbol = useStoreCurrencySymbol();
+
+  useEffect(() => {
+    fetch(`/api/refunds/${id}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((body) => setDetail(body));
+  }, [id]);
+
+  return (
+    <div className="space-y-4 p-8">
+      {detail === undefined && <p className="text-muted-foreground">Loading…</p>}
+      {detail === null && <p className="text-muted-foreground">Refund not found.</p>}
+
+      {detail && (
+        <>
+          <Link href="/refunds" className="text-muted-foreground text-sm hover:underline">
+            ← Back to Refunds
+          </Link>
+
+          <h1 className="text-2xl font-semibold">{detail.documentNumber}</h1>
+
+          <dl className="bg-border grid grid-cols-1 gap-px overflow-hidden rounded-lg border sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              [
+                "Bill",
+                detail.source ? (
+                  <Link
+                    key="bill"
+                    href={`/bills/${detail.source.bill.id}`}
+                    className="hover:underline"
+                  >
+                    {detail.source.bill.documentNumber}
+                  </Link>
+                ) : (
+                  "—"
+                ),
+              ],
+              [
+                "Source",
+                detail.source ? (
+                  <Link
+                    key="source"
+                    href={
+                      detail.sourceType === "bill_return"
+                        ? `/bill-returns/${detail.source.id}`
+                        : `/bills/${detail.source.bill.id}`
+                    }
+                    className="hover:underline"
+                  >
+                    {detail.sourceType === "bill_return" ? "Return" : "Cancellation"}{" "}
+                    {detail.source.documentNumber}
+                  </Link>
+                ) : (
+                  "—"
+                ),
+              ],
+              ["Method", detail.refundMethod?.name ?? "—"],
+              ["Status", detail.status],
+              ["Amount", `${currencySymbol}${Number(detail.amount).toFixed(2)}`],
+              ["Processed by", detail.processedByUser.name],
+              ["Created", formatTimestamp(detail.createdAt)],
+              ["Completed", detail.completedAt ? formatTimestamp(detail.completedAt) : "—"],
+            ].map(([label, value]) => (
+              <div key={label as string} className="bg-card flex flex-col gap-1 p-4 text-sm">
+                <dt className="text-muted-foreground">{label}</dt>
+                <dd className="font-medium break-words">{value}</dd>
+              </div>
+            ))}
+          </dl>
+        </>
+      )}
+    </div>
+  );
+}

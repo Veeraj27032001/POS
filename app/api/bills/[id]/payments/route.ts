@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { hasPermission } from "@/lib/auth/rbac";
 import { asAppSession } from "@/lib/auth/types";
 import { billPaymentCreateSchema } from "@/lib/billing/schemas";
+import { getBillOutstandingBalance } from "@/lib/credit/getOutstandingBalance";
 import { unscoped } from "@/lib/db";
 import { allocateDocumentNumber } from "@/lib/numbering/allocateDocumentNumber";
 import { writeAuditLog } from "@/lib/security/audit";
@@ -37,7 +38,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (session.user.storeId && bill.storeId !== session.user.storeId) {
       return apiErrorResponse("not_found", "Bill not found.", 404);
     }
-    if (bill.status !== "draft" && bill.status !== "held") {
+    const canPay =
+      bill.status === "draft" ||
+      bill.status === "held" ||
+      (bill.status === "completed" && bill.billType === "credit_bill");
+    if (!canPay) {
       return apiErrorResponse(
         "bad_request",
         `Can't record a payment on a ${bill.status} bill.`,
@@ -53,15 +58,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return apiErrorResponse("bad_request", `${method.name} requires a reference number.`, 400);
     }
 
-    const existingPayments = await db.billPayment.aggregate({
-      _sum: { amount: true },
-      where: { billId: id, status: "success" },
-    });
-    const alreadyPaid = Number(existingPayments._sum.amount ?? 0);
-    if (alreadyPaid + data.amount > Number(bill.grandTotal) + 0.01) {
+    const remaining = await getBillOutstandingBalance(id);
+    if (data.amount > remaining + 0.01) {
       return apiErrorResponse(
         "bad_request",
-        `This payment would exceed the bill total — ${Number(bill.grandTotal) - alreadyPaid} remaining.`,
+        `This payment would exceed the bill total — ${remaining} remaining.`,
         400,
       );
     }

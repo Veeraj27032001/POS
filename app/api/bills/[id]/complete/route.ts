@@ -60,7 +60,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
       where: { billId: id, status: "success" },
     });
     const totalPaid = Number(payments._sum.amount ?? 0);
-    if (totalPaid < Number(bill.grandTotal)) {
+    if (bill.billType !== "credit_bill" && totalPaid < Number(bill.grandTotal)) {
       return apiErrorResponse(
         "bad_request",
         `Payments total ${totalPaid} — ${(Number(bill.grandTotal) - totalPaid).toFixed(2)} still due.`,

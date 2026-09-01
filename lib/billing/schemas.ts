@@ -3,6 +3,8 @@ import { z } from "zod";
 import {
   emailSchema,
   isoDateOnlySchema,
+  nonNegativeDecimal,
+  nonNegativeInt,
   opaqueIdSchema,
   optionalPhoneSchema,
   optionalString,
@@ -112,4 +114,20 @@ export const billReturnCreateSchema = z.object({
 export const refundCreateSchema = z.object({
   refundMethodId: opaqueIdSchema,
   amount: z.coerce.number().positive("Must be a positive amount."),
+});
+
+export const shiftCashCountEntrySchema = z.object({
+  denominationId: opaqueIdSchema,
+  quantityCounted: nonNegativeInt,
+});
+
+export const shiftOpenSchema = z.object({
+  terminalId: opaqueIdSchema,
+  openingFloat: nonNegativeDecimal,
+  openingCounts: z.array(shiftCashCountEntrySchema).optional(),
+});
+
+export const shiftCloseSchema = z.object({
+  closingCounted: nonNegativeDecimal,
+  closingCounts: z.array(shiftCashCountEntrySchema).optional(),
 });

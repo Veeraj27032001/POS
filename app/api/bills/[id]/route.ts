@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { hasPermission } from "@/lib/auth/rbac";
 import { asAppSession } from "@/lib/auth/types";
 import { billAttachCustomerSchema } from "@/lib/billing/schemas";
+import { getBillOutstandingBalance } from "@/lib/credit/getOutstandingBalance";
 import { unscoped } from "@/lib/db";
 import { dateOnlyToUtcMidnight, toDateOnly } from "@/lib/datetime/dateOnly";
 import { writeAuditLog } from "@/lib/security/audit";
@@ -60,7 +61,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       settled: r.creditNotes.length > 0 || refundedReturnIds.has(r.id),
     }));
 
-    return Response.json({ ...bill, returns: returnsWithSettled });
+    const outstandingBalance =
+      bill.billType === "credit_bill" ? await getBillOutstandingBalance(id) : 0;
+
+    return Response.json({ ...bill, returns: returnsWithSettled, outstandingBalance });
   });
 }
 

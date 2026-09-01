@@ -14,6 +14,7 @@ import {
 } from "@/components/billing/customer-details-fields";
 import { EditableLineValue } from "@/components/billing/editable-line-value";
 import { LineWarehouseSplit } from "@/components/billing/line-warehouse-split";
+import { ShiftControl } from "@/components/billing/shift-control";
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 import { useStoreCurrencySymbol } from "@/lib/hooks/useStoreCurrencySymbol";
 import { useStoreDefaultExcludeTax } from "@/lib/hooks/useStoreDefaultExcludeTax";
@@ -1071,6 +1072,9 @@ export default function BillingPage() {
             <span>{billType === "credit_bill" ? "Credit Bill" : "Cash Bill"}</span>
             <span>·</span>
             <span>{terminals.find((t) => t.value === terminalId)?.label ?? "No terminal"}</span>
+            {terminalId && session?.user.storeId && (
+              <ShiftControl terminalId={terminalId} storeId={session.user.storeId} />
+            )}
             <Dialog open={terminalModalOpen} onOpenChange={setTerminalModalOpen}>
               <DialogTrigger
                 render={
