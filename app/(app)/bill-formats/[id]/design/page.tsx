@@ -391,7 +391,7 @@ export default function BillFormatDesignPage() {
       )}
 
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="flex max-h-[85vh] w-full max-w-4xl flex-col">
+        <DialogContent className="flex h-[92vh] max-h-[92vh] w-[92vw] max-w-6xl flex-col sm:max-w-6xl">
           <DialogHeader>
             <DialogTitle>Preview with sample data</DialogTitle>
           </DialogHeader>
@@ -399,7 +399,7 @@ export default function BillFormatDesignPage() {
             <iframe
               srcDoc={previewHtml}
               sandbox=""
-              className="h-[70vh] w-full flex-1 rounded-md border bg-white"
+              className="w-full flex-1 rounded-md border bg-white"
               title="Bill format preview"
             />
           )}
