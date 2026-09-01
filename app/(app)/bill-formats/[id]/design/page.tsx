@@ -23,6 +23,7 @@ import { PropertyPanel } from "@/components/billing/design-builder/property-pane
 import { SortableBlockChip } from "@/components/billing/design-builder/sortable-block-chip";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import type { BillFormatKind, BillType } from "@/generated/prisma/client";
@@ -77,6 +78,7 @@ export default function BillFormatDesignPage() {
   const [mode, setMode] = useState<"visual" | "html">("html");
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [activeDragLabel, setActiveDragLabel] = useState<string | null>(null);
   const [savedSnapshot, setSavedSnapshot] = useState<{
     html: string;
@@ -269,7 +271,11 @@ export default function BillFormatDesignPage() {
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => void runPreview(row.formatKind, displayedHtml)}
+            onClick={() =>
+              void runPreview(row.formatKind, displayedHtml).then(
+                (html) => html !== null && setPreviewOpen(true),
+              )
+            }
             disabled={previewLoading}
           >
             {previewLoading ? "Rendering…" : "Preview"}
@@ -384,16 +390,21 @@ export default function BillFormatDesignPage() {
         </div>
       )}
 
-      {previewHtml && (
-        <div className="border-t p-4">
-          <iframe
-            srcDoc={previewHtml}
-            sandbox=""
-            className="h-[28rem] w-full rounded-md border bg-white"
-            title="Bill format preview"
-          />
-        </div>
-      )}
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="flex max-h-[85vh] w-full max-w-4xl flex-col">
+          <DialogHeader>
+            <DialogTitle>Preview with sample data</DialogTitle>
+          </DialogHeader>
+          {previewHtml && (
+            <iframe
+              srcDoc={previewHtml}
+              sandbox=""
+              className="h-[70vh] w-full flex-1 rounded-md border bg-white"
+              title="Bill format preview"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
