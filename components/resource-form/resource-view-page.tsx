@@ -4,7 +4,8 @@ import { Loader2Icon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import type { FieldValues } from "react-hook-form";
+import type { ReactNode } from "react";
+import type { Control, FieldValues } from "react-hook-form";
 import { toast } from "sonner";
 import type { ZodType } from "zod";
 
@@ -68,19 +69,39 @@ function DynamicFieldValue({
   return <>{options.find((option) => option.value === value)?.label ?? String(value)}</>;
 }
 
-export interface ResourceViewPageProps<TUpdate extends FieldValues> {
+export interface ResourceViewPageProps<
+  TRow extends { id: string; isActive?: boolean },
+  TUpdate extends FieldValues,
+> {
   resource: string;
   title: string;
   fields: ResourceFieldConfig[];
   updateSchema: ZodType<TUpdate>;
   createSchema?: ZodType;
   id: string;
+  /** Extra UI rendered inside the edit form, with access to live form
+   * values (e.g. a preview button). */
+  renderFormExtra?: (control: Control<FieldValues>) => ReactNode;
+  /** Widens the edit dialog beyond the default sm:max-w-lg. */
+  dialogClassName?: string;
+  /** Extra action(s) rendered in the header button row, e.g. a link to a bespoke sub-page. */
+  headerActions?: (row: TRow) => ReactNode;
 }
 
 export function ResourceViewPage<
   TRow extends { id: string; isActive?: boolean },
   TUpdate extends FieldValues,
->({ resource, title, fields, updateSchema, createSchema, id }: ResourceViewPageProps<TUpdate>) {
+>({
+  resource,
+  title,
+  fields,
+  updateSchema,
+  createSchema,
+  id,
+  renderFormExtra,
+  dialogClassName,
+  headerActions,
+}: ResourceViewPageProps<TRow, TUpdate>) {
   const [row, setRow] = useState<TRow | null | undefined>(undefined);
   const [editOpen, setEditOpen] = useState(false);
   const [toggling, setToggling] = useState(false);
@@ -184,6 +205,7 @@ export function ResourceViewPage<
         </div>
         {row && (
           <div className="flex gap-2">
+            {headerActions?.(row)}
             <Dialog open={editOpen} onOpenChange={setEditOpen}>
               <DialogTrigger
                 render={
@@ -192,7 +214,7 @@ export function ResourceViewPage<
                   </Button>
                 }
               />
-              <DialogContent>
+              <DialogContent className={dialogClassName}>
                 <DialogHeader>
                   <DialogTitle>Edit {singular}</DialogTitle>
                 </DialogHeader>
@@ -203,6 +225,7 @@ export function ResourceViewPage<
                   defaultValues={row as unknown as Partial<TUpdate>}
                   onSubmit={handleUpdate}
                   submitLabel="Save changes"
+                  renderExtra={renderFormExtra}
                 />
               </DialogContent>
             </Dialog>

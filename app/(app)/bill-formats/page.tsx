@@ -1,10 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import type { z } from "zod";
 
+import { buttonVariants } from "@/components/ui/button";
 import { ResourcePage } from "@/components/resource-form/resource-page";
 import { StoreCardFilter } from "@/components/store-card-filter";
+import { BillFormatPreview } from "@/components/billing/bill-format-preview";
 import { billFormatCreateSchema, billFormatUpdateSchema } from "@/lib/masters/schemas";
 import { formatDateOnly, toDateOnly } from "@/lib/datetime/dateOnly";
 import { DEFAULT_BILL_TEMPLATE_HTML } from "@/lib/billing/defaultBillFormatTemplates";
@@ -117,6 +120,16 @@ export default function BillFormatsPage() {
             storeId: selectedStoreId,
             templateHtml: DEFAULT_BILL_TEMPLATE_HTML,
           }}
+          renderFormExtra={(control) => <BillFormatPreview control={control} />}
+          dialogClassName="sm:max-w-2xl"
+          rowActions={(row) => (
+            <Link
+              href={`/bill-formats/${row.id}/design`}
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              Design
+            </Link>
+          )}
         />
       )}
     </div>

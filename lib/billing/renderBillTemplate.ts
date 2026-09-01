@@ -31,6 +31,7 @@ export interface BillTemplateData {
   storeGstin?: string | null;
   storeStateName?: string | null;
   storeStateCode?: string | null;
+  storeLogoUrl?: string | null;
   headerText?: string | null;
   footerText?: string | null;
   returnPolicyText?: string | null;
@@ -61,6 +62,7 @@ export interface CreditNoteTemplateData {
   storeName: string;
   storeAddress?: string | null;
   storeGstin?: string | null;
+  storeLogoUrl?: string | null;
   customerName: string;
   customerPhone: string;
   originalBillDocumentNumber: string;
@@ -87,6 +89,7 @@ export interface RefundTemplateData {
   storeName: string;
   storeAddress?: string | null;
   storeGstin?: string | null;
+  storeLogoUrl?: string | null;
   originalBillDocumentNumber: string;
   sourceType: string;
   sourceDocumentNumber: string;

@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Control, FieldValues } from "react-hook-form";
 import { Controller, useForm, useWatch } from "react-hook-form";
+import type { ReactNode } from "react";
 import type { ZodType } from "zod";
 
 import { FileUploadField } from "@/components/file-upload-field";
@@ -39,6 +40,10 @@ export interface ResourceFormProps<T extends FieldValues> {
    * *create* schema even on an edit form, since .partial() update schemas
    * mark every field optional. Defaults to `schema`. */
   requiredFieldsSchema?: ZodType;
+  /** Extra UI rendered after the field list, with access to live form
+   * values (e.g. a preview button) — loosely typed since this layer already
+   * maps field configs to values by name string, not full generics. */
+  renderExtra?: (control: Control<FieldValues>) => ReactNode;
 }
 
 function FieldLabel({
@@ -116,6 +121,7 @@ export function ResourceForm<T extends FieldValues>({
   onSubmit,
   submitLabel = "Save",
   requiredFieldsSchema,
+  renderExtra,
 }: ResourceFormProps<T>) {
   const requiredFields = getRequiredFieldNames(requiredFieldsSchema ?? schema);
   // Multi-select fields need to start as [] rather than undefined — Zod's
@@ -262,6 +268,7 @@ export function ResourceForm<T extends FieldValues>({
             </div>
           );
         })}
+        {renderExtra?.(control as unknown as Control<FieldValues>)}
       </DialogFormBody>
 
       <DialogFormActions>

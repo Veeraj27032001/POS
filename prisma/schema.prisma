@@ -1298,6 +1298,7 @@ model BillFormat {
   name          String
   effectiveFrom DateTime       @map("effective_from") @db.Date
   templateHtml  String         @map("template_html")
+  designJson    Json?          @map("design_json")
   isDefault     Boolean        @default(false) @map("is_default")
   isActive      Boolean        @default(true) @map("is_active")
   isDeleted     Boolean        @default(false) @map("is_deleted")

@@ -58,6 +58,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       storeName: source.bill.store.name,
       storeAddress: source.bill.store.address,
       storeGstin: source.bill.store.gstin,
+      storeLogoUrl: source.bill.store.logoUrl,
       originalBillDocumentNumber: source.bill.documentNumber,
       sourceType: refund.sourceType === "bill_return" ? "Return" : "Cancellation",
       sourceDocumentNumber: source.documentNumber,

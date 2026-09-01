@@ -80,6 +80,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       storeGstin: bill.store.gstin,
       storeStateName: bill.store.state?.name,
       storeStateCode: bill.store.state?.code,
+      storeLogoUrl: bill.store.logoUrl,
       headerText: bill.store.receiptHeaderText,
       footerText: bill.store.receiptFooterText,
       returnPolicyText: bill.store.returnPolicyText,

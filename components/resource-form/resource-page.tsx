@@ -4,7 +4,7 @@ import { Loader2Icon } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import type { ReactNode } from "react";
-import type { FieldValues } from "react-hook-form";
+import type { Control, FieldValues } from "react-hook-form";
 import { toast } from "sonner";
 import type { ZodType } from "zod";
 
@@ -47,6 +47,13 @@ export interface ResourcePageProps<
   createDefaultValues?: Partial<TCreate>;
   /** Extra actions rendered next to the New button, e.g. an Import trigger. */
   headerExtra?: ReactNode;
+  /** Extra UI rendered inside the create/edit form, with access to live
+   * form values (e.g. a preview button). */
+  renderFormExtra?: (control: Control<FieldValues>) => ReactNode;
+  /** Widens the create/edit dialog beyond the default sm:max-w-lg. */
+  dialogClassName?: string;
+  /** Extra action(s) appended to each row's actions cell, e.g. a link to a bespoke sub-page. */
+  rowActions?: (row: TRow) => ReactNode;
 }
 
 export function ResourcePage<
@@ -65,6 +72,9 @@ export function ResourcePage<
   filters,
   createDefaultValues,
   headerExtra,
+  renderFormExtra,
+  dialogClassName,
+  rowActions,
 }: ResourcePageProps<TRow, TCreate, TUpdate>) {
   const [createOpen, setCreateOpen] = useState(false);
   const [editingRow, setEditingRow] = useState<TRow | null>(null);
@@ -167,6 +177,7 @@ export function ResourcePage<
           <Button variant="outline" size="sm" onClick={() => setEditingRow(row)}>
             Edit
           </Button>
+          {rowActions?.(row)}
           {"isActive" in row && (
             <>
               <Button
@@ -202,7 +213,7 @@ export function ResourcePage<
           {headerExtra}
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger render={<Button>New</Button>} />
-            <DialogContent>
+            <DialogContent className={dialogClassName}>
               <DialogHeader>
                 <DialogTitle>New {singular}</DialogTitle>
               </DialogHeader>
@@ -211,6 +222,7 @@ export function ResourcePage<
                 fields={fields}
                 defaultValues={createDefaultValues}
                 onSubmit={handleCreate}
+                renderExtra={renderFormExtra}
               />
             </DialogContent>
           </Dialog>
@@ -231,7 +243,7 @@ export function ResourcePage<
           if (!next) setEditingRow(null);
         }}
       >
-        <DialogContent>
+        <DialogContent className={dialogClassName}>
           <DialogHeader>
             <DialogTitle>Edit {singular}</DialogTitle>
           </DialogHeader>
@@ -243,6 +255,7 @@ export function ResourcePage<
               defaultValues={editingRow as unknown as Partial<TUpdate>}
               onSubmit={handleUpdate}
               submitLabel="Save changes"
+              renderExtra={renderFormExtra}
             />
           )}
         </DialogContent>

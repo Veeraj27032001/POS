@@ -1,3 +1,4 @@
+import { Prisma } from "@/generated/prisma/client";
 import { getNotifier } from "@/lib/adapters/notifier";
 import { ROLE_RANK, roleRank, SUPER_ADMIN_ROLE_NAME } from "@/lib/auth/rbac";
 import type { AppSession } from "@/lib/auth/types";
@@ -255,6 +256,8 @@ export const billFormatResource = defineResource({
   updateSchema: schemas.billFormatUpdateSchema,
   searchFields: ["name"],
   getDelegate: delegateOf("billFormat"),
+  beforeUpdate: (data) =>
+    data.designJson === null ? { ...data, designJson: Prisma.JsonNull } : data,
 });
 
 export const loyaltyRuleResource = defineResource({

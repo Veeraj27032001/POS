@@ -57,6 +57,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       storeName: creditNote.originalBill.store.name,
       storeAddress: creditNote.originalBill.store.address,
       storeGstin: creditNote.originalBill.store.gstin,
+      storeLogoUrl: creditNote.originalBill.store.logoUrl,
       customerName: creditNote.customer.name ?? "",
       customerPhone: creditNote.customer.phone ?? "",
       originalBillDocumentNumber: creditNote.originalBill.documentNumber,

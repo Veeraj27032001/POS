@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { billTypeSchema } from "@/lib/billing/schemas";
+import { billFormatDesignSchema } from "@/lib/billing/billFormatDesign.types";
 import { SERIES_TYPES } from "@/lib/numbering/seriesDefaults";
 import {
   emailSchema,
@@ -207,6 +208,7 @@ export const billFormatCreateSchema = z.object({
   name: requiredString("Name"),
   effectiveFrom: isoDateOnlySchema,
   templateHtml: requiredString("Template HTML", 200000),
+  designJson: billFormatDesignSchema.nullable().optional(),
   isDefault: z.boolean().default(false),
   isActive: z.boolean().default(true),
 });
