@@ -1,7 +1,10 @@
 import Handlebars from "handlebars";
 
+import { amountToWords } from "@/lib/billing/amountToWords";
+
 Handlebars.registerHelper("money", (value: unknown) => Number(value).toFixed(2));
 Handlebars.registerHelper("index1", (index: unknown) => Number(index) + 1);
+Handlebars.registerHelper("amountInWords", (value: unknown) => amountToWords(Number(value)));
 
 function renderTemplate(templateHtml: string, data: Record<string, unknown>): string {
   return Handlebars.compile(templateHtml)(data);

@@ -100,7 +100,7 @@ export const DEFAULT_BILL_TEMPLATE_HTML = `<!doctype html>
     </tfoot>
   </table>
 
-  <div class="words">Amount in Words: ________________________________</div>
+  <div class="words">Amount in Words: {{amountInWords grandTotal}}</div>
 
   <div class="signature">
     <div>For {{storeName}}</div>
