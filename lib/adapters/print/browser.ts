@@ -20,7 +20,7 @@ function renderReceiptHtml(p: Extract<PrintPayload, { kind: "receipt" }>): strin
       body { font-family: monospace; width: 300px; margin: 0 auto; padding: 12px; }
       table { width: 100%; border-collapse: collapse; font-size: 12px; }
       .center { text-align: center; }
-      .totals td { padding-top: 4px; font-weight: bold; }
+      .totals td { padding: 4px 6px; font-weight: bold; border: 1px solid #000; }
       hr { border: none; border-top: 1px dashed #000; }
     </style></head>
     <body>
