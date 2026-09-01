@@ -4,10 +4,12 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { toast } from "sonner";
+
 import { useStoreCurrencySymbol } from "@/lib/hooks/useStoreCurrencySymbol";
 import { formatDateOnly, toDateOnly } from "@/lib/datetime/dateOnly";
 import { formatTimestamp } from "@/lib/datetime/format";
-import { printBillReceipt } from "@/lib/billing/printBillReceipt";
+import { printBill, printReceipt } from "@/lib/billing/printing";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -75,16 +77,31 @@ const BILL_TYPE_LABELS: Record<string, string> = {
 export default function BillViewPage() {
   const { id } = useParams<{ id: string }>();
   const [bill, setBill] = useState<BillDetail | null | undefined>(undefined);
-  const [printing, setPrinting] = useState(false);
+  const [printingReceipt, setPrintingReceipt] = useState(false);
+  const [printingBill, setPrintingBill] = useState(false);
   const currencySymbol = useStoreCurrencySymbol();
 
-  async function handlePrint() {
+  async function handlePrintReceipt() {
     if (!bill) return;
-    setPrinting(true);
+    setPrintingReceipt(true);
     try {
-      await printBillReceipt(bill);
+      await printReceipt(bill);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to print the receipt.");
     } finally {
-      setPrinting(false);
+      setPrintingReceipt(false);
+    }
+  }
+
+  async function handlePrintBill() {
+    if (!bill) return;
+    setPrintingBill(true);
+    try {
+      await printBill(bill.id);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to print the bill.");
+    } finally {
+      setPrintingBill(false);
     }
   }
 
@@ -109,8 +126,16 @@ export default function BillViewPage() {
             <h1 className="text-2xl font-semibold">{bill.documentNumber}</h1>
             <div className="flex items-center gap-3">
               <span className="text-muted-foreground text-sm capitalize">{bill.status}</span>
-              <Button variant="outline" size="sm" onClick={handlePrint} disabled={printing}>
-                {printing ? "Printing…" : "Print"}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePrintReceipt}
+                disabled={printingReceipt}
+              >
+                {printingReceipt ? "Printing…" : "Print Receipt"}
+              </Button>
+              <Button variant="outline" size="sm" onClick={handlePrintBill} disabled={printingBill}>
+                {printingBill ? "Printing…" : "Print Bill"}
               </Button>
             </div>
           </div>

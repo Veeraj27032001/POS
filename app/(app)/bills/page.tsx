@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { DataTable } from "@/components/data-table/data-table";
 import { formatDateOnly, toDateOnly } from "@/lib/datetime/dateOnly";
 import { formatTimestamp } from "@/lib/datetime/format";
 import { useStoreCurrencySymbol } from "@/lib/hooks/useStoreCurrencySymbol";
-import { printBillReceipt } from "@/lib/billing/printBillReceipt";
+import { printBill, printReceipt } from "@/lib/billing/printing";
 
 interface BillRow {
   id: string;
@@ -27,20 +28,36 @@ const BILL_TYPE_LABELS: Record<string, string> = {
   online_bill: "Online Bill",
 };
 
+type PrintAction = { id: string; kind: "receipt" | "bill" } | null;
+
 export default function BillsPage() {
   const currencySymbol = useStoreCurrencySymbol();
-  const [printingId, setPrintingId] = useState<string | null>(null);
+  const [printing, setPrinting] = useState<PrintAction>(null);
 
-  async function handlePrint(row: BillRow, e: React.MouseEvent) {
+  async function handlePrintReceipt(row: BillRow, e: React.MouseEvent) {
     e.stopPropagation();
-    setPrintingId(row.id);
+    setPrinting({ id: row.id, kind: "receipt" });
     try {
       const res = await fetch(`/api/bills/${row.id}`);
       if (res.ok) {
-        await printBillReceipt(await res.json());
+        await printReceipt(await res.json());
       }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to print the receipt.");
     } finally {
-      setPrintingId(null);
+      setPrinting(null);
+    }
+  }
+
+  async function handlePrintBill(row: BillRow, e: React.MouseEvent) {
+    e.stopPropagation();
+    setPrinting({ id: row.id, kind: "bill" });
+    try {
+      await printBill(row.id);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to print the bill.");
+    } finally {
+      setPrinting(null);
     }
   }
 
@@ -86,14 +103,24 @@ export default function BillsPage() {
             key: "print",
             header: "",
             render: (row) => (
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={printingId === row.id}
-                onClick={(e) => handlePrint(row, e)}
-              >
-                {printingId === row.id ? "Printing…" : "Print"}
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={printing?.id === row.id}
+                  onClick={(e) => handlePrintReceipt(row, e)}
+                >
+                  {printing?.id === row.id && printing.kind === "receipt" ? "Printing…" : "Receipt"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={printing?.id === row.id}
+                  onClick={(e) => handlePrintBill(row, e)}
+                >
+                  {printing?.id === row.id && printing.kind === "bill" ? "Printing…" : "Bill"}
+                </Button>
+              </div>
             ),
           },
         ]}

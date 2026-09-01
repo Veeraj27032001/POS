@@ -36,7 +36,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       return apiErrorResponse("not_found", "Bill not found.", 404);
     }
 
-    const format = await resolveBillFormat(bill.storeId, bill.billDate);
+    const format = await resolveBillFormat(bill.storeId, bill.billType, bill.billDate);
     if (!format) {
       return Response.json({ html: null });
     }

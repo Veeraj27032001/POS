@@ -1,6 +1,7 @@
 import Handlebars from "handlebars";
 
 Handlebars.registerHelper("money", (value: unknown) => Number(value).toFixed(2));
+Handlebars.registerHelper("index1", (index: unknown) => Number(index) + 1);
 
 export interface BillTemplateLine {
   productName: string;

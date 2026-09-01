@@ -7,8 +7,7 @@ interface PrintableBillLine {
   lineTotal: string | number;
 }
 
-interface PrintableBill {
-  id: string;
+interface PrintableReceiptBill {
   documentNumber: string;
   subtotal: string | number;
   discountTotal: string | number;
@@ -31,16 +30,7 @@ function openAndPrintHtml(html: string): void {
   win.document.close();
 }
 
-export async function printBillReceipt(bill: PrintableBill): Promise<void> {
-  const formatRes = await fetch(`/api/bills/${bill.id}/print`);
-  if (formatRes.ok) {
-    const { html } = (await formatRes.json()) as { html: string | null };
-    if (html) {
-      openAndPrintHtml(html);
-      return;
-    }
-  }
-
+export async function printReceipt(bill: PrintableReceiptBill): Promise<void> {
   const snapshot = bill.receiptSnapshot;
   await getPrintBridge().print({
     kind: "receipt",
@@ -60,4 +50,18 @@ export async function printBillReceipt(bill: PrintableBill): Promise<void> {
     taxTotal: Number(bill.taxTotal),
     grandTotal: Number(bill.grandTotal),
   });
+}
+
+export async function printBill(billId: string): Promise<void> {
+  const res = await fetch(`/api/bills/${billId}/print`);
+  if (!res.ok) {
+    throw new Error("Failed to load the bill format.");
+  }
+  const { html } = (await res.json()) as { html: string | null };
+  if (!html) {
+    throw new Error(
+      "No bill format is configured for this store and bill type yet — set one up under Bill Formats.",
+    );
+  }
+  openAndPrintHtml(html);
 }

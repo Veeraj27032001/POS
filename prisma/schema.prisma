@@ -1284,6 +1284,7 @@ model BillFormat {
   id            String   @id @default(uuid())
   storeId       String   @map("store_id")
   store         Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  billType      BillType @map("bill_type")
   name          String
   effectiveFrom DateTime @map("effective_from") @db.Date
   templateHtml  String   @map("template_html")

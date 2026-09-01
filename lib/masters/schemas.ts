@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { billTypeSchema } from "@/lib/billing/schemas";
 import { SERIES_TYPES } from "@/lib/numbering/seriesDefaults";
 import {
   emailSchema,
@@ -200,6 +201,7 @@ export const cashDenominationUpdateSchema = cashDenominationCreateSchema.partial
 
 export const billFormatCreateSchema = z.object({
   storeId: opaqueIdSchema,
+  billType: billTypeSchema,
   name: requiredString("Name"),
   effectiveFrom: isoDateOnlySchema,
   templateHtml: requiredString("Template HTML", 200000),
