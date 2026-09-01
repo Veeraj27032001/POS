@@ -8,6 +8,7 @@ interface PrintableBillLine {
 }
 
 interface PrintableReceiptBill {
+  id: string;
   documentNumber: string;
   subtotal: string | number;
   discountTotal: string | number;
@@ -30,7 +31,17 @@ function openAndPrintHtml(html: string): void {
   win.document.close();
 }
 
-export async function printReceipt(bill: PrintableReceiptBill): Promise<void> {
+async function fetchFormattedHtml(
+  billId: string,
+  type: "receipt" | "bill",
+): Promise<string | null> {
+  const res = await fetch(`/api/bills/${billId}/print?type=${type}`);
+  if (!res.ok) return null;
+  const { html } = (await res.json()) as { html: string | null };
+  return html;
+}
+
+async function printFallbackReceipt(bill: PrintableReceiptBill): Promise<void> {
   const snapshot = bill.receiptSnapshot;
   await getPrintBridge().print({
     kind: "receipt",
@@ -52,12 +63,17 @@ export async function printReceipt(bill: PrintableReceiptBill): Promise<void> {
   });
 }
 
-export async function printBill(billId: string): Promise<void> {
-  const res = await fetch(`/api/bills/${billId}/print`);
-  if (!res.ok) {
-    throw new Error("Failed to load the bill format.");
+export async function printReceipt(bill: PrintableReceiptBill): Promise<void> {
+  const html = await fetchFormattedHtml(bill.id, "receipt");
+  if (html) {
+    openAndPrintHtml(html);
+    return;
   }
-  const { html } = (await res.json()) as { html: string | null };
+  await printFallbackReceipt(bill);
+}
+
+export async function printBill(billId: string): Promise<void> {
+  const html = await fetchFormattedHtml(billId, "bill");
   if (!html) {
     throw new Error(
       "No bill format is configured for this store and bill type yet — set one up under Bill Formats.",

@@ -8,7 +8,7 @@ import { unscoped } from "@/lib/db";
 import { apiErrorResponse } from "@/lib/validation/response";
 import { withStoreContext } from "@/middleware/scope";
 
-export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = asAppSession(await auth());
   if (!session?.user) {
     return apiErrorResponse("unauthorized", "You must be signed in.", 401);
@@ -18,6 +18,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   }
 
   const { id } = await params;
+  const typeParam = new URL(request.url).searchParams.get("type");
+  const formatKind = typeParam === "receipt" ? "receipt" : "bill";
 
   return withStoreContext(async () => {
     const db = unscoped();
@@ -36,7 +38,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       return apiErrorResponse("not_found", "Bill not found.", 404);
     }
 
-    const format = await resolveBillFormat(bill.storeId, bill.billType, bill.billDate);
+    const format = await resolveBillFormat(bill.storeId, bill.billType, formatKind, bill.billDate);
     if (!format) {
       return Response.json({ html: null });
     }

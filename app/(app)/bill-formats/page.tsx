@@ -11,6 +11,7 @@ import { formatDateOnly, toDateOnly } from "@/lib/datetime/dateOnly";
 interface BillFormatRow {
   id: string;
   billType: string;
+  formatKind: string;
   name: string;
   effectiveFrom: string;
   isDefault: boolean;
@@ -21,6 +22,11 @@ const BILL_TYPE_LABELS: Record<string, string> = {
   cash_bill: "Cash Bill",
   credit_bill: "Credit Bill",
   online_bill: "Online Bill",
+};
+
+const FORMAT_KIND_LABELS: Record<string, string> = {
+  receipt: "Receipt",
+  bill: "Bill",
 };
 
 const STARTER_TEMPLATE_HTML = `<!doctype html>
@@ -129,6 +135,11 @@ export default function BillFormatsPage() {
           searchable
           columns={[
             {
+              key: "formatKind",
+              header: "Type",
+              render: (row) => FORMAT_KIND_LABELS[row.formatKind] ?? row.formatKind,
+            },
+            {
               key: "billType",
               header: "Bill type",
               render: (row) => BILL_TYPE_LABELS[row.billType] ?? row.billType,
@@ -147,6 +158,16 @@ export default function BillFormatsPage() {
             { key: "isActive", header: "Active", render: (row) => (row.isActive ? "Yes" : "No") },
           ]}
           fields={[
+            {
+              name: "formatKind",
+              label: "Type",
+              type: "select",
+              placeholder: "Select format type…",
+              options: [
+                { value: "receipt", label: "Receipt (small, printed at counter)" },
+                { value: "bill", label: "Bill (full tax invoice)" },
+              ],
+            },
             {
               name: "billType",
               label: "Bill type",

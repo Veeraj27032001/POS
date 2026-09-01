@@ -199,9 +199,11 @@ export const cashDenominationCreateSchema = z.object({
 });
 export const cashDenominationUpdateSchema = cashDenominationCreateSchema.partial();
 
+export const billFormatKindSchema = z.enum(["receipt", "bill"]);
 export const billFormatCreateSchema = z.object({
   storeId: opaqueIdSchema,
   billType: billTypeSchema,
+  formatKind: billFormatKindSchema,
   name: requiredString("Name"),
   effectiveFrom: isoDateOnlySchema,
   templateHtml: requiredString("Template HTML", 200000),

@@ -1,9 +1,10 @@
 import { unscoped } from "@/lib/db";
-import type { BillFormat, BillType } from "@/generated/prisma/client";
+import type { BillFormat, BillFormatKind, BillType } from "@/generated/prisma/client";
 
 export async function resolveBillFormat(
   storeId: string,
   billType: BillType,
+  formatKind: BillFormatKind,
   billDate: Date,
 ): Promise<BillFormat | null> {
   const db = unscoped();
@@ -12,6 +13,7 @@ export async function resolveBillFormat(
     where: {
       storeId,
       billType,
+      formatKind,
       isActive: true,
       isDeleted: false,
       effectiveFrom: { lte: billDate },
@@ -21,6 +23,6 @@ export async function resolveBillFormat(
   if (applicable) return applicable;
 
   return db.billFormat.findFirst({
-    where: { storeId, billType, isActive: true, isDeleted: false, isDefault: true },
+    where: { storeId, billType, formatKind, isActive: true, isDeleted: false, isDefault: true },
   });
 }
