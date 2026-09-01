@@ -149,7 +149,7 @@ const emptyPreview: PreviewTotals = {
 
 // The cart lives only in local state until Save draft/Hold/Create (syncCart).
 export default function BillingPage() {
-  const { data } = useSession();
+  const { data, status: sessionStatus } = useSession();
   const session = asAppSession(data ?? null);
   const searchParams = useSearchParams();
 
@@ -165,11 +165,14 @@ export default function BillingPage() {
   const [billDate, setBillDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [syncedBillDate, setSyncedBillDate] = useState<string | null>(null);
   const [excludeTax, setExcludeTax] = useState(false);
-  const [terminalId, setTerminalId] = useState<string | null>(null);
-  const [started, setStarted] = useState(false);
   // True from first render whenever the URL already carries ?billId= — hides
   // the "Start a bill" form during that fetch instead of flashing it first.
   const [resuming, setResuming] = useState(() => !!searchParams.get("billId"));
+
+  const [terminalId, setTerminalId] = useState<string | null>(() =>
+    resuming ? null : rememberedTerminalId,
+  );
+  const [started, setStarted] = useState(() => !resuming && !!rememberedTerminalId);
 
   // Set once a save creates the bill server-side, so later saves update it.
   const [savedBillId, setSavedBillId] = useState<string | null>(null);
@@ -339,14 +342,21 @@ export default function BillingPage() {
 
   // A remembered terminal skips the Start screen entirely — straight into
   // billing, same as changing financial year doesn't ask again each visit.
+  // `started` is already eagerly true from the lazy initializer above in the
+  // common case; this effect only has to handle the session resolving after
+  // that (confirming it, or demoting a Super Admin session with a stale
+  // remembered terminal back to the Start screen).
   useEffect(() => {
-    if (started || resuming) return;
-    if (!session?.user.storeId) return;
-    if (rememberedTerminalId) {
+    if (resuming || sessionStatus !== "authenticated") return;
+    if (!session?.user.storeId) {
+      if (started) setStarted(false);
+      return;
+    }
+    if (rememberedTerminalId && !started) {
       setTerminalId(rememberedTerminalId);
       setStarted(true);
     }
-  }, [rememberedTerminalId, started, resuming, session?.user.storeId]);
+  }, [rememberedTerminalId, started, resuming, session?.user.storeId, sessionStatus]);
 
   const [terminalModalOpen, setTerminalModalOpen] = useState(false);
 
@@ -831,6 +841,7 @@ export default function BillingPage() {
   }
 
   async function createBill() {
+    if (busy) return;
     if (cartLines.length === 0) {
       toast.error("Add items first.");
       return;
@@ -843,11 +854,34 @@ export default function BillingPage() {
     try {
       const billId = await syncCart();
       if (!billId) return;
-      if (remaining > 0.01) {
+
+      // Re-derive the amount still owed from the server's own bill + payments
+      // rather than the client's `remaining` — that value can go stale (e.g.
+      // a prior attempt's payment already went through but /complete then
+      // failed), and submitting the old amount again would overpay.
+      const billRes = await fetch(`/api/bills/${billId}`);
+      if (!billRes.ok) {
+        toast.error("Failed to load the bill.");
+        return;
+      }
+      const freshBill = (await billRes.json()) as {
+        grandTotal: string;
+        payments: { amount: string; status: string }[];
+      };
+      const alreadyPaid = freshBill.payments
+        .filter((p) => p.status === "success")
+        .reduce((sum, p) => sum + Number(p.amount), 0);
+      const serverRemaining = Math.max(0, Number(freshBill.grandTotal) - alreadyPaid);
+
+      if (serverRemaining > 0.01) {
+        if (!paymentMethodId) {
+          toast.error("Select a payment method.");
+          return;
+        }
         const res = await fetch(`/api/bills/${billId}/payments`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ paymentMethodId, amount: remaining }),
+          body: JSON.stringify({ paymentMethodId, amount: serverRemaining }),
         });
         if (!res.ok) {
           const body = await res.json().catch(() => null);
@@ -955,6 +989,13 @@ export default function BillingPage() {
   }
 
   if (!started) {
+    if (sessionStatus === "loading") {
+      return (
+        <div className="flex h-[60vh] flex-col items-center justify-center gap-3">
+          <Loader2Icon className="text-muted-foreground size-8 animate-spin" />
+        </div>
+      );
+    }
     return (
       <div className="space-y-4 p-8">
         <div className="flex items-center justify-between">
