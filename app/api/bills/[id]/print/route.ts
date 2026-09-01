@@ -52,15 +52,22 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     let cgstAmount = 0;
     let sgstAmount = 0;
     let igstAmount = 0;
-    for (const line of bill.lines) {
-      const breakdown = line.taxBreakdown as {
-        cgstAmount?: number;
-        sgstAmount?: number;
-        igstAmount?: number;
-      } | null;
-      cgstAmount += Number(breakdown?.cgstAmount ?? 0);
-      sgstAmount += Number(breakdown?.sgstAmount ?? 0);
-      igstAmount += Number(breakdown?.igstAmount ?? 0);
+
+    if (bill.store.taxEngine?.code === "india_standard") {
+      for (const line of bill.lines) {
+        const breakdown = line.taxBreakdown as {
+          cgstAmount?: number;
+          sgstAmount?: number;
+          igstAmount?: number;
+        } | null;
+        cgstAmount += Number(breakdown?.cgstAmount ?? 0);
+        sgstAmount += Number(breakdown?.sgstAmount ?? 0);
+        igstAmount += Number(breakdown?.igstAmount ?? 0);
+      }
+    } else {
+      cgstAmount = 0;
+      sgstAmount = 0;
+      igstAmount = 0;
     }
 
     const html = renderBillTemplate(format.templateHtml, {
