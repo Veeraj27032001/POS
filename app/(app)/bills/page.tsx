@@ -1,16 +1,21 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { DataTable } from "@/components/data-table/data-table";
+import { formatDateOnly, toDateOnly } from "@/lib/datetime/dateOnly";
 import { formatTimestamp } from "@/lib/datetime/format";
+import { useStoreCurrencySymbol } from "@/lib/hooks/useStoreCurrencySymbol";
+import { printBillReceipt } from "@/lib/billing/printBillReceipt";
 
 interface BillRow {
   id: string;
   documentNumber: string;
   billType: string;
   status: string;
+  billDate: string;
   grandTotal: string;
   createdAt: string;
   customer: { name: string; phone: string } | null;
@@ -23,6 +28,22 @@ const BILL_TYPE_LABELS: Record<string, string> = {
 };
 
 export default function BillsPage() {
+  const currencySymbol = useStoreCurrencySymbol();
+  const [printingId, setPrintingId] = useState<string | null>(null);
+
+  async function handlePrint(row: BillRow, e: React.MouseEvent) {
+    e.stopPropagation();
+    setPrintingId(row.id);
+    try {
+      const res = await fetch(`/api/bills/${row.id}`);
+      if (res.ok) {
+        await printBillReceipt(await res.json());
+      }
+    } finally {
+      setPrintingId(null);
+    }
+  }
+
   return (
     <div className="space-y-4 p-8">
       <div className="flex items-center justify-between">
@@ -42,6 +63,11 @@ export default function BillsPage() {
           { key: "billType", header: "Type", render: (row) => BILL_TYPE_LABELS[row.billType] },
           { key: "status", header: "Status" },
           {
+            key: "billDate",
+            header: "Bill date",
+            render: (row) => formatDateOnly(toDateOnly(row.billDate)),
+          },
+          {
             key: "customer",
             header: "Customer",
             render: (row) => (row.customer ? row.customer.name : "Walk-in"),
@@ -49,12 +75,26 @@ export default function BillsPage() {
           {
             key: "grandTotal",
             header: "Grand total",
-            render: (row) => `₹${Number(row.grandTotal).toFixed(2)}`,
+            render: (row) => `${currencySymbol}${Number(row.grandTotal).toFixed(2)}`,
           },
           {
             key: "createdAt",
             header: "Created",
             render: (row) => formatTimestamp(row.createdAt),
+          },
+          {
+            key: "print",
+            header: "",
+            render: (row) => (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={printingId === row.id}
+                onClick={(e) => handlePrint(row, e)}
+              >
+                {printingId === row.id ? "Printing…" : "Print"}
+              </Button>
+            ),
           },
         ]}
       />

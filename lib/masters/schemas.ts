@@ -198,6 +198,16 @@ export const cashDenominationCreateSchema = z.object({
 });
 export const cashDenominationUpdateSchema = cashDenominationCreateSchema.partial();
 
+export const billFormatCreateSchema = z.object({
+  storeId: opaqueIdSchema,
+  name: requiredString("Name"),
+  effectiveFrom: isoDateOnlySchema,
+  templateHtml: requiredString("Template HTML", 200000),
+  isDefault: z.boolean().default(false),
+  isActive: z.boolean().default(true),
+});
+export const billFormatUpdateSchema = billFormatCreateSchema.partial();
+
 export const loyaltyRuleCreateSchema = z.object({
   storeId: opaqueIdSchema.optional().nullable(),
   earnRate: nonNegativeDecimal,

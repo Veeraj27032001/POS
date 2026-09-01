@@ -245,6 +245,17 @@ export const cashDenominationResource = defineResource({
   getDelegate: delegateOf("cashDenomination"),
 });
 
+export const billFormatResource = defineResource({
+  name: "bill_format",
+  module: "settings",
+  scoping: "required",
+  explicitStoreId: true,
+  createSchema: schemas.billFormatCreateSchema,
+  updateSchema: schemas.billFormatUpdateSchema,
+  searchFields: ["name"],
+  getDelegate: delegateOf("billFormat"),
+});
+
 export const loyaltyRuleResource = defineResource({
   name: "loyalty_rule",
   module: "settings",

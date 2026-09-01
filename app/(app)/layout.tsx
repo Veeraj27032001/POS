@@ -75,6 +75,7 @@ const NAV_ITEM_MODULE: Record<string, string> = {
   "/payment-methods": "payment_methods",
   "/reason-codes": "reason_codes",
   "/cash-denominations": "settings",
+  "/bill-formats": "settings",
   "/numbering-series": "numbering_series",
   "/product-requests": "stock",
   "/stock-inwards": "stock",
@@ -211,6 +212,7 @@ const NAV_GROUPS: AppNavGroup[] = [
         icon: <Banknote className="h-4 w-4" />,
       },
       { href: "/numbering-series", label: "Numbering Series", icon: <Hash className="h-4 w-4" /> },
+      { href: "/bill-formats", label: "Bill Formats", icon: <Receipt className="h-4 w-4" /> },
     ],
   },
   {

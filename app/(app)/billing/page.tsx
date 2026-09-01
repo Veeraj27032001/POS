@@ -1295,122 +1295,124 @@ export default function BillingPage() {
         </Table>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">
-              Totals{loadingPreview ? " — calculating…" : ""}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Subtotal</span>
-              <span>
-                {currencySymbol}
-                {money(preview.subtotal)}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Discount</span>
-              <span>
-                {currencySymbol}
-                {money(preview.discountTotal)}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 items-end gap-2 py-2">
-              <div className="space-y-1">
-                <Label className="text-xs">Discount whole bill</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={overallDiscount}
-                  onChange={(e) => setOverallDiscount(e.target.value)}
-                  placeholder="0.00"
-                />
-                {Number(overallDiscount) > maxOverallDiscount && (
-                  <div className="text-warning text-xs">
-                    Cannot exceed {currencySymbol}
-                    {money(maxOverallDiscount)}.
-                  </div>
-                )}
+      {cartLines.length > 0 && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">
+                Totals{loadingPreview ? " — calculating…" : ""}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-1 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Subtotal</span>
+                <span>
+                  {currencySymbol}
+                  {money(preview.subtotal)}
+                </span>
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Reason</Label>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Discount</span>
+                <span>
+                  {currencySymbol}
+                  {money(preview.discountTotal)}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 items-end gap-2 py-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">Discount whole bill</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={overallDiscount}
+                    onChange={(e) => setOverallDiscount(e.target.value)}
+                    placeholder="0.00"
+                  />
+                  {Number(overallDiscount) > maxOverallDiscount && (
+                    <div className="text-warning text-xs">
+                      Cannot exceed {currencySymbol}
+                      {money(maxOverallDiscount)}.
+                    </div>
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Reason</Label>
+                  <SearchableSelect
+                    options={discountReasons}
+                    value={overallDiscountReasonCodeId}
+                    onChange={setOverallDiscountReasonCodeId}
+                    placeholder="Select reason…"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Tax</span>
+                <span>
+                  {currencySymbol}
+                  {money(preview.taxTotal)}
+                </span>
+              </div>
+              <div className="flex justify-between border-t pt-1 font-semibold">
+                <span>Grand total</span>
+                <span>
+                  {currencySymbol}
+                  {money(preview.grandTotal)}
+                </span>
+              </div>
+              <div className="flex justify-between font-semibold">
+                <span>Amount due</span>
+                <span>
+                  {currencySymbol}
+                  {money(remaining)}
+                </span>
+              </div>
+            </CardContent>
+            <CardFooter className="justify-end">
+              <Button
+                onClick={createBill}
+                disabled={busy || cartLines.length === 0 || (remaining > 0.01 && !paymentMethodId)}
+              >
+                {creating ? "Creating…" : "Create bill"}
+              </Button>
+            </CardFooter>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Payment</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="space-y-1.5">
+                <Label>Method</Label>
                 <SearchableSelect
-                  options={discountReasons}
-                  value={overallDiscountReasonCodeId}
-                  onChange={setOverallDiscountReasonCodeId}
-                  placeholder="Select reason…"
+                  options={paymentMethods}
+                  value={paymentMethodId}
+                  onChange={setPaymentMethodId}
+                  placeholder="Select payment method…"
                 />
               </div>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Tax</span>
-              <span>
-                {currencySymbol}
-                {money(preview.taxTotal)}
-              </span>
-            </div>
-            <div className="flex justify-between border-t pt-1 font-semibold">
-              <span>Grand total</span>
-              <span>
-                {currencySymbol}
-                {money(preview.grandTotal)}
-              </span>
-            </div>
-            <div className="flex justify-between font-semibold">
-              <span>Amount due</span>
-              <span>
-                {currencySymbol}
-                {money(remaining)}
-              </span>
-            </div>
-          </CardContent>
-          <CardFooter className="justify-end">
-            <Button
-              onClick={createBill}
-              disabled={busy || cartLines.length === 0 || (remaining > 0.01 && !paymentMethodId)}
-            >
-              {creating ? "Creating…" : "Create bill"}
-            </Button>
-          </CardFooter>
-        </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Payment</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="space-y-1.5">
-              <Label>Method</Label>
-              <SearchableSelect
-                options={paymentMethods}
-                value={paymentMethodId}
-                onChange={setPaymentMethodId}
-                placeholder="Select payment method…"
-              />
-            </div>
-
-            {existingPayments.length > 0 && (
-              <div className="divide-y border-t pt-2 text-sm">
-                {existingPayments.map((p) => (
-                  <div key={p.id} className="flex justify-between py-1">
-                    <span>
-                      {p.paymentMethod.name}{" "}
-                      <span className="text-muted-foreground">({p.status})</span>
-                    </span>
-                    <span>
-                      {currencySymbol}
-                      {money(p.amount)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+              {existingPayments.length > 0 && (
+                <div className="divide-y border-t pt-2 text-sm">
+                  {existingPayments.map((p) => (
+                    <div key={p.id} className="flex justify-between py-1">
+                      <span>
+                        {p.paymentMethod.name}{" "}
+                        <span className="text-muted-foreground">({p.status})</span>
+                      </span>
+                      <span>
+                        {currencySymbol}
+                        {money(p.amount)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {!session?.user.storeId && (
         <p className="text-muted-foreground text-sm">

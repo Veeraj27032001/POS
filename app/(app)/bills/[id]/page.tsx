@@ -4,7 +4,11 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { useStoreCurrencySymbol } from "@/lib/hooks/useStoreCurrencySymbol";
+import { formatDateOnly, toDateOnly } from "@/lib/datetime/dateOnly";
 import { formatTimestamp } from "@/lib/datetime/format";
+import { printBillReceipt } from "@/lib/billing/printBillReceipt";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -38,6 +42,7 @@ interface BillDetail {
   documentNumber: string;
   billType: string;
   status: string;
+  billDate: string;
   customer: { name: string; phone: string } | null;
   terminal: { name: string };
   cashierUser: { name: string };
@@ -49,6 +54,12 @@ interface BillDetail {
   completedAt: string | null;
   lines: BillLineRow[];
   payments: BillPaymentRow[];
+  receiptSnapshot: {
+    storeName: string;
+    headerText: string | null;
+    footerText: string | null;
+    returnPolicyText: string | null;
+  } | null;
 }
 
 function money(value: string | number): string {
@@ -64,6 +75,18 @@ const BILL_TYPE_LABELS: Record<string, string> = {
 export default function BillViewPage() {
   const { id } = useParams<{ id: string }>();
   const [bill, setBill] = useState<BillDetail | null | undefined>(undefined);
+  const [printing, setPrinting] = useState(false);
+  const currencySymbol = useStoreCurrencySymbol();
+
+  async function handlePrint() {
+    if (!bill) return;
+    setPrinting(true);
+    try {
+      await printBillReceipt(bill);
+    } finally {
+      setPrinting(false);
+    }
+  }
 
   useEffect(() => {
     fetch(`/api/bills/${id}`)
@@ -84,12 +107,18 @@ export default function BillViewPage() {
         <>
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-semibold">{bill.documentNumber}</h1>
-            <span className="text-muted-foreground text-sm capitalize">{bill.status}</span>
+            <div className="flex items-center gap-3">
+              <span className="text-muted-foreground text-sm capitalize">{bill.status}</span>
+              <Button variant="outline" size="sm" onClick={handlePrint} disabled={printing}>
+                {printing ? "Printing…" : "Print"}
+              </Button>
+            </div>
           </div>
 
           <dl className="bg-border grid grid-cols-1 gap-px overflow-hidden rounded-lg border sm:grid-cols-2 lg:grid-cols-3">
             {[
               ["Type", BILL_TYPE_LABELS[bill.billType]],
+              ["Bill date", formatDateOnly(toDateOnly(bill.billDate))],
               [
                 "Customer",
                 bill.customer ? `${bill.customer.name} — ${bill.customer.phone}` : "Walk-in",
@@ -126,11 +155,19 @@ export default function BillViewPage() {
                       <div className="text-muted-foreground text-xs">{line.productBarcode}</div>
                     </TableCell>
                     <TableCell>{line.quantity}</TableCell>
-                    <TableCell>₹{money(line.unitPrice)}</TableCell>
                     <TableCell>
-                      {line.discountApplied ? `₹${money(line.discountApplied)}` : "—"}
+                      {currencySymbol}
+                      {money(line.unitPrice)}
                     </TableCell>
-                    <TableCell>₹{money(line.lineTotal)}</TableCell>
+                    <TableCell>
+                      {line.discountApplied
+                        ? `${currencySymbol}${money(line.discountApplied)}`
+                        : "—"}
+                    </TableCell>
+                    <TableCell>
+                      {currencySymbol}
+                      {money(line.lineTotal)}
+                    </TableCell>
                     <TableCell className="capitalize">{line.status}</TableCell>
                   </TableRow>
                 ))}
@@ -141,10 +178,10 @@ export default function BillViewPage() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <dl className="bg-border grid grid-cols-1 gap-px overflow-hidden rounded-lg border">
               {[
-                ["Subtotal", `₹${money(bill.subtotal)}`],
-                ["Discount", `₹${money(bill.discountTotal)}`],
-                ["Tax", `₹${money(bill.taxTotal)}`],
-                ["Grand total", `₹${money(bill.grandTotal)}`],
+                ["Subtotal", `${currencySymbol}${money(bill.subtotal)}`],
+                ["Discount", `${currencySymbol}${money(bill.discountTotal)}`],
+                ["Tax", `${currencySymbol}${money(bill.taxTotal)}`],
+                ["Grand total", `${currencySymbol}${money(bill.grandTotal)}`],
               ].map(([label, value]) => (
                 <div key={label} className="bg-card flex justify-between p-3 text-sm">
                   <span className="text-muted-foreground">{label}</span>
@@ -170,7 +207,10 @@ export default function BillViewPage() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <div>₹{money(p.amount)}</div>
+                      <div>
+                        {currencySymbol}
+                        {money(p.amount)}
+                      </div>
                       <div className="text-muted-foreground text-xs capitalize">{p.status}</div>
                     </div>
                   </div>
