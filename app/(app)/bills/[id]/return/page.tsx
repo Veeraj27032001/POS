@@ -17,14 +17,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 
 interface ReturnLineOption {
@@ -35,7 +27,6 @@ interface ReturnLineOption {
   quantitySold: number;
   alreadyReturned: number;
   remaining: number;
-  defaultWarehouseId: string | null;
 }
 
 interface ReturnFormData {
@@ -52,11 +43,15 @@ interface RowState {
   warehouseId: string | null;
 }
 
+function emptyRow(): RowState {
+  return { quantity: "", condition: "sellable", warehouseId: null };
+}
+
 export default function BillReturnFormPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [form, setForm] = useState<ReturnFormData | null | undefined>(undefined);
-  const [rows, setRows] = useState<Record<string, RowState>>({});
+  const [rowsByLine, setRowsByLine] = useState<Record<string, RowState[]>>({});
   const [reasonCodeId, setReasonCodeId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const reasonCodes = useOptionsList("reason-codes/options", "label", "category=return");
@@ -67,21 +62,32 @@ export default function BillReturnFormPage() {
       .then((body: ReturnFormData | null) => {
         setForm(body);
         if (body) {
-          const initial: Record<string, RowState> = {};
+          const initial: Record<string, RowState[]> = {};
           for (const line of body.lines) {
-            initial[line.id] = {
-              quantity: "",
-              condition: "sellable",
-              warehouseId: line.defaultWarehouseId,
-            };
+            initial[line.id] = [emptyRow()];
           }
-          setRows(initial);
+          setRowsByLine(initial);
         }
       });
   }, [id]);
 
-  function updateRow(lineId: string, patch: Partial<RowState>) {
-    setRows((prev) => ({ ...prev, [lineId]: { ...prev[lineId], ...patch } }));
+  function updateRow(lineId: string, index: number, patch: Partial<RowState>) {
+    setRowsByLine((prev) => {
+      const rows = [...(prev[lineId] ?? [])];
+      rows[index] = { ...rows[index], ...patch };
+      return { ...prev, [lineId]: rows };
+    });
+  }
+
+  function addRow(lineId: string) {
+    setRowsByLine((prev) => ({ ...prev, [lineId]: [...(prev[lineId] ?? []), emptyRow()] }));
+  }
+
+  function removeRow(lineId: string, index: number) {
+    setRowsByLine((prev) => {
+      const rows = (prev[lineId] ?? []).filter((_, i) => i !== index);
+      return { ...prev, [lineId]: rows.length > 0 ? rows : [emptyRow()] };
+    });
   }
 
   async function handleSubmit() {
@@ -90,30 +96,33 @@ export default function BillReturnFormPage() {
       toast.error("Select a return reason.");
       return;
     }
-    const lines = form.lines
-      .map((line) => {
-        const row = rows[line.id];
-        const quantity = Number(row?.quantity) || 0;
-        return quantity > 0
-          ? {
-              billLineId: line.id,
-              quantity,
-              condition: row.condition,
-              warehouseId: row.warehouseId,
-            }
-          : null;
-      })
-      .filter((l): l is NonNullable<typeof l> => l !== null);
+
+    const lines: {
+      billLineId: string;
+      quantity: number;
+      condition: Condition;
+      warehouseId: string;
+    }[] = [];
+    for (const line of form.lines) {
+      for (const row of rowsByLine[line.id] ?? []) {
+        const quantity = Number(row.quantity) || 0;
+        if (quantity === 0) continue;
+        if (!row.warehouseId) {
+          toast.error(`Select a warehouse for ${line.productName}.`);
+          return;
+        }
+        lines.push({
+          billLineId: line.id,
+          quantity,
+          condition: row.condition,
+          warehouseId: row.warehouseId,
+        });
+      }
+    }
 
     if (lines.length === 0) {
       toast.error("Enter a quantity for at least one item.");
       return;
-    }
-    for (const line of lines) {
-      if (!line.warehouseId) {
-        toast.error("Select a warehouse for every returned item.");
-        return;
-      }
     }
 
     setSubmitting(true);
@@ -154,48 +163,39 @@ export default function BillReturnFormPage() {
               Every item on this bill has already been returned.
             </p>
           ) : (
-            <div className="rounded-lg border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Product</TableHead>
-                    <TableHead>Sold</TableHead>
-                    <TableHead>Remaining</TableHead>
-                    <TableHead>Return qty</TableHead>
-                    <TableHead>Condition</TableHead>
-                    <TableHead>Warehouse</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {form.lines
-                    .filter((l) => l.remaining > 0)
-                    .map((line) => {
-                      const row = rows[line.id];
-                      return (
-                        <TableRow key={line.id}>
-                          <TableCell>
-                            <div>{line.productName}</div>
-                            <div className="text-muted-foreground text-xs">
-                              {line.productBarcode}
-                            </div>
-                          </TableCell>
-                          <TableCell>{line.quantitySold}</TableCell>
-                          <TableCell>{line.remaining}</TableCell>
-                          <TableCell>
+            <div className="space-y-3">
+              {form.lines
+                .filter((l) => l.remaining > 0)
+                .map((line) => {
+                  const rows = rowsByLine[line.id] ?? [];
+                  return (
+                    <div key={line.id} className="rounded-lg border">
+                      <div className="bg-muted/40 flex items-center justify-between border-b p-3">
+                        <div>
+                          <div className="font-medium">{line.productName}</div>
+                          <div className="text-muted-foreground text-xs">{line.productBarcode}</div>
+                        </div>
+                        <div className="text-muted-foreground text-xs">
+                          Sold {line.quantitySold} · Remaining {line.remaining}
+                        </div>
+                      </div>
+                      <div className="divide-y">
+                        {rows.map((row, index) => (
+                          <div key={index} className="flex flex-wrap items-center gap-3 p-3">
                             <Input
                               type="number"
                               min={0}
                               max={line.remaining}
-                              value={row?.quantity ?? ""}
-                              onChange={(e) => updateRow(line.id, { quantity: e.target.value })}
+                              value={row.quantity}
+                              onChange={(e) =>
+                                updateRow(line.id, index, { quantity: e.target.value })
+                              }
                               className="w-20"
                             />
-                          </TableCell>
-                          <TableCell>
                             <Select
-                              value={row?.condition ?? "sellable"}
+                              value={row.condition}
                               onValueChange={(v) =>
-                                v && updateRow(line.id, { condition: v as Condition })
+                                v && updateRow(line.id, index, { condition: v as Condition })
                               }
                               items={[
                                 { value: "sellable", label: "Sellable" },
@@ -210,21 +210,42 @@ export default function BillReturnFormPage() {
                                 <SelectItem value="damaged">Damaged</SelectItem>
                               </SelectContent>
                             </Select>
-                          </TableCell>
-                          <TableCell>
                             <SearchableSelect
-                              options={form.warehouses.map((w) => ({ value: w.id, label: w.name }))}
-                              value={row?.warehouseId ?? null}
-                              onChange={(v) => updateRow(line.id, { warehouseId: v })}
+                              options={form.warehouses.map((w) => ({
+                                value: w.id,
+                                label: w.name,
+                              }))}
+                              value={row.warehouseId}
+                              onChange={(v) => updateRow(line.id, index, { warehouseId: v })}
                               placeholder="Select warehouse…"
                               className="w-48"
                             />
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                </TableBody>
-              </Table>
+                            {rows.length > 1 && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeRow(line.id, index)}
+                              >
+                                Remove
+                              </Button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="p-3">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => addRow(line.id)}
+                        >
+                          + Split across another warehouse
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
             </div>
           )}
 

@@ -24,11 +24,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     const bill = await db.bill.findUnique({
       where: { id },
       include: {
-        lines: {
-          where: { status: "active" },
-          orderBy: { createdAt: "asc" },
-          include: { allocations: true },
-        },
+        lines: { where: { status: "active" }, orderBy: { createdAt: "asc" } },
       },
     });
     if (!bill) return apiErrorResponse("not_found", "Bill not found.", 404);
@@ -68,8 +64,6 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
           quantitySold: line.quantity,
           alreadyReturned,
           remaining: line.quantity - alreadyReturned,
-          defaultWarehouseId:
-            line.allocations.length === 1 ? line.allocations[0].warehouseId : null,
         };
       }),
       warehouses,
@@ -122,11 +116,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       }
     }
 
-    const warehouses = await db.warehouse.findMany({
+    const storeWarehouses = await db.warehouse.findMany({
       where: { storeId: bill.storeId, isActive: true, isDeleted: false },
       select: { id: true },
     });
-    const validWarehouseIds = new Set(warehouses.map((w) => w.id));
+    const validWarehouseIds = new Set(storeWarehouses.map((w) => w.id));
     for (const line of data.lines) {
       if (!validWarehouseIds.has(line.warehouseId)) {
         return apiErrorResponse("bad_request", "One of the selected warehouses is invalid.", 400);

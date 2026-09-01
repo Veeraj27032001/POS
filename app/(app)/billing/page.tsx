@@ -1039,7 +1039,7 @@ export default function BillingPage() {
                   />
                 }
               >
-                <SettingsIcon className="size-3.5" />
+                <SettingsIcon className="size-5" />
               </DialogTrigger>
               <DialogContent className="sm:max-w-sm">
                 <DialogHeader>
@@ -1123,18 +1123,6 @@ export default function BillingPage() {
               <RequiredMark />
             </Label>
             <Input type="date" value={billDate} onChange={(e) => setBillDate(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>
-              Terminal
-              <RequiredMark />
-            </Label>
-            <SearchableSelect
-              options={terminals}
-              value={terminalId}
-              onChange={(v) => v && void switchTerminal(v)}
-              placeholder="Select terminal…"
-            />
           </div>
           <div className="space-y-1.5">
             <Label>Exclude tax</Label>
