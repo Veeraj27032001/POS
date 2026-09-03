@@ -1,11 +1,11 @@
 "use client";
 
 import { Loader2Icon } from "lucide-react";
-import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { RequiredMark } from "@/components/required-mark";
+import { DataTable } from "@/components/data-table/data-table";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useInvalidateResource } from "@/lib/pagination/useList";
 
 interface RoleRow {
   id: string;
@@ -87,15 +88,7 @@ function NewRoleDialog({ onCreated }: { onCreated: () => void }) {
 }
 
 export default function RolesPage() {
-  const [roles, setRoles] = useState<RoleRow[] | null>(null);
-
-  function refresh() {
-    fetch("/api/roles")
-      .then((res) => res.json())
-      .then((json: { data: RoleRow[] }) => setRoles(json.data));
-  }
-
-  useEffect(refresh, []);
+  const invalidate = useInvalidateResource();
 
   return (
     <div className="space-y-4 p-8">
@@ -107,30 +100,17 @@ export default function RolesPage() {
             has full access and can&apos;t be edited.
           </p>
         </div>
-        <NewRoleDialog onCreated={refresh} />
+        <NewRoleDialog onCreated={() => invalidate("roles")} />
       </div>
 
-      {!roles ? (
-        <div className="text-muted-foreground flex items-center gap-2 text-sm">
-          <Loader2Icon className="size-4 animate-spin" />
-          Loading…
-        </div>
-      ) : (
-        <div className="divide-y rounded-lg border">
-          {roles.map((role) => (
-            <Link
-              key={role.id}
-              href={`/settings/roles/${role.id}`}
-              className="hover:bg-accent/50 flex items-center justify-between px-4 py-3 text-sm"
-            >
-              {role.name}
-            </Link>
-          ))}
-          {roles.length === 0 && (
-            <div className="text-muted-foreground px-4 py-6 text-center text-sm">No roles yet.</div>
-          )}
-        </div>
-      )}
+      <DataTable<RoleRow>
+        resource="roles"
+        getRowId={(row) => row.id}
+        searchable
+        emptyMessage="No roles yet."
+        rowHref={(row) => `/settings/roles/${row.id}`}
+        columns={[{ key: "name", header: "Name", sortable: true }]}
+      />
     </div>
   );
 }

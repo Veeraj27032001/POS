@@ -25,14 +25,23 @@ const roleCreateSchema = z.object({
     }),
 });
 
-export async function GET() {
+export async function GET(request: Request) {
   const session = asAppSession(await auth());
   if (!session?.user) {
     return apiErrorResponse("unauthorized", "You must be signed in.", 401);
   }
 
+  const url = new URL(request.url);
+  const search = url.searchParams.get("search")?.trim() || undefined;
+  const page = Math.max(1, Number(url.searchParams.get("page") ?? 1));
+  const pageSize = Math.max(1, Math.min(200, Number(url.searchParams.get("pageSize") ?? 25)));
+  const countOnly = url.searchParams.get("countOnly") === "1";
+
   const roles = await unscoped().role.findMany({
-    where: { isActive: true },
+    where: {
+      isActive: true,
+      ...(search ? { name: { contains: search, mode: "insensitive" as const } } : {}),
+    },
     orderBy: { name: "asc" },
     select: { id: true, name: true },
   });
@@ -46,13 +55,12 @@ export async function GET() {
     (role) => role.name !== SUPER_ADMIN_ROLE_NAME && roleRank(role.name) >= viewerRank,
   );
 
-  return Response.json({
-    data: visible,
-    totalRecords: visible.length,
-    totalPages: 1,
-    page: 1,
-    pageSize: visible.length,
-  });
+  const totalRecords = visible.length;
+  const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
+  const clampedPage = Math.min(page, totalPages);
+  const data = countOnly ? [] : visible.slice((clampedPage - 1) * pageSize, clampedPage * pageSize);
+
+  return Response.json({ data, totalRecords, totalPages, page: clampedPage, pageSize });
 }
 
 export async function POST(request: Request) {
