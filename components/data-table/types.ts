@@ -5,6 +5,10 @@ export interface DataTableColumn<T> {
   header: string;
   render?: (row: T) => ReactNode;
   className?: string;
+  /** Enables click-to-sort on this column's header. */
+  sortable?: boolean;
+  /** Backend field to sort by, if different from `key` (e.g. a computed/rendered column). */
+  sortField?: string;
 }
 
 export interface DataTableProps<T> {

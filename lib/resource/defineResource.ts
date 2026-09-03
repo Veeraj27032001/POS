@@ -128,9 +128,10 @@ export function defineResource<TCreate, TUpdate>(config: ResourceConfig<TCreate,
         });
       }
 
+      const orderBy = params.sort ? { [params.sort]: params.sortDir } : config.defaultSort;
       const data = await delegate.findMany({
         where,
-        orderBy: config.defaultSort,
+        orderBy,
         skip: (page - 1) * params.pageSize,
         take: params.pageSize,
       });

@@ -1,5 +1,6 @@
 "use client";
 
+import { ChevronDownIcon, ChevronUpIcon, ChevronsUpDownIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -24,7 +25,7 @@ import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 import { useListCount, usePaginatedList } from "@/lib/pagination/useList";
 
 import { LoadProgress } from "./load-progress";
-import type { DataTableProps } from "./types";
+import type { DataTableColumn, DataTableProps } from "./types";
 
 const DEFAULT_PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
@@ -43,13 +44,36 @@ export function DataTable<T>({
   const [searchInput, setSearchInput] = useState("");
   const search = useDebouncedValue(searchInput, 300);
   const filtersKey = JSON.stringify(filters ?? {});
+  const [sort, setSort] = useState<string | undefined>(undefined);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   useEffect(() => {
     setPage(1);
-  }, [search, filtersKey]);
+  }, [search, filtersKey, sort, sortDir]);
+
+  function handleSortClick(col: DataTableColumn<T>) {
+    const field = col.sortField ?? col.key;
+    if (sort !== field) {
+      setSort(field);
+      setSortDir("asc");
+    } else if (sortDir === "asc") {
+      setSortDir("desc");
+    } else {
+      setSort(undefined);
+      setSortDir("asc");
+    }
+  }
 
   const countQuery = useListCount({ resource, pageSize, search, filters });
-  const listQuery = usePaginatedList<T>({ resource, page, pageSize, search, filters });
+  const listQuery = usePaginatedList<T>({
+    resource,
+    page,
+    pageSize,
+    search,
+    filters,
+    sort,
+    sortDir,
+  });
 
   useEffect(() => {
     if (listQuery.data && listQuery.data.page !== page) {
@@ -61,6 +85,20 @@ export function DataTable<T>({
   const totalRecords = listQuery.data?.totalRecords ?? countQuery.data?.totalRecords;
   const isInitialLoad = listQuery.isPending;
   const skeletonRowCount = Math.max(1, Math.min(pageSize, totalRecords ?? pageSize));
+
+  const [pageInput, setPageInput] = useState(String(page));
+  useEffect(() => {
+    setPageInput(String(page));
+  }, [page]);
+
+  function commitPageInput() {
+    const parsed = Math.floor(Number(pageInput));
+    if (Number.isFinite(parsed) && parsed >= 1) {
+      setPage(Math.min(totalPages, Math.max(1, parsed)));
+    } else {
+      setPageInput(String(page));
+    }
+  }
 
   return (
     <div className="space-y-3">
@@ -79,11 +117,40 @@ export function DataTable<T>({
         <Table>
           <TableHeader>
             <TableRow>
-              {columns.map((col) => (
-                <TableHead key={col.key} className={col.className}>
-                  {col.header}
-                </TableHead>
-              ))}
+              {columns.map((col) => {
+                const field = col.sortField ?? col.key;
+                const isSorted = col.sortable && sort === field;
+                return (
+                  <TableHead
+                    key={col.key}
+                    className={col.className}
+                    aria-sort={
+                      isSorted ? (sortDir === "asc" ? "ascending" : "descending") : undefined
+                    }
+                  >
+                    {col.sortable ? (
+                      <button
+                        type="button"
+                        onClick={() => handleSortClick(col)}
+                        className="hover:text-foreground -m-1 flex items-center gap-1 p-1"
+                      >
+                        {col.header}
+                        {isSorted ? (
+                          sortDir === "asc" ? (
+                            <ChevronUpIcon className="size-3.5" />
+                          ) : (
+                            <ChevronDownIcon className="size-3.5" />
+                          )
+                        ) : (
+                          <ChevronsUpDownIcon className="text-muted-foreground/50 size-3.5" />
+                        )}
+                      </button>
+                    ) : (
+                      col.header
+                    )}
+                  </TableHead>
+                );
+              })}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -179,9 +246,26 @@ export function DataTable<T>({
           >
             Previous
           </Button>
-          <span className="text-sm">
-            Page {page} of {totalPages}
-          </span>
+          <div className="flex items-center gap-1.5 text-sm">
+            <span>Page</span>
+            <Input
+              type="number"
+              min={1}
+              max={totalPages}
+              value={pageInput}
+              onChange={(e) => setPageInput(e.target.value)}
+              onBlur={commitPageInput}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  commitPageInput();
+                }
+              }}
+              className="h-7 w-14 px-1.5 text-center"
+              aria-label="Go to page"
+            />
+            <span>of {totalPages}</span>
+          </div>
           <Button
             variant="outline"
             size="sm"

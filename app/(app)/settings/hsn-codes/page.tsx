@@ -29,11 +29,16 @@ export default function HsnCodesPage() {
       searchable
       headerExtra={<ImportHsnCodesDialog />}
       columns={[
-        { key: "hsnCode", header: "HSN code" },
-        { key: "description", header: "Description" },
-        { key: "cgstRate", header: "CGST %" },
-        { key: "sgstRate", header: "SGST %" },
-        { key: "igstRate", header: "IGST %" },
+        { key: "hsnCode", header: "HSN code", sortable: true },
+        {
+          key: "description",
+          header: "Description",
+          className: "max-w-md whitespace-normal break-words",
+          sortable: true,
+        },
+        { key: "cgstRate", header: "CGST %", sortable: true },
+        { key: "sgstRate", header: "SGST %", sortable: true },
+        { key: "igstRate", header: "IGST %", sortable: true },
         { key: "isActive", header: "Active", render: (row) => (row.isActive ? "Yes" : "No") },
       ]}
       fields={[
