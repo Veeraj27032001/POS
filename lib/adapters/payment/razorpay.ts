@@ -38,18 +38,6 @@ async function razorpayFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
 const toPaise = (amount: number) => Math.round(amount * 100);
 
-interface RazorpayQrCode {
-  id: string;
-  image_url: string;
-  status: string;
-}
-
-interface RazorpayQrPayment {
-  id: string;
-  status: string;
-  created_at: number;
-}
-
 interface RazorpayPaymentLink {
   id: string;
   short_url: string;
@@ -57,27 +45,9 @@ interface RazorpayPaymentLink {
   payments?: Array<{ payment_id: string; status: string; created_at?: number }>;
 }
 
-async function createQrCode(params: CreatePaymentRequestParams): Promise<PaymentRequestResult> {
-  const qr = await razorpayFetch<RazorpayQrCode>("/payments/qr_codes", {
-    method: "POST",
-    body: JSON.stringify({
-      type: "upi_qr",
-      name: "Payment",
-      usage: "single_use",
-      fixed_amount: true,
-      payment_amount: toPaise(params.amount),
-      description: params.documentNumber,
-      notes: { documentNumber: params.documentNumber },
-    }),
-  });
-  const ownPageUrl = `${process.env.AUTH_URL ?? "http://localhost:3000"}/pay/${qr.id}`;
-  return {
-    gatewayReference: qr.id,
-    presentationValue: ownPageUrl,
-    externalCheckoutUrl: qr.image_url,
-  };
-}
-
+// QR code and payment_link both resolve to a Razorpay Payment Link —
+// its own hosted checkout already offers UPI/QR as one of the payment
+// methods, so there's no separate QR Codes API integration to maintain.
 async function createPaymentLink(
   params: CreatePaymentRequestParams,
 ): Promise<PaymentRequestResult> {
@@ -117,23 +87,16 @@ async function fetchFullPayment(paymentId: string): Promise<Record<string, unkno
 }
 
 async function resolveCapturedPaymentId(gatewayReference: string): Promise<string | null> {
-  if (gatewayReference.startsWith("qr_")) {
-    const payments = await razorpayFetch<{ items: RazorpayQrPayment[] }>(
-      `/payments/qr_codes/${gatewayReference}/payments`,
-    );
-    return payments.items.find((p) => p.status === "captured")?.id ?? null;
-  }
-  if (gatewayReference.startsWith("plink_")) {
-    const link = await razorpayFetch<RazorpayPaymentLink>(`/payment_links/${gatewayReference}`);
-    return link.payments?.find((p) => p.status === "captured")?.payment_id ?? null;
-  }
-  return null;
+  if (!gatewayReference.startsWith("plink_")) return null;
+  const link = await razorpayFetch<RazorpayPaymentLink>(`/payment_links/${gatewayReference}`);
+  return link.payments?.find((p) => p.status === "captured")?.payment_id ?? null;
 }
 
 export const razorpayPaymentGateway: PaymentGateway = {
   async createRequest(params: CreatePaymentRequestParams): Promise<PaymentRequestResult> {
-    if (params.method === "qr_code") return createQrCode(params);
-    if (params.method === "payment_link") return createPaymentLink(params);
+    if (params.method === "qr_code" || params.method === "payment_link") {
+      return createPaymentLink(params);
+    }
     // card_machine never talks to Razorpay — confirmed via the /confirm route.
     return {
       gatewayReference: `card_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`,
@@ -142,58 +105,33 @@ export const razorpayPaymentGateway: PaymentGateway = {
   },
 
   async checkStatus(gatewayReference: string): Promise<PaymentStatusResult> {
-    if (gatewayReference.startsWith("qr_")) {
-      const payments = await razorpayFetch<{ items: RazorpayQrPayment[] }>(
-        `/payments/qr_codes/${gatewayReference}/payments`,
-      );
-      const captured = payments.items.find((p) => p.status === "captured");
-      if (captured) {
-        const full = await fetchFullPayment(captured.id);
-        return {
-          status: "paid",
-          gatewayReference,
-          paidAt: new Date(captured.created_at * 1000),
-          transactionId: captured.id,
-          transactionDetails: full ?? undefined,
-        };
-      }
-      const qr = await razorpayFetch<RazorpayQrCode>(`/payments/qr_codes/${gatewayReference}`);
-      return { status: qr.status === "closed" ? "expired" : "pending", gatewayReference };
-    }
-
-    if (gatewayReference.startsWith("plink_")) {
-      const link = await razorpayFetch<RazorpayPaymentLink>(`/payment_links/${gatewayReference}`);
-      if (link.status === "paid") {
-        const captured = link.payments?.find((p) => p.status === "captured");
-        const full = captured ? await fetchFullPayment(captured.payment_id) : null;
-        return {
-          status: "paid",
-          gatewayReference,
-          paidAt: captured?.created_at ? new Date(captured.created_at * 1000) : new Date(),
-          transactionId: captured?.payment_id,
-          transactionDetails: full ?? undefined,
-        };
-      }
-      if (link.status === "cancelled" || link.status === "expired") {
-        return { status: "expired", gatewayReference };
-      }
+    if (!gatewayReference.startsWith("plink_")) {
+      // card_machine references never reach here.
       return { status: "pending", gatewayReference };
     }
 
-    // card_machine references never reach here.
+    const link = await razorpayFetch<RazorpayPaymentLink>(`/payment_links/${gatewayReference}`);
+    if (link.status === "paid") {
+      const captured = link.payments?.find((p) => p.status === "captured");
+      const full = captured ? await fetchFullPayment(captured.payment_id) : null;
+      return {
+        status: "paid",
+        gatewayReference,
+        paidAt: captured?.created_at ? new Date(captured.created_at * 1000) : new Date(),
+        transactionId: captured?.payment_id,
+        transactionDetails: full ?? undefined,
+      };
+    }
+    if (link.status === "cancelled" || link.status === "expired") {
+      return { status: "expired", gatewayReference };
+    }
     return { status: "pending", gatewayReference };
   },
 
   async getCheckoutTarget(gatewayReference: string): Promise<string | null> {
-    if (gatewayReference.startsWith("qr_")) {
-      const qr = await razorpayFetch<RazorpayQrCode>(`/payments/qr_codes/${gatewayReference}`);
-      return qr.image_url;
-    }
-    if (gatewayReference.startsWith("plink_")) {
-      const link = await razorpayFetch<RazorpayPaymentLink>(`/payment_links/${gatewayReference}`);
-      return link.short_url;
-    }
-    return null;
+    if (!gatewayReference.startsWith("plink_")) return null;
+    const link = await razorpayFetch<RazorpayPaymentLink>(`/payment_links/${gatewayReference}`);
+    return link.short_url;
   },
 
   async refund(params: RefundParams): Promise<RefundResult> {

@@ -25,6 +25,7 @@ interface CreateResponse {
   id: string;
   status: string;
   presentationValue: string;
+  qrImageDataUrl?: string;
   deliverySent?: boolean;
 }
 
@@ -300,6 +301,19 @@ export default function CollectGatewayPaymentPage() {
                   </div>
                 ) : (
                   <div className="space-y-1.5">
+                    {method === "qr_code" && request.qrImageDataUrl && (
+                      <div className="flex flex-col items-center gap-2 pb-2">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={request.qrImageDataUrl}
+                          alt="Scan to open the pay page"
+                          className="size-48 rounded-md border"
+                        />
+                        <p className="text-muted-foreground text-xs">
+                          Scan to open the pay page directly.
+                        </p>
+                      </div>
+                    )}
                     <Label>Link</Label>
                     <div className="flex gap-2">
                       <p className="bg-muted flex-1 truncate rounded-md border px-2 py-1.5 text-xs">

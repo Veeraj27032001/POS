@@ -1,3 +1,5 @@
+import QRCode from "qrcode";
+
 import { auth } from "@/auth";
 import { hasPermission } from "@/lib/auth/rbac";
 import { asAppSession } from "@/lib/auth/types";
@@ -155,6 +157,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       });
     }
 
+    const qrImageDataUrl =
+      data.method === "qr_code" && !gatewayResult.presentationValue.startsWith("data:")
+        ? await QRCode.toDataURL(gatewayResult.presentationValue)
+        : undefined;
+
     let deliverySent: boolean | undefined;
     if (data.deliveryChannel) {
       const to = data.deliveryChannel === "email" ? customerEmail : customerPhone;
@@ -192,6 +199,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         status: "pending",
         gatewayReference: gatewayResult.gatewayReference,
         presentationValue: gatewayResult.presentationValue,
+        qrImageDataUrl,
         deliverySent,
       },
       { status: 201 },
