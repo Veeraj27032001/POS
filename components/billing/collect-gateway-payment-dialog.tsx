@@ -21,13 +21,11 @@ interface CreateResponse {
   status: string;
   presentationValue: string;
   deliverySent?: boolean;
-  devSimulateAvailable: boolean;
 }
 
 interface StatusResponse {
   id: string;
   status: string;
-  devSimulateAvailable: boolean;
 }
 
 const METHOD_LABELS: Record<GatewayMethod, string> = {
@@ -149,27 +147,6 @@ export function CollectGatewayPaymentDialog({
       setOpen(false);
     } finally {
       setConfirming(false);
-    }
-  }
-
-  async function simulate(action: "markPaid" | "markExpired") {
-    if (!request) return;
-    const res = await fetch(`/api/payment-requests/${request.id}/simulate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action }),
-    });
-    if (!res.ok) return;
-    const body = (await res.json()) as StatusResponse;
-    setStatus(body.status);
-    if (body.status === "paid") {
-      stopPolling();
-      toast.success("Payment received (simulated).");
-      onPaid();
-      reset();
-      setOpen(false);
-    } else if (body.status === "expired") {
-      stopPolling();
     }
   }
 
@@ -297,27 +274,6 @@ export function CollectGatewayPaymentDialog({
                 {paused ? "Still waiting — check again, or cancel." : "Waiting for payment…"}
               </p>
             ) : null}
-
-            {request.devSimulateAvailable && method !== "card_machine" && status === "pending" && (
-              <div className="flex gap-2 border-t pt-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => void simulate("markPaid")}
-                >
-                  Simulate: mark as paid
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => void simulate("markExpired")}
-                >
-                  Simulate: mark expired
-                </Button>
-              </div>
-            )}
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => void cancelAndClose()}>

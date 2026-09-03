@@ -6,10 +6,12 @@ import { DataTable } from "@/components/data-table/data-table";
 import { SearchableSelect } from "@/components/searchable-select";
 import { StoreCardFilter } from "@/components/store-card-filter";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useStoreCurrencySymbol } from "@/lib/hooks/useStoreCurrencySymbol";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 
-interface StockReportRow {
+interface SalesReportRow {
   productId: string;
   productName: string;
   systemBarcode: string;
@@ -17,12 +19,13 @@ interface StockReportRow {
   categoryName: string | null;
   warehouseId: string | null;
   warehouseName: string | null;
-  onHand: number;
-  available: number;
+  quantitySold: number;
+  revenue: number;
 }
 
-export default function StockReportPage() {
+export default function SalesReportPage() {
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
+  const currencySymbol = useStoreCurrencySymbol();
   const warehouses = useOptionsList(
     selectedStoreId ? "warehouses" : "",
     "name",
@@ -31,15 +34,17 @@ export default function StockReportPage() {
   const categories = useOptionsList("categories", "name");
   const [warehouseId, setWarehouseId] = useState<string | null>(null);
   const [categoryId, setCategoryId] = useState<string | null>(null);
-  const [groupByWarehouse, setGroupByWarehouse] = useState(true);
+  const [groupByWarehouse, setGroupByWarehouse] = useState(false);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   return (
     <div className="space-y-4 p-8">
       <div>
-        <h1 className="text-2xl font-semibold">Stock Report</h1>
+        <h1 className="text-2xl font-semibold">Sales Report</h1>
         <p className="text-muted-foreground text-sm">
-          Current on-hand and available stock for the selected store — per product, or broken down
-          by warehouse.
+          Quantity sold and revenue for the selected store — per product, or broken down by
+          warehouse.
         </p>
       </div>
 
@@ -47,7 +52,7 @@ export default function StockReportPage() {
 
       {selectedStoreId && (
         <>
-          <div className="flex items-end gap-3">
+          <div className="flex flex-wrap items-end gap-3">
             <div className="w-56 space-y-1.5">
               <SearchableSelect
                 options={warehouses}
@@ -64,6 +69,14 @@ export default function StockReportPage() {
                 placeholder="All categories"
               />
             </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">From</Label>
+              <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">To</Label>
+              <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+            </div>
             <div className="flex items-center gap-2 pb-2">
               <Checkbox
                 id="group-by-warehouse"
@@ -74,8 +87,8 @@ export default function StockReportPage() {
             </div>
           </div>
 
-          <DataTable<StockReportRow>
-            resource="reports/stock"
+          <DataTable<SalesReportRow>
+            resource="reports/sales"
             getRowId={(row) => `${row.productId}:${row.warehouseId ?? "all"}`}
             searchable
             filters={{
@@ -83,8 +96,10 @@ export default function StockReportPage() {
               warehouseId: warehouseId ?? undefined,
               categoryId: categoryId ?? undefined,
               groupByWarehouse: groupByWarehouse ? "1" : "0",
+              dateFrom: dateFrom || undefined,
+              dateTo: dateTo || undefined,
             }}
-            emptyMessage="No stock-tracked products match these filters."
+            emptyMessage="No sales match these filters."
             columns={[
               { key: "productName", header: "Product" },
               { key: "systemBarcode", header: "System Barcode" },
@@ -95,8 +110,12 @@ export default function StockReportPage() {
               },
               { key: "categoryName", header: "Category", render: (row) => row.categoryName ?? "—" },
               ...(groupByWarehouse ? [{ key: "warehouseName", header: "Warehouse" }] : []),
-              { key: "onHand", header: "On Hand" },
-              { key: "available", header: "Available" },
+              { key: "quantitySold", header: "Qty Sold" },
+              {
+                key: "revenue",
+                header: "Revenue",
+                render: (row) => `${currencySymbol}${row.revenue.toFixed(2)}`,
+              },
             ]}
           />
         </>

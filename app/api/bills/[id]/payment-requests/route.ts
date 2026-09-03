@@ -1,11 +1,7 @@
 import { auth } from "@/auth";
 import { hasPermission } from "@/lib/auth/rbac";
 import { asAppSession } from "@/lib/auth/types";
-import {
-  getPaymentGateway,
-  isPaymentGatewayGloballyDisabled,
-  isStubPaymentGatewayActive,
-} from "@/lib/adapters/payment";
+import { getPaymentGateway, isPaymentGatewayGloballyDisabled } from "@/lib/adapters/payment";
 import { getNotifier } from "@/lib/adapters/notifier";
 import { paymentRequestCreateSchema } from "@/lib/billing/schemas";
 import { getBillOutstandingBalance } from "@/lib/credit/getOutstandingBalance";
@@ -182,7 +178,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         gatewayReference: gatewayResult.gatewayReference,
         presentationValue: gatewayResult.presentationValue,
         deliverySent,
-        devSimulateAvailable: isStubPaymentGatewayActive(),
       },
       { status: 201 },
     );

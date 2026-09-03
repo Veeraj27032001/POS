@@ -1,7 +1,6 @@
 import { auth } from "@/auth";
 import { hasPermission } from "@/lib/auth/rbac";
 import { asAppSession } from "@/lib/auth/types";
-import { isStubPaymentGatewayActive } from "@/lib/adapters/payment";
 import { reconcilePaymentRequestStatus } from "@/lib/billing/paymentRequests/reconcile";
 import { unscoped } from "@/lib/db";
 import { apiErrorResponse } from "@/lib/validation/response";
@@ -32,7 +31,6 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       status: updated.status,
       paidAt: updated.paidAt,
       gatewayReference: updated.gatewayReference,
-      devSimulateAvailable: isStubPaymentGatewayActive(),
     });
   });
 }

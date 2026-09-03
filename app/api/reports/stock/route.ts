@@ -12,8 +12,8 @@ interface StockReportRow {
   systemBarcode: string;
   skuBarcode: string | null;
   categoryName: string | null;
-  warehouseId: string;
-  warehouseName: string;
+  warehouseId: string | null;
+  warehouseName: string | null;
   onHand: number;
   available: number;
 }
@@ -32,6 +32,7 @@ export async function GET(request: Request) {
   const warehouseId = url.searchParams.get("warehouseId") || undefined;
   const categoryId = url.searchParams.get("categoryId") || undefined;
   const search = url.searchParams.get("search")?.trim() || undefined;
+  const groupByWarehouse = url.searchParams.get("groupByWarehouse") !== "0";
   const page = Math.max(1, Number(url.searchParams.get("page") ?? 1));
   const pageSize = Math.max(1, Math.min(200, Number(url.searchParams.get("pageSize") ?? 25)));
   const countOnly = url.searchParams.get("countOnly") === "1";
@@ -87,24 +88,46 @@ export async function GET(request: Request) {
 
     // Every product × warehouse combination has its own stock, so the report
     // is genuinely that many rows — computed here, then paginated in memory,
-    // the same shape the Low Stock report already established.
+    // the same shape the Low Stock report already established. When not
+    // grouping by warehouse, the per-warehouse figures are summed into one
+    // row per product instead.
     const allRows: StockReportRow[] = [];
-    for (const warehouse of warehouses) {
-      for (const product of products) {
+    for (const product of products) {
+      let productOnHand = 0;
+      let productAvailable = 0;
+      for (const warehouse of warehouses) {
         const { onHand, available } = await getStockLevels({
           productId: product.id,
           warehouseId: warehouse.id,
         });
+        if (groupByWarehouse) {
+          allRows.push({
+            productId: product.id,
+            productName: product.name,
+            systemBarcode: product.systemBarcode,
+            skuBarcode: product.skuBarcode,
+            categoryName: product.category?.name ?? null,
+            warehouseId: warehouse.id,
+            warehouseName: warehouse.name,
+            onHand,
+            available,
+          });
+        } else {
+          productOnHand += onHand;
+          productAvailable += available;
+        }
+      }
+      if (!groupByWarehouse) {
         allRows.push({
           productId: product.id,
           productName: product.name,
           systemBarcode: product.systemBarcode,
           skuBarcode: product.skuBarcode,
           categoryName: product.category?.name ?? null,
-          warehouseId: warehouse.id,
-          warehouseName: warehouse.name,
-          onHand,
-          available,
+          warehouseId: null,
+          warehouseName: null,
+          onHand: productOnHand,
+          available: productAvailable,
         });
       }
     }

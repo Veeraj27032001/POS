@@ -15,6 +15,7 @@ import {
   Hash,
   Landmark,
   LayoutDashboard,
+  LineChart,
   Lock,
   Menu,
   Package,
@@ -98,6 +99,7 @@ const NAV_ITEM_MODULE: Record<string, string> = {
   "/refunds": "billing",
   "/shifts": "billing",
   "/reports/stock": "reports",
+  "/reports/sales": "reports",
   "/settings/hsn-codes": "hsn_codes",
   "/settings/tax-engine": "stores",
   "/settings/financial-years": "financial_years",
@@ -214,6 +216,7 @@ const NAV_GROUPS: AppNavGroup[] = [
     label: "Reports",
     items: [
       { href: "/reports/stock", label: "Stock Report", icon: <BarChart3 className="h-4 w-4" /> },
+      { href: "/reports/sales", label: "Sales Report", icon: <LineChart className="h-4 w-4" /> },
     ],
   },
   {
