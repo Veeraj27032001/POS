@@ -37,27 +37,31 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (billReturn.creditNotes.length > 0) {
       return apiErrorResponse("bad_request", "This return already has a credit note.", 400);
     }
-    const existingRefund = await db.refund.findFirst({
-      where: { sourceType: "bill_return", sourceId: id },
-    });
-    if (existingRefund) {
-      return apiErrorResponse("bad_request", "This return has already been refunded.", 400);
-    }
 
     const method = await db.paymentMethod.findUnique({ where: { id: data.refundMethodId } });
     if (!method || !method.isActive) {
       return apiErrorResponse("bad_request", "Select a valid refund method.", 400);
     }
 
-    const [{ amount: returnValue }, refundableCap] = await Promise.all([
+    const [{ amount: returnValue }, refundableCap, existingRefunds] = await Promise.all([
       getReturnValue(id),
       getRefundableAmount(billReturn.billId),
+      db.refund.findMany({
+        where: { sourceType: "bill_return", sourceId: id, status: { not: "failed" } },
+      }),
     ]);
-    const maxAllowed = Math.min(returnValue, refundableCap);
+    const alreadyRefunded = existingRefunds.reduce((sum, r) => sum + Number(r.amount), 0);
+    if (alreadyRefunded >= returnValue - 0.01) {
+      return apiErrorResponse("bad_request", "This return has already been fully refunded.", 400);
+    }
+    // refundableCap is the whole bill's remaining pool (paid − already refunded across every
+    // return/cancellation on it) — this return can't draw more than what's left of its own
+    // value, nor more than that shared pool actually has in it.
+    const maxAllowed = Math.min(returnValue - alreadyRefunded, refundableCap);
     if (data.amount > maxAllowed + 0.01) {
       return apiErrorResponse(
         "bad_request",
-        `This refund can't exceed ${maxAllowed} — the amount actually collected on this bill.`,
+        `This refund can't exceed ${maxAllowed} — the remaining amount actually collected on this bill.`,
         400,
       );
     }

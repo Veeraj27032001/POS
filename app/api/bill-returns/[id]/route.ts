@@ -45,12 +45,18 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       getRefundableAmount(billReturn.billId),
     ]);
 
+    const refundedTotal = refunds
+      .filter((r) => r.status !== "failed")
+      .reduce((sum, r) => sum + Number(r.amount), 0);
+    const fullyRefunded = refundedTotal >= value.amount - 0.01;
+
     return Response.json({
       ...billReturn,
       refunds,
       value,
       refundableAmount,
-      settled: billReturn.creditNotes.length > 0 || refunds.length > 0,
+      refundedTotal,
+      settled: billReturn.creditNotes.length > 0 || fullyRefunded,
     });
   });
 }

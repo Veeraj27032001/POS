@@ -54,6 +54,7 @@ interface ReturnDetail {
   }[];
   value: { amount: number };
   refundableAmount: number;
+  refundedTotal: number;
   settled: boolean;
 }
 
@@ -64,10 +65,12 @@ function money(value: string | number): string {
 function RefundDialog({
   returnId,
   maxAmount,
+  label = "Refund",
   onSettled,
 }: {
   returnId: string;
   maxAmount: number;
+  label?: string;
   onSettled: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -103,7 +106,7 @@ function RefundDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button size="sm" />}>Refund</DialogTrigger>
+      <DialogTrigger render={<Button size="sm" />}>{label}</DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Refund</DialogTitle>
@@ -185,31 +188,58 @@ export default function BillReturnDetailPage() {
             ← Back to bill {detail.bill.documentNumber}
           </Link>
 
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-semibold">{detail.documentNumber}</h1>
-            {!detail.settled && (
-              <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={!detail.bill.customer || issuingCreditNote}
-                  onClick={handleCreditNote}
-                >
-                  {issuingCreditNote ? "Issuing…" : "Issue Credit Note"}
-                </Button>
-                <RefundDialog
-                  returnId={detail.id}
-                  maxAmount={Math.min(detail.value.amount, detail.refundableAmount)}
-                  onSettled={load}
-                />
-              </div>
-            )}
-          </div>
-          {!detail.settled && !detail.bill.customer && (
-            <p className="text-muted-foreground text-sm">
-              This bill has no customer, so a Credit Note is not available — use Refund instead.
-            </p>
-          )}
+          {(() => {
+            // detail.refundableAmount is already net of every refund on this bill
+            // (including this return's own), so only the return's own remaining
+            // value needs subtracting here — not refundedTotal a second time.
+            const remainingToRefund = Math.max(
+              0,
+              Math.min(detail.value.amount - detail.refundedTotal, detail.refundableAmount),
+            );
+            const hasAnyRefund = detail.refunds.length > 0;
+            return (
+              <>
+                <div className="flex items-center justify-between">
+                  <h1 className="text-2xl font-semibold">{detail.documentNumber}</h1>
+                  {!detail.settled && (
+                    <div className="flex items-center gap-2">
+                      {!hasAnyRefund && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={!detail.bill.customer || issuingCreditNote}
+                          onClick={handleCreditNote}
+                        >
+                          {issuingCreditNote ? "Issuing…" : "Issue Credit Note"}
+                        </Button>
+                      )}
+                      {remainingToRefund > 0.01 && (
+                        <RefundDialog
+                          returnId={detail.id}
+                          maxAmount={remainingToRefund}
+                          label={hasAnyRefund ? "Refund remaining amount" : "Refund"}
+                          onSettled={load}
+                        />
+                      )}
+                    </div>
+                  )}
+                </div>
+                {!detail.settled && !hasAnyRefund && !detail.bill.customer && (
+                  <p className="text-muted-foreground text-sm">
+                    This bill has no customer, so a Credit Note is not available — use Refund
+                    instead.
+                  </p>
+                )}
+                {!detail.settled && hasAnyRefund && (
+                  <p className="text-muted-foreground text-sm">
+                    {currencySymbol}
+                    {money(detail.refundedTotal)} refunded so far — {currencySymbol}
+                    {money(remainingToRefund)} remaining.
+                  </p>
+                )}
+              </>
+            );
+          })()}
 
           <dl className="bg-border grid grid-cols-1 gap-px overflow-hidden rounded-lg border sm:grid-cols-2 lg:grid-cols-3">
             {[
@@ -270,13 +300,22 @@ export default function BillReturnDetailPage() {
           )}
 
           {detail.refunds.length > 0 && (
-            <div className="rounded-lg border p-4 text-sm">
-              <div className="text-muted-foreground text-xs font-medium">Refund</div>
-              <div>
-                {detail.refunds[0].documentNumber} — {currencySymbol}
-                {money(detail.refunds[0].amount)} via {detail.refunds[0].refundMethod?.name} (
-                {detail.refunds[0].status})
+            <div className="space-y-1 rounded-lg border p-4 text-sm">
+              <div className="text-muted-foreground text-xs font-medium">
+                {detail.refunds.length > 1 ? "Refunds" : "Refund"}
               </div>
+              {detail.refunds.map((refund) => (
+                <div key={refund.id}>
+                  {refund.documentNumber} — {currencySymbol}
+                  {money(refund.amount)} via {refund.refundMethod?.name} ({refund.status})
+                </div>
+              ))}
+              {detail.refunds.length > 1 && (
+                <div className="text-muted-foreground pt-1">
+                  Total refunded: {currencySymbol}
+                  {money(detail.refundedTotal)}
+                </div>
+              )}
             </div>
           )}
         </>
