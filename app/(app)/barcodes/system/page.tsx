@@ -1,52 +1,62 @@
+"use client";
+
 import { BarcodeViewDialog } from "@/components/barcode-view-dialog";
-import { unscoped } from "@/lib/db";
+import { DataTable } from "@/components/data-table/data-table";
+import { useListCount } from "@/lib/pagination/useList";
 
 import { PrintAllButton } from "../print-all-button";
 
-// Without this, Next.js statically bakes this list at build time.
-export const dynamic = "force-dynamic";
+interface SystemBarcodeRow {
+  id: string;
+  name: string;
+  systemBarcode: string;
+  price: string;
+}
 
-export default async function SystemBarcodesPage() {
-  const products = await unscoped().product.findMany({
-    where: { isActive: true, isDeleted: false },
-    take: 500,
-    orderBy: { createdAt: "desc" },
-  });
+async function fetchAllLabels() {
+  const res = await fetch("/api/barcodes/system?pageSize=200");
+  const body = (await res.json()) as { data: SystemBarcodeRow[] };
+  return body.data.map((row) => ({
+    barcodeValue: row.systemBarcode,
+    productName: row.name,
+    price: Number(row.price),
+    copies: 1,
+  }));
+}
+
+export default function SystemBarcodesPage() {
+  const countQuery = useListCount({ resource: "barcodes/system", pageSize: 1 });
 
   return (
     <div className="space-y-4 p-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">System Barcodes</h1>
         <PrintAllButton
-          labels={products.map((p) => ({
-            barcodeValue: p.systemBarcode,
-            productName: p.name,
-            price: Number(p.price),
-            copies: 1,
-          }))}
+          totalCount={countQuery.data?.totalRecords ?? 0}
+          fetchLabels={fetchAllLabels}
         />
       </div>
 
-      <table className="w-full border-collapse text-sm">
-        <thead>
-          <tr className="border-b text-left">
-            <th className="p-2">Product</th>
-            <th className="p-2">Barcode</th>
-            <th className="p-2">System barcode</th>
-          </tr>
-        </thead>
-        <tbody>
-          {products.map((p) => (
-            <tr key={p.id} className="border-b">
-              <td className="p-2">{p.name}</td>
-              <td className="w-48 p-2">
-                <BarcodeViewDialog value={p.systemBarcode} label={p.name} />
-              </td>
-              <td className="p-2 font-mono">{p.systemBarcode}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <DataTable<SystemBarcodeRow>
+        resource="barcodes/system"
+        getRowId={(row) => row.id}
+        searchable
+        emptyMessage="No products found."
+        columns={[
+          { key: "name", header: "Product" },
+          {
+            key: "barcode",
+            header: "Barcode",
+            className: "w-48",
+            render: (row) => <BarcodeViewDialog value={row.systemBarcode} label={row.name} />,
+          },
+          {
+            key: "systemBarcode",
+            header: "System barcode",
+            className: "font-mono",
+          },
+        ]}
+      />
     </div>
   );
 }
