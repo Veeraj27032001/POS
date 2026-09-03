@@ -241,6 +241,7 @@ export const storeCreateSchema = z.object({
   taxRegionId: opaqueIdSchema.optional().nullable(),
   taxEngineId: opaqueIdSchema.optional().nullable(),
   defaultExcludeTax: z.boolean().default(false),
+  disablePaymentGateway: z.boolean().default(false),
   timezoneId: opaqueIdSchema.optional().nullable(),
   currencyId: opaqueIdSchema.optional().nullable(),
   gstin: optionalString(15),

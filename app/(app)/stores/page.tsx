@@ -49,6 +49,11 @@ export default function StoresPage() {
           type: "boolean",
         },
         {
+          name: "disablePaymentGateway",
+          label: "Disable QR / payment link / card machine collection for this store",
+          type: "boolean",
+        },
+        {
           name: "currencyId",
           label: "Currency",
           type: "select",

@@ -6,7 +6,9 @@ import { useEffect, useState } from "react";
 
 import { toast } from "sonner";
 
+import { SendPaymentLinkDialog } from "@/components/billing/send-payment-link-dialog";
 import { useStoreCurrencySymbol } from "@/lib/hooks/useStoreCurrencySymbol";
+import { useStorePaymentGatewayAvailable } from "@/lib/hooks/useStorePaymentGatewayAvailable";
 import { formatDateOnly, toDateOnly } from "@/lib/datetime/dateOnly";
 import { formatTimestamp } from "@/lib/datetime/format";
 import { printBill, printReceipt } from "@/lib/billing/printing";
@@ -182,6 +184,7 @@ export default function BillViewPage() {
   const [printingReceipt, setPrintingReceipt] = useState(false);
   const [printingBill, setPrintingBill] = useState(false);
   const currencySymbol = useStoreCurrencySymbol();
+  const paymentGatewayAvailable = useStorePaymentGatewayAvailable();
 
   async function handlePrintReceipt() {
     if (!bill) return;
@@ -330,11 +333,21 @@ export default function BillViewPage() {
                 {bill.status === "completed" &&
                   bill.billType === "credit_bill" &&
                   bill.outstandingBalance > 0 && (
-                    <RecordPaymentDialog
-                      billId={bill.id}
-                      maxAmount={bill.outstandingBalance}
-                      onRecorded={load}
-                    />
+                    <div className="flex gap-2">
+                      {paymentGatewayAvailable && (
+                        <SendPaymentLinkDialog
+                          billId={bill.id}
+                          maxAmount={bill.outstandingBalance}
+                          currencySymbol={currencySymbol}
+                          onPaid={load}
+                        />
+                      )}
+                      <RecordPaymentDialog
+                        billId={bill.id}
+                        maxAmount={bill.outstandingBalance}
+                        onRecorded={load}
+                      />
+                    </div>
                   )}
               </div>
               {bill.status === "completed" &&

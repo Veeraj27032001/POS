@@ -116,6 +116,16 @@ export const refundCreateSchema = z.object({
   amount: z.coerce.number().positive("Must be a positive amount."),
 });
 
+export const paymentRequestCreateSchema = z.object({
+  method: z.enum(["qr_code", "payment_link", "card_machine"]),
+  amount: z.coerce.number().positive("Must be a positive amount.").optional(),
+  deliveryChannel: z.enum(["email", "sms"]).optional(),
+});
+
+export const paymentRequestSimulateSchema = z.object({
+  action: z.enum(["markPaid", "markExpired"]),
+});
+
 export const shiftCashCountEntrySchema = z.object({
   denominationId: opaqueIdSchema,
   quantityCounted: nonNegativeInt,

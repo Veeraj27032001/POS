@@ -15,6 +15,10 @@ const serverEnvSchema = z.object({
   SUPABASE_STORAGE_BUCKET: z.string().default("product-media"),
   MAX_UPLOAD_FILE_SIZE_MB: z.coerce.number().int().positive().default(50),
   PAYMENT_ADAPTER: z.enum(["stub", "razorpay"]).default("stub"),
+  DISABLE_PAYMENT_GATEWAY: z
+    .string()
+    .default("false")
+    .transform((v) => v === "true"),
   NOTIFIER_ADAPTER: z.enum(["console", "email-sms"]).default("console"),
   SENTRY_ENABLED: z
     .string()

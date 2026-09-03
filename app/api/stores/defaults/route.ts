@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import { asAppSession } from "@/lib/auth/types";
+import { isPaymentGatewayGloballyDisabled } from "@/lib/adapters/payment";
 import { unscoped } from "@/lib/db";
 import { apiErrorResponse } from "@/lib/validation/response";
 
@@ -15,12 +16,15 @@ export async function GET() {
     return apiErrorResponse("unauthorized", "You must be signed in.", 401);
   }
 
+  const globallyDisabled = isPaymentGatewayGloballyDisabled();
+
   if (!session.user.storeId) {
     return Response.json({
       countryId: null,
       stateId: null,
       currencySymbol: FALLBACK_CURRENCY_SYMBOL,
       defaultExcludeTax: false,
+      paymentGatewayAvailable: !globallyDisabled,
     });
   }
 
@@ -30,6 +34,7 @@ export async function GET() {
       countryId: true,
       stateId: true,
       defaultExcludeTax: true,
+      disablePaymentGateway: true,
       currency: { select: { symbol: true } },
     },
   });
@@ -39,5 +44,6 @@ export async function GET() {
     stateId: store?.stateId ?? null,
     currencySymbol: store?.currency?.symbol ?? FALLBACK_CURRENCY_SYMBOL,
     defaultExcludeTax: store?.defaultExcludeTax ?? false,
+    paymentGatewayAvailable: !globallyDisabled && !(store?.disablePaymentGateway ?? false),
   });
 }

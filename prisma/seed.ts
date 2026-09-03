@@ -106,7 +106,12 @@ async function main() {
   }
 
   console.log("Seeding payment methods…");
-  const PAYMENT_METHODS = [{ name: "Cash", type: "cash", requiresReference: false }] as const;
+  const PAYMENT_METHODS = [
+    { name: "Cash", type: "cash", requiresReference: false },
+    { name: "UPI / QR", type: "upi", requiresReference: false },
+    { name: "Payment Link", type: "other", requiresReference: false },
+    { name: "Card Machine", type: "card", requiresReference: false },
+  ] as const;
   for (const method of PAYMENT_METHODS) {
     const existing = await db.paymentMethod.findFirst({ where: { name: method.name } });
     if (!existing) {

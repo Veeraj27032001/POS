@@ -1,5 +1,10 @@
-export type PaymentRequestMethod = "qr_code" | "payment_link";
-export type PaymentRequestStatus = "pending" | "paid" | "expired" | "cancelled";
+import type {
+  PaymentRequestMethod as PrismaPaymentRequestMethod,
+  PaymentRequestStatus as PrismaPaymentRequestStatus,
+} from "@/generated/prisma/client";
+
+export type PaymentRequestMethod = PrismaPaymentRequestMethod;
+export type PaymentRequestStatus = PrismaPaymentRequestStatus;
 
 export interface CreatePaymentRequestParams {
   documentNumber: string;

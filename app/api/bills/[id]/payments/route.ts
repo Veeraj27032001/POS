@@ -1,10 +1,9 @@
 import { auth } from "@/auth";
 import { hasPermission } from "@/lib/auth/rbac";
 import { asAppSession } from "@/lib/auth/types";
+import { RecordBillPaymentError, recordBillPayment } from "@/lib/billing/recordBillPayment";
 import { billPaymentCreateSchema } from "@/lib/billing/schemas";
-import { getBillOutstandingBalance } from "@/lib/credit/getOutstandingBalance";
 import { unscoped } from "@/lib/db";
-import { allocateDocumentNumber } from "@/lib/numbering/allocateDocumentNumber";
 import { writeAuditLog } from "@/lib/security/audit";
 import { apiErrorResponse, parseJsonOrRespond } from "@/lib/validation/response";
 import { withStoreContext } from "@/middleware/scope";
@@ -13,7 +12,7 @@ import { withStoreContext } from "@/middleware/scope";
 // split across methods (step5 §12). Cash and any already-collected payment
 // (a card swipe confirmed at the counter) is recorded here directly;
 // gateway-collected payments (QR/link) flow in the same way once their
-// Payment Request (§6) reaches `paid`.
+// Payment Request (§6) reaches `paid`, via the same recordBillPayment().
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = asAppSession(await auth());
   if (!session?.user) {
@@ -38,55 +37,22 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (session.user.storeId && bill.storeId !== session.user.storeId) {
       return apiErrorResponse("not_found", "Bill not found.", 404);
     }
-    const canPay =
-      bill.status === "draft" ||
-      bill.status === "held" ||
-      (bill.status === "completed" && bill.billType === "credit_bill");
-    if (!canPay) {
-      return apiErrorResponse(
-        "bad_request",
-        `Can't record a payment on a ${bill.status} bill.`,
-        400,
-      );
-    }
 
-    const method = await db.paymentMethod.findUnique({ where: { id: data.paymentMethodId } });
-    if (!method || !method.isActive) {
-      return apiErrorResponse("bad_request", "Select a valid payment method.", 400);
-    }
-    if (method.requiresReference && !data.referenceNumber) {
-      return apiErrorResponse("bad_request", `${method.name} requires a reference number.`, 400);
-    }
-
-    const remaining = await getBillOutstandingBalance(id);
-    if (data.amount > remaining + 0.01) {
-      return apiErrorResponse(
-        "bad_request",
-        `This payment would exceed the bill total — ${remaining} remaining.`,
-        400,
-      );
-    }
-
-    const result = await db.$transaction(async (tx) => {
-      const { documentNumber } = await allocateDocumentNumber(tx, {
-        seriesType: "bill_payment",
-        storeId: bill.storeId,
+    let result;
+    try {
+      result = await recordBillPayment({
+        billId: id,
+        paymentMethodId: data.paymentMethodId,
+        amount: data.amount,
+        referenceNumber: data.referenceNumber,
         financialYearId: session.user.financialYearId!,
       });
-
-      return tx.billPayment.create({
-        data: {
-          billId: id,
-          paymentMethodId: data.paymentMethodId,
-          documentNumber,
-          financialYearId: session.user.financialYearId!,
-          storeId: bill.storeId,
-          amount: data.amount,
-          referenceNumber: data.referenceNumber ?? null,
-          status: "success",
-        },
-      });
-    });
+    } catch (error) {
+      if (error instanceof RecordBillPaymentError) {
+        return apiErrorResponse(error.code, error.message, error.code === "not_found" ? 404 : 400);
+      }
+      throw error;
+    }
 
     await writeAuditLog({
       userId: session.user.id,

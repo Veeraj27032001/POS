@@ -23,7 +23,9 @@ export const stubPaymentGateway: PaymentGateway = {
         ? await QRCode.toDataURL(
             `upi://pay?pa=stub@pos&am=${params.amount}&cu=${params.currency}&tr=${params.documentNumber}`,
           )
-        : `${process.env.AUTH_URL ?? "http://localhost:3000"}/pay/${gatewayReference}`;
+        : params.method === "payment_link"
+          ? `${process.env.AUTH_URL ?? "http://localhost:3000"}/pay/${gatewayReference}`
+          : ""; // card_machine — nothing to render or send, it's a physical device interaction
 
     return { gatewayReference, presentationValue };
   },

@@ -7,6 +7,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { CollectGatewayPaymentDialog } from "@/components/billing/collect-gateway-payment-dialog";
 import {
   CustomerDetailsFields,
   emptyCustomerDraft,
@@ -18,6 +19,7 @@ import { ShiftControl } from "@/components/billing/shift-control";
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 import { useStoreCurrencySymbol } from "@/lib/hooks/useStoreCurrencySymbol";
 import { useStoreDefaultExcludeTax } from "@/lib/hooks/useStoreDefaultExcludeTax";
+import { useStorePaymentGatewayAvailable } from "@/lib/hooks/useStorePaymentGatewayAvailable";
 import { RequiredMark } from "@/components/required-mark";
 import { SearchableSelect } from "@/components/searchable-select";
 import { asAppSession } from "@/lib/auth/types";
@@ -265,6 +267,17 @@ export default function BillingPage() {
     if (resuming || started) return;
     setExcludeTax(storeDefaultExcludeTax);
   }, [storeDefaultExcludeTax, resuming, started]);
+
+  const paymentGatewayAvailable = useStorePaymentGatewayAvailable();
+  const [gatewayDialogOpen, setGatewayDialogOpen] = useState(false);
+  const [gatewayBillId, setGatewayBillId] = useState<string | null>(null);
+
+  async function openGatewayDialog() {
+    const billId = savedBillId ?? (await syncCart());
+    if (!billId) return;
+    setGatewayBillId(billId);
+    setGatewayDialogOpen(true);
+  }
 
   async function loadForResume(id: string) {
     const res = await fetch(`/api/bills/${id}`);
@@ -580,6 +593,18 @@ export default function BillingPage() {
     return (
       allocationWarningForLine(productId) !== null && allocationsForLine(productId).length === 0
     );
+  }
+
+  // Re-fetches just the payment list for the saved bill — used after a
+  // gateway-collected payment reaches `paid`, so `remaining` (derived from
+  // existingPayments) drops without a full bill reload.
+  async function refreshExistingPayments() {
+    if (!gatewayBillId && !savedBillId) return;
+    const id = gatewayBillId ?? savedBillId;
+    const res = await fetch(`/api/bills/${id}`);
+    if (!res.ok) return;
+    const b = (await res.json()) as { payments?: ExistingPayment[] };
+    setExistingPayments(b.payments ?? []);
   }
 
   // The only place this reaches the server — sends only what changed.
@@ -1462,6 +1487,30 @@ export default function BillingPage() {
                   </p>
                 )}
               </div>
+
+              {paymentGatewayAvailable && remaining > 0.01 && (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void openGatewayDialog()}
+                  >
+                    Collect via QR / Link / Card
+                  </Button>
+                  {gatewayBillId && (
+                    <CollectGatewayPaymentDialog
+                      billId={gatewayBillId}
+                      amount={remaining}
+                      currencySymbol={currencySymbol}
+                      onPaid={() => void refreshExistingPayments()}
+                      open={gatewayDialogOpen}
+                      onOpenChange={setGatewayDialogOpen}
+                      hideTrigger
+                    />
+                  )}
+                </>
+              )}
 
               {existingPayments.length > 0 && (
                 <div className="divide-y border-t pt-2 text-sm">
