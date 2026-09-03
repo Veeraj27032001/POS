@@ -244,7 +244,7 @@ export default function BillFormatDesignPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] flex-col">
+    <div className="flex h-full flex-col">
       <div className="bg-background flex items-center justify-between border-b px-6 py-3">
         <div className="flex items-center gap-3">
           <Link

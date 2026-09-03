@@ -316,7 +316,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex h-screen overflow-hidden">
       <aside
         className={cn(
           "bg-sidebar flex shrink-0 flex-col gap-1 overflow-y-auto border-r p-3 backdrop-blur-xl transition-[width] duration-150",
@@ -341,8 +341,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <AppNav groups={visibleGroups} collapsed={collapsed} />
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden">
-        <header className="flex items-center gap-4 border-b px-6 py-3">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <header className="flex shrink-0 items-center gap-4 border-b px-6 py-3">
           <HeaderSearch items={flatVisibleItems} />
           <div className="flex-1" />
           <FinancialYearSwitcher />
@@ -380,13 +380,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           )}
         </header>
 
-        <div className="border-b px-6 py-2.5">
+        <div className="shrink-0 border-b px-6 py-2.5">
           <Breadcrumbs />
         </div>
 
         <TaxStatusBanner />
 
-        {children}
+        <main className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto">{children}</main>
       </div>
     </div>
   );
