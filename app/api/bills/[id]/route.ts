@@ -62,7 +62,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     }));
 
     const outstandingBalance =
-      bill.billType === "credit_bill" ? await getBillOutstandingBalance(id) : 0;
+      bill.billType === "credit_bill" || bill.gatewayCollectionRequested
+        ? await getBillOutstandingBalance(id)
+        : 0;
 
     return Response.json({ ...bill, returns: returnsWithSettled, outstandingBalance });
   });

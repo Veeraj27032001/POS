@@ -139,6 +139,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           completedAt: new Date(),
           receiptSnapshot,
           documentNumber: realDocumentNumber,
+          ...(allowUnpaidForGateway ? { gatewayCollectionRequested: true } : {}),
         },
       });
     });

@@ -80,6 +80,7 @@ interface BillDetail {
   payments: BillPaymentRow[];
   returns: BillReturnRow[];
   outstandingBalance: number;
+  gatewayCollectionRequested: boolean;
   receiptSnapshot: {
     storeName: string;
     headerText: string | null;
@@ -351,15 +352,24 @@ export default function BillViewPage() {
                       />
                     </div>
                   )}
+                {bill.status === "completed" &&
+                  bill.billType !== "credit_bill" &&
+                  bill.gatewayCollectionRequested &&
+                  bill.outstandingBalance > 0 && (
+                    <Link
+                      href={`/billing/${bill.id}/collect`}
+                      className={buttonVariants({ variant: "outline", size: "sm" })}
+                    >
+                      Pay
+                    </Link>
+                  )}
               </div>
-              {bill.status === "completed" &&
-                bill.billType === "credit_bill" &&
-                bill.outstandingBalance > 0 && (
-                  <div className="text-muted-foreground border-b px-3 py-2 text-xs">
-                    {currencySymbol}
-                    {money(bill.outstandingBalance)} still owed
-                  </div>
-                )}
+              {bill.status === "completed" && bill.outstandingBalance > 0 && (
+                <div className="text-muted-foreground border-b px-3 py-2 text-xs">
+                  {currencySymbol}
+                  {money(bill.outstandingBalance)} still owed
+                </div>
+              )}
               {bill.payments.length === 0 && (
                 <p className="text-muted-foreground p-3 text-sm">No payments recorded.</p>
               )}
