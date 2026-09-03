@@ -17,6 +17,10 @@ export interface RecordBillPaymentParams {
   amount: number;
   referenceNumber?: string | null;
   financialYearId: string;
+  /** Raw gateway transaction record (e.g. Razorpay's full payment object),
+   * stored verbatim for audit/support purposes. Only set for gateway-
+   * collected payments. */
+  gatewayResponse?: Prisma.InputJsonValue;
 }
 
 async function validateAndCreate(
@@ -70,6 +74,7 @@ async function validateAndCreate(
       amount: params.amount,
       referenceNumber: params.referenceNumber ?? null,
       status: "success",
+      gatewayResponse: params.gatewayResponse,
     },
   });
 }

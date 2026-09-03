@@ -101,7 +101,12 @@ async function createPaymentLink(
       notes: { documentNumber: params.documentNumber },
     }),
   });
-  return { gatewayReference: link.id, presentationValue: link.short_url };
+  const ownPageUrl = `${process.env.AUTH_URL ?? "http://localhost:3000"}/pay/${link.id}`;
+  return { gatewayReference: link.id, presentationValue: ownPageUrl };
+}
+
+async function fetchFullPayment(paymentId: string): Promise<Record<string, unknown> | null> {
+  return razorpayFetch<Record<string, unknown>>(`/payments/${paymentId}`).catch(() => null);
 }
 
 async function resolveCapturedPaymentId(gatewayReference: string): Promise<string | null> {
@@ -137,7 +142,14 @@ export const razorpayPaymentGateway: PaymentGateway = {
       );
       const captured = payments.items.find((p) => p.status === "captured");
       if (captured) {
-        return { status: "paid", gatewayReference, paidAt: new Date(captured.created_at * 1000) };
+        const full = await fetchFullPayment(captured.id);
+        return {
+          status: "paid",
+          gatewayReference,
+          paidAt: new Date(captured.created_at * 1000),
+          transactionId: captured.id,
+          transactionDetails: full ?? undefined,
+        };
       }
       const qr = await razorpayFetch<RazorpayQrCode>(`/payments/qr_codes/${gatewayReference}`);
       return { status: qr.status === "closed" ? "expired" : "pending", gatewayReference };
@@ -146,11 +158,14 @@ export const razorpayPaymentGateway: PaymentGateway = {
     if (gatewayReference.startsWith("plink_")) {
       const link = await razorpayFetch<RazorpayPaymentLink>(`/payment_links/${gatewayReference}`);
       if (link.status === "paid") {
-        const paidAt = link.payments?.find((p) => p.status === "captured")?.created_at;
+        const captured = link.payments?.find((p) => p.status === "captured");
+        const full = captured ? await fetchFullPayment(captured.payment_id) : null;
         return {
           status: "paid",
           gatewayReference,
-          paidAt: paidAt ? new Date(paidAt * 1000) : new Date(),
+          paidAt: captured?.created_at ? new Date(captured.created_at * 1000) : new Date(),
+          transactionId: captured?.payment_id,
+          transactionDetails: full ?? undefined,
         };
       }
       if (link.status === "cancelled" || link.status === "expired") {
@@ -162,6 +177,12 @@ export const razorpayPaymentGateway: PaymentGateway = {
     // card_machine references never reach here — reconcilePaymentRequestStatus
     // skips gateway polling for that method entirely.
     return { status: "pending", gatewayReference };
+  },
+
+  async getCheckoutTarget(gatewayReference: string): Promise<string | null> {
+    if (!gatewayReference.startsWith("plink_")) return null;
+    const link = await razorpayFetch<RazorpayPaymentLink>(`/payment_links/${gatewayReference}`);
+    return link.short_url;
   },
 
   async refund(params: RefundParams): Promise<RefundResult> {

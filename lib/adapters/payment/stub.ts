@@ -43,6 +43,10 @@ export const stubPaymentGateway: PaymentGateway = {
       status: "completed",
     };
   },
+
+  async getCheckoutTarget(): Promise<string | null> {
+    return null;
+  },
 };
 
 export const stubPaymentDevControls = {

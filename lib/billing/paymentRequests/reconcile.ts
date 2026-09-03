@@ -1,3 +1,4 @@
+import type { Prisma } from "@/generated/prisma/client";
 import { getPaymentGateway } from "@/lib/adapters/payment";
 import { recordBillPayment } from "@/lib/billing/recordBillPayment";
 import { unscoped } from "@/lib/db";
@@ -49,8 +50,12 @@ export async function reconcilePaymentRequestStatus(paymentRequestId: string) {
         billId: request.billId,
         paymentMethodId,
         amount: Number(request.amount),
-        referenceNumber: request.gatewayReference,
+        // The gateway's own unique transaction id (e.g. Razorpay's
+        // pay_...), not the QR/link container id — falls back to the
+        // container id when the adapter doesn't report one (stub).
+        referenceNumber: statusResult.transactionId ?? request.gatewayReference,
         financialYearId: request.financialYearId,
+        gatewayResponse: statusResult.transactionDetails as Prisma.InputJsonValue | undefined,
       },
       tx,
     );

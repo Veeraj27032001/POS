@@ -13,6 +13,7 @@ interface PayInfo {
   amount: number;
   method: string;
   status: "pending" | "paid" | "expired" | "cancelled";
+  checkoutUrl: string | null;
   bill: {
     documentNumber: string;
     grandTotal: number;
@@ -38,6 +39,13 @@ export default function PayPage() {
   useEffect(load, [reference]);
 
   async function payNow() {
+    // A real gateway checkout (e.g. Razorpay's hosted payment-link page)
+    // lives outside this app entirely — send the customer there instead of
+    // trying to complete anything ourselves.
+    if (info?.checkoutUrl) {
+      window.location.href = info.checkoutUrl;
+      return;
+    }
     setPaying(true);
     setError(null);
     try {

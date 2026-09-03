@@ -1487,6 +1487,7 @@ model BillPayment {
   amount          Decimal           @db.Decimal(12, 2)
   referenceNumber String?           @map("reference_number")
   status          BillPaymentStatus @default(success)
+  gatewayResponse Json?             @map("gateway_response")
   createdAt       DateTime          @default(now()) @map("created_at")
 
   @@map("bill_payments")
