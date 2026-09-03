@@ -93,16 +93,18 @@ async function createPaymentLink(
             contact: params.customer?.phone,
           }
         : undefined,
-      // The app's own Notifier adapter already delivers the link when a
-      // delivery channel is requested — don't let Razorpay send a second,
-      // duplicate SMS/email for the same link.
+      // Our own Notifier adapter delivers the link, not Razorpay's.
       notify: { sms: false, email: false },
       reminder_enable: false,
       notes: { documentNumber: params.documentNumber },
     }),
   });
   const ownPageUrl = `${process.env.AUTH_URL ?? "http://localhost:3000"}/pay/${link.id}`;
-  return { gatewayReference: link.id, presentationValue: ownPageUrl };
+  return {
+    gatewayReference: link.id,
+    presentationValue: ownPageUrl,
+    externalCheckoutUrl: link.short_url,
+  };
 }
 
 async function fetchFullPayment(paymentId: string): Promise<Record<string, unknown> | null> {
@@ -127,8 +129,7 @@ export const razorpayPaymentGateway: PaymentGateway = {
   async createRequest(params: CreatePaymentRequestParams): Promise<PaymentRequestResult> {
     if (params.method === "qr_code") return createQrCode(params);
     if (params.method === "payment_link") return createPaymentLink(params);
-    // card_machine is a physical terminal — it never talks to Razorpay.
-    // Confirmed manually via the /confirm route, same as the stub adapter.
+    // card_machine never talks to Razorpay — confirmed via the /confirm route.
     return {
       gatewayReference: `card_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`,
       presentationValue: "",
@@ -174,8 +175,7 @@ export const razorpayPaymentGateway: PaymentGateway = {
       return { status: "pending", gatewayReference };
     }
 
-    // card_machine references never reach here — reconcilePaymentRequestStatus
-    // skips gateway polling for that method entirely.
+    // card_machine references never reach here.
     return { status: "pending", gatewayReference };
   },
 

@@ -5,21 +5,16 @@ import { apiErrorResponse } from "@/lib/validation/response";
 
 // Public, unauthenticated — this is the page a customer lands on from a
 // scanned QR or a sent payment link. Only returns what's safe to show a
-// stranger holding this one link: the amount and who it's for, nothing
-// about the bill's other contents or any other customer/staff data.
-//
-// There's no gateway webhook wired up anywhere in this app, so a page visit
-// is what triggers reconciliation with the real gateway — re-checking here
-// on every load is what catches a payment that completed after staff (or
-// the customer) navigated away from wherever they were watching it.
+// stranger holding this one link.
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ reference: string }> },
 ) {
   const { reference } = await params;
+  const lookup = { OR: [{ gatewayReference: reference }, { id: reference }] };
 
   const existing = await unscoped().paymentRequest.findFirst({
-    where: { gatewayReference: reference },
+    where: lookup,
     select: { id: true },
   });
   if (!existing) {
@@ -28,7 +23,7 @@ export async function GET(
   await reconcilePaymentRequestStatus(existing.id);
 
   const paymentRequest = await unscoped().paymentRequest.findFirst({
-    where: { gatewayReference: reference },
+    where: lookup,
     include: {
       store: { select: { name: true } },
       bill: {
@@ -50,8 +45,10 @@ export async function GET(
   }
 
   const checkoutUrl =
-    paymentRequest.status === "pending" && paymentRequest.method === "payment_link"
-      ? await getPaymentGateway().getCheckoutTarget(reference)
+    paymentRequest.status === "pending" &&
+    paymentRequest.method === "payment_link" &&
+    paymentRequest.gatewayReference
+      ? await getPaymentGateway().getCheckoutTarget(paymentRequest.gatewayReference)
       : null;
 
   return Response.json({

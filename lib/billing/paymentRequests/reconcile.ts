@@ -5,10 +5,7 @@ import { unscoped } from "@/lib/db";
 
 import { resolveGatewayPaymentMethod } from "./resolveGatewayPaymentMethod";
 
-// The single place a Payment Request transitions to `paid` and its
-// resulting BillPayment gets created — called both by the status-poll
-// route and by the dev-simulate route, so the transition logic never
-// exists in two places.
+// The single place a Payment Request transitions to `paid`.
 export async function reconcilePaymentRequestStatus(paymentRequestId: string) {
   const db = unscoped();
   const request = await db.paymentRequest.findUnique({
@@ -18,8 +15,7 @@ export async function reconcilePaymentRequestStatus(paymentRequestId: string) {
   if (!request) return null;
 
   if (request.status !== "pending") return request;
-  // card_machine is confirmed by an explicit staff action (see the
-  // /confirm route) — it never resolves through gateway polling.
+  // card_machine only resolves via the /confirm route, never polling.
   if (request.method === "card_machine") return request;
 
   const statusResult = await getPaymentGateway().checkStatus(request.gatewayReference ?? "");
@@ -33,9 +29,7 @@ export async function reconcilePaymentRequestStatus(paymentRequestId: string) {
 
   return unscoped().$transaction(async (tx) => {
     const paidAt = statusResult.paidAt ?? new Date();
-    // Atomic compare-and-swap: only the poll/call that actually wins this
-    // update goes on to create the BillPayment, so concurrent polls (two
-    // tabs, or a poll racing the dev-simulate action) can't double-post.
+    // Atomic compare-and-swap so concurrent polls can't double-post.
     const claimed = await tx.paymentRequest.updateMany({
       where: { id: request.id, status: "pending" },
       data: { status: "paid", paidAt },
@@ -50,9 +44,6 @@ export async function reconcilePaymentRequestStatus(paymentRequestId: string) {
         billId: request.billId,
         paymentMethodId,
         amount: Number(request.amount),
-        // The gateway's own unique transaction id (e.g. Razorpay's
-        // pay_...), not the QR/link container id — falls back to the
-        // container id when the adapter doesn't report one (stub).
         referenceNumber: statusResult.transactionId ?? request.gatewayReference,
         financialYearId: request.financialYearId,
         gatewayResponse: statusResult.transactionDetails as Prisma.InputJsonValue | undefined,

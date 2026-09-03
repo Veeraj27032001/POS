@@ -1,7 +1,11 @@
 import { auth } from "@/auth";
 import { hasPermission } from "@/lib/auth/rbac";
 import { asAppSession } from "@/lib/auth/types";
-import { getPaymentGateway, isPaymentGatewayGloballyDisabled } from "@/lib/adapters/payment";
+import {
+  getPaymentGateway,
+  isPaymentGatewayGloballyDisabled,
+  isStubPaymentGatewayActive,
+} from "@/lib/adapters/payment";
 import { getNotifier } from "@/lib/adapters/notifier";
 import { paymentRequestCreateSchema } from "@/lib/billing/schemas";
 import { getBillOutstandingBalance } from "@/lib/credit/getOutstandingBalance";
@@ -126,19 +130,28 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const customerEmail = bill.customer?.email ?? bill.customerEmail ?? undefined;
     const customerPhone = bill.customer?.phone ?? bill.customerPhone ?? undefined;
 
-    const gatewayResult = await getPaymentGateway().createRequest({
-      documentNumber: created.documentNumber,
-      amount,
-      currency: bill.store.currency?.code ?? "INR",
-      method: data.method,
-      deliveryChannel: data.deliveryChannel,
-      customer: { name: customerName, email: customerEmail, phone: customerPhone },
-    });
+    const deferGatewayCreation = data.method === "payment_link" && !isStubPaymentGatewayActive();
 
-    await db.paymentRequest.update({
-      where: { id: created.id },
-      data: { gatewayReference: gatewayResult.gatewayReference },
-    });
+    const gatewayResult = deferGatewayCreation
+      ? {
+          gatewayReference: null,
+          presentationValue: `${process.env.AUTH_URL ?? "http://localhost:3000"}/pay/${created.id}`,
+        }
+      : await getPaymentGateway().createRequest({
+          documentNumber: created.documentNumber,
+          amount,
+          currency: bill.store.currency?.code ?? "INR",
+          method: data.method,
+          deliveryChannel: data.deliveryChannel,
+          customer: { name: customerName, email: customerEmail, phone: customerPhone },
+        });
+
+    if (gatewayResult.gatewayReference) {
+      await db.paymentRequest.update({
+        where: { id: created.id },
+        data: { gatewayReference: gatewayResult.gatewayReference },
+      });
+    }
 
     let deliverySent: boolean | undefined;
     if (data.deliveryChannel) {

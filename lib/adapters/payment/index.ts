@@ -28,10 +28,7 @@ export function isStubPaymentGatewayActive(): boolean {
   return getPaymentGateway() === stubPaymentGateway;
 }
 
-// A deployment-wide kill switch, separate from a store's own
-// disablePaymentGateway flag — set DISABLE_PAYMENT_GATEWAY=true to turn the
-// whole QR/link/card-machine feature off everywhere, with no per-store
-// configuration needed.
+// Deployment-wide kill switch, separate from a store's own disablePaymentGateway flag.
 export function isPaymentGatewayGloballyDisabled(): boolean {
   return env().DISABLE_PAYMENT_GATEWAY;
 }

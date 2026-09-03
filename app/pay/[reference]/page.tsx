@@ -39,9 +39,7 @@ export default function PayPage() {
   useEffect(load, [reference]);
 
   async function payNow() {
-    // A real gateway checkout (e.g. Razorpay's hosted payment-link page)
-    // lives outside this app entirely — send the customer there instead of
-    // trying to complete anything ourselves.
+    // Real gateway checkout lives outside this app — send the customer there.
     if (info?.checkoutUrl) {
       window.location.href = info.checkoutUrl;
       return;
@@ -53,6 +51,11 @@ export default function PayPage() {
       if (!res.ok) {
         const body = await res.json().catch(() => null);
         setError(body?.error?.message ?? "Failed to complete the payment.");
+        return;
+      }
+      const body = (await res.json()) as { status?: string; checkoutUrl?: string };
+      if (body.checkoutUrl) {
+        window.location.href = body.checkoutUrl;
         return;
       }
       load();

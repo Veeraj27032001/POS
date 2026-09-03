@@ -18,10 +18,7 @@ export const stubPaymentGateway: PaymentGateway = {
     const gatewayReference = `stub_${randomUUID()}`;
     statusByReference.set(gatewayReference, { status: "pending", gatewayReference });
 
-    // qr_code and payment_link both point at the same real, public pay page
-    // — the QR just encodes that page's URL so any phone camera can open it
-    // (not a upi:// deep link, which only works if a specific UPI app is
-    // installed and isn't backed by anything real in the stub adapter).
+    // qr_code and payment_link both encode/point at the same public pay page.
     const payUrl = `${process.env.AUTH_URL ?? "http://localhost:3000"}/pay/${gatewayReference}`;
     const presentationValue =
       params.method === "qr_code"
