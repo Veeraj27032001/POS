@@ -5,6 +5,7 @@ import {
   ArrowLeftRight,
   Banknote,
   Barcode,
+  BarChart3,
   Boxes,
   CalendarRange,
   ClipboardCheck,
@@ -96,6 +97,7 @@ const NAV_ITEM_MODULE: Record<string, string> = {
   "/credit-notes": "billing",
   "/refunds": "billing",
   "/shifts": "billing",
+  "/reports/stock": "reports",
   "/settings/hsn-codes": "hsn_codes",
   "/settings/tax-engine": "stores",
   "/settings/financial-years": "financial_years",
@@ -209,6 +211,12 @@ const NAV_GROUPS: AppNavGroup[] = [
     ],
   },
   {
+    label: "Reports",
+    items: [
+      { href: "/reports/stock", label: "Stock Report", icon: <BarChart3 className="h-4 w-4" /> },
+    ],
+  },
+  {
     label: "Operations",
     items: [
       { href: "/stores", label: "Stores", icon: <Store className="h-4 w-4" /> },
@@ -319,11 +327,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <div className="flex h-screen overflow-hidden">
       <aside
         className={cn(
-          "bg-sidebar flex shrink-0 flex-col gap-1 overflow-y-auto border-r p-3 backdrop-blur-xl transition-[width] duration-150",
+          "bg-sidebar flex shrink-0 flex-col overflow-hidden border-r backdrop-blur-xl transition-[width] duration-150",
           collapsed ? "w-16" : "w-64",
         )}
       >
-        <div className={cn("flex items-center gap-2 px-1 pb-4", collapsed && "justify-center")}>
+        <div
+          className={cn("flex shrink-0 items-center gap-2 p-3 pb-4", collapsed && "justify-center")}
+        >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo.png" alt="POS logo" className="size-7 shrink-0 rounded-lg object-cover" />
           {!collapsed && <span className="flex-1 text-[15px] font-extrabold">POS</span>}
@@ -338,7 +348,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </Button>
         </div>
 
-        <AppNav groups={visibleGroups} collapsed={collapsed} />
+        <div className="min-h-0 flex-1 space-y-1 overflow-y-auto p-3 pt-0">
+          <AppNav groups={visibleGroups} collapsed={collapsed} />
+        </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
