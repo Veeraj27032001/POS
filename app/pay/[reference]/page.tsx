@@ -54,7 +54,7 @@ export default function PayPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-neutral-50 p-6">
+    <div className="bg-background flex min-h-screen items-center justify-center p-6">
       <Card className="w-full max-w-sm">
         {info === undefined && (
           <CardContent className="text-muted-foreground p-8 text-center text-sm">
