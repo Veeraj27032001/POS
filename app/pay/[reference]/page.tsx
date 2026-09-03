@@ -23,8 +23,6 @@ interface PayInfo {
   };
 }
 
-const POLL_INTERVAL_MS = 3000;
-
 export default function PayPage() {
   const { reference } = useParams<{ reference: string }>();
   const [info, setInfo] = useState<PayInfo | null | undefined>(undefined);
@@ -40,21 +38,11 @@ export default function PayPage() {
 
   useEffect(load, [reference]);
 
-  useEffect(() => {
-    if (info?.method !== "qr_code" || !info.checkoutUrl || info.status !== "pending") return;
-    const id = setInterval(load, POLL_INTERVAL_MS);
-    return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [info?.method, info?.checkoutUrl, info?.status]);
-
   async function payNow() {
-    if (info?.method === "qr_code" && info.checkoutUrl) return;
-
-    if (info?.method !== "qr_code" && info?.checkoutUrl) {
+    if (info?.checkoutUrl) {
       window.location.href = info.checkoutUrl;
       return;
     }
-
     setPaying(true);
     setError(null);
     try {
@@ -65,7 +53,7 @@ export default function PayPage() {
         return;
       }
       const body = (await res.json()) as { status?: string; checkoutUrl?: string };
-      if (body.checkoutUrl && info?.method !== "qr_code") {
+      if (body.checkoutUrl) {
         window.location.href = body.checkoutUrl;
         return;
       }
@@ -143,25 +131,10 @@ export default function PayPage() {
               {info.status === "cancelled" && (
                 <p className="text-destructive text-sm">This payment request was cancelled.</p>
               )}
-              {info.status === "pending" && info.method === "qr_code" && info.checkoutUrl && (
-                <div className="flex flex-col items-center gap-2">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={info.checkoutUrl}
-                    alt="Scan to pay"
-                    className="size-56 rounded-md border"
-                  />
-                  <p className="text-muted-foreground text-xs">Scan with any UPI app.</p>
-                </div>
-              )}
-              {info.status === "pending" && !(info.method === "qr_code" && info.checkoutUrl) && (
+              {info.status === "pending" && (
                 <>
                   <Button className="w-full" onClick={() => void payNow()} disabled={paying}>
-                    {paying
-                      ? "Processing…"
-                      : info.method === "qr_code"
-                        ? "Show QR Code"
-                        : "Pay Now"}
+                    {paying ? "Processing…" : "Pay Now"}
                   </Button>
                   {error && <p className="text-destructive text-xs">{error}</p>}
                 </>
