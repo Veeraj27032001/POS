@@ -46,7 +46,7 @@ export async function GET(
 
   const checkoutUrl =
     paymentRequest.status === "pending" &&
-    paymentRequest.method === "payment_link" &&
+    (paymentRequest.method === "payment_link" || paymentRequest.method === "qr_code") &&
     paymentRequest.gatewayReference
       ? await getPaymentGateway().getCheckoutTarget(paymentRequest.gatewayReference)
       : null;

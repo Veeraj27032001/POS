@@ -70,7 +70,12 @@ async function createQrCode(params: CreatePaymentRequestParams): Promise<Payment
       notes: { documentNumber: params.documentNumber },
     }),
   });
-  return { gatewayReference: qr.id, presentationValue: qr.image_url };
+  const ownPageUrl = `${process.env.AUTH_URL ?? "http://localhost:3000"}/pay/${qr.id}`;
+  return {
+    gatewayReference: qr.id,
+    presentationValue: ownPageUrl,
+    externalCheckoutUrl: qr.image_url,
+  };
 }
 
 async function createPaymentLink(
@@ -180,9 +185,15 @@ export const razorpayPaymentGateway: PaymentGateway = {
   },
 
   async getCheckoutTarget(gatewayReference: string): Promise<string | null> {
-    if (!gatewayReference.startsWith("plink_")) return null;
-    const link = await razorpayFetch<RazorpayPaymentLink>(`/payment_links/${gatewayReference}`);
-    return link.short_url;
+    if (gatewayReference.startsWith("qr_")) {
+      const qr = await razorpayFetch<RazorpayQrCode>(`/payments/qr_codes/${gatewayReference}`);
+      return qr.image_url;
+    }
+    if (gatewayReference.startsWith("plink_")) {
+      const link = await razorpayFetch<RazorpayPaymentLink>(`/payment_links/${gatewayReference}`);
+      return link.short_url;
+    }
+    return null;
   },
 
   async refund(params: RefundParams): Promise<RefundResult> {

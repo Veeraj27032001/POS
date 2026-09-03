@@ -130,7 +130,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const customerEmail = bill.customer?.email ?? bill.customerEmail ?? undefined;
     const customerPhone = bill.customer?.phone ?? bill.customerPhone ?? undefined;
 
-    const deferGatewayCreation = data.method === "payment_link" && !isStubPaymentGatewayActive();
+    const deferGatewayCreation =
+      (data.method === "payment_link" || data.method === "qr_code") &&
+      !isStubPaymentGatewayActive();
 
     const gatewayResult = deferGatewayCreation
       ? {

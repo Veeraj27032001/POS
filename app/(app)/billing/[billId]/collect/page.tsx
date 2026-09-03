@@ -55,6 +55,7 @@ export default function CollectGatewayPaymentPage() {
   const [paused, setPaused] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [paymentDone, setPaymentDone] = useState(false);
+  const [clearingStale, setClearingStale] = useState(true);
   const pollCountRef = useRef(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -65,6 +66,27 @@ export default function CollectGatewayPaymentPage() {
   }
 
   useEffect(loadBill, [billId]);
+
+  useEffect(() => {
+    let ignore = false;
+    fetch(`/api/bills/${billId}/payment-requests`)
+      .then((res) => (res.ok ? res.json() : { data: [] }))
+      .then(async (body: { data: { id: string; status: string }[] }) => {
+        const stale = body.data.filter((r) => r.status === "pending");
+        await Promise.all(
+          stale.map((r) =>
+            fetch(`/api/payment-requests/${r.id}/cancel`, { method: "POST" }).catch(() => {}),
+          ),
+        );
+        if (!ignore) setClearingStale(false);
+      })
+      .catch(() => {
+        if (!ignore) setClearingStale(false);
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [billId]);
 
   function stopPolling() {
     if (intervalRef.current) {
@@ -164,7 +186,7 @@ export default function CollectGatewayPaymentPage() {
     router.push("/billing");
   }
 
-  if (bill === undefined) {
+  if (bill === undefined || clearingStale) {
     return <p className="text-muted-foreground p-8 text-sm">Loading…</p>;
   }
   if (bill === null) {
@@ -262,53 +284,56 @@ export default function CollectGatewayPaymentPage() {
         {request && (
           <>
             <CardContent className="space-y-3">
-              {method === "qr_code" && request.presentationValue && (
-                <div className="flex flex-col items-center gap-2">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={request.presentationValue}
-                    alt="Scan to pay"
-                    className="size-48 rounded-md border"
-                  />
-                  <p className="text-muted-foreground text-xs">Ask the customer to scan and pay.</p>
-                </div>
-              )}
-              {method === "payment_link" && (
-                <div className="space-y-1.5">
-                  <Label>Link</Label>
-                  <div className="flex gap-2">
-                    <p className="bg-muted flex-1 truncate rounded-md border px-2 py-1.5 text-xs">
-                      {request.presentationValue}
-                    </p>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        void navigator.clipboard.writeText(request.presentationValue);
-                        toast.success("Link copied.");
-                      }}
-                    >
-                      Copy
-                    </Button>
-                  </div>
-                  {request.deliverySent === false && (
+              {(method === "qr_code" || method === "payment_link") &&
+                request.presentationValue &&
+                (request.presentationValue.startsWith("data:") ? (
+                  <div className="flex flex-col items-center gap-2">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={request.presentationValue}
+                      alt="Scan to pay"
+                      className="size-48 rounded-md border"
+                    />
                     <p className="text-muted-foreground text-xs">
-                      Couldn&apos;t send it automatically — copy and share it manually.
+                      Ask the customer to scan and pay.
                     </p>
-                  )}
-                  {request.deliverySent === true && (
-                    <p className="text-muted-foreground text-xs">Sent to the customer.</p>
-                  )}
-                  <SendLinkPanel
-                    link={request.presentationValue}
-                    amount={remaining}
-                    currencySymbol={currencySymbol}
-                    defaultEmail={bill.customer?.email ?? undefined}
-                    defaultPhone={bill.customer?.phone ?? undefined}
-                  />
-                </div>
-              )}
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    <Label>Link</Label>
+                    <div className="flex gap-2">
+                      <p className="bg-muted flex-1 truncate rounded-md border px-2 py-1.5 text-xs">
+                        {request.presentationValue}
+                      </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          void navigator.clipboard.writeText(request.presentationValue);
+                          toast.success("Link copied.");
+                        }}
+                      >
+                        Copy
+                      </Button>
+                    </div>
+                    {request.deliverySent === false && (
+                      <p className="text-muted-foreground text-xs">
+                        Couldn&apos;t send it automatically — copy and share it manually.
+                      </p>
+                    )}
+                    {request.deliverySent === true && (
+                      <p className="text-muted-foreground text-xs">Sent to the customer.</p>
+                    )}
+                    <SendLinkPanel
+                      link={request.presentationValue}
+                      amount={remaining}
+                      currencySymbol={currencySymbol}
+                      defaultEmail={bill.customer?.email ?? undefined}
+                      defaultPhone={bill.customer?.phone ?? undefined}
+                    />
+                  </div>
+                ))}
               {method === "card_machine" && (
                 <p className="text-sm">Waiting for the card machine — confirm once it approves.</p>
               )}
