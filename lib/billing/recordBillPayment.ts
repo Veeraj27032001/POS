@@ -26,10 +26,11 @@ async function validateAndCreate(
   const bill = await db.bill.findUnique({ where: { id: params.billId } });
   if (!bill) throw new RecordBillPaymentError("not_found", "Bill not found.");
 
-  const canPay =
-    bill.status === "draft" ||
-    bill.status === "held" ||
-    (bill.status === "completed" && bill.billType === "credit_bill");
+  // A completed bill of any type can still take a payment as long as it has
+  // an outstanding balance — the amount cap below (against
+  // getBillOutstandingBalance, itself billType-agnostic) is what actually
+  // prevents overpaying an already-settled bill.
+  const canPay = bill.status === "draft" || bill.status === "held" || bill.status === "completed";
   if (!canPay) {
     throw new RecordBillPaymentError(
       "bad_request",

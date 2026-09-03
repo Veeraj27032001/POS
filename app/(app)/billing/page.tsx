@@ -3,11 +3,10 @@
 import { Loader2Icon, SettingsIcon } from "lucide-react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { CollectGatewayPaymentDialog } from "@/components/billing/collect-gateway-payment-dialog";
 import {
   CustomerDetailsFields,
   emptyCustomerDraft,
@@ -155,6 +154,7 @@ export default function BillingPage() {
   const { data, status: sessionStatus } = useSession();
   const session = asAppSession(data ?? null);
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   const terminals = useOptionsList("terminals", "name");
   const customers = useOptionsList("customers", "name");
@@ -269,28 +269,32 @@ export default function BillingPage() {
   }, [storeDefaultExcludeTax, resuming, started]);
 
   const paymentGatewayAvailable = useStorePaymentGatewayAvailable();
-  const [gatewayDialogOpen, setGatewayDialogOpen] = useState(false);
-  const [gatewayBillId, setGatewayBillId] = useState<string | null>(null);
   const [useGateway, setUseGateway] = useState(false);
 
-  async function openGatewayDialog() {
-    const billId = savedBillId ?? (await syncCart());
-    if (!billId) return;
-    setGatewayBillId(billId);
-    setGatewayDialogOpen(true);
-  }
-
   async function handlePrimaryAction() {
-    if (useGateway && remaining > 0.01) {
-      await openGatewayDialog();
+    if (!useGateway || billType === "credit_bill" || remaining <= 0.01) {
+      await createBill();
       return;
     }
-    await createBill();
-  }
-
-  async function handleGatewayPaid() {
-    await refreshExistingPayments();
-    if (useGateway) await createBill();
+    if (busy) return;
+    setCreating(true);
+    try {
+      const billId = savedBillId ?? (await syncCart());
+      if (!billId) return;
+      const res = await fetch(`/api/bills/${billId}/complete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ allowUnpaidForGateway: true }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        toast.error(body?.error?.message ?? "Failed to save the bill.");
+        return;
+      }
+      router.push(`/billing/${billId}/collect`);
+    } finally {
+      setCreating(false);
+    }
   }
 
   async function loadForResume(id: string) {
@@ -607,18 +611,6 @@ export default function BillingPage() {
     return (
       allocationWarningForLine(productId) !== null && allocationsForLine(productId).length === 0
     );
-  }
-
-  // Re-fetches just the payment list for the saved bill — used after a
-  // gateway-collected payment reaches `paid`, so `remaining` (derived from
-  // existingPayments) drops without a full bill reload.
-  async function refreshExistingPayments() {
-    if (!gatewayBillId && !savedBillId) return;
-    const id = gatewayBillId ?? savedBillId;
-    const res = await fetch(`/api/bills/${id}`);
-    if (!res.ok) return;
-    const b = (await res.json()) as { payments?: ExistingPayment[] };
-    setExistingPayments(b.payments ?? []);
   }
 
   // The only place this reaches the server — sends only what changed.
@@ -1197,7 +1189,10 @@ export default function BillingPage() {
                 size="sm"
                 variant={billType === "credit_bill" ? "default" : "outline"}
                 disabled={!!savedBillId}
-                onClick={() => setBillType("credit_bill")}
+                onClick={() => {
+                  setBillType("credit_bill");
+                  setUseGateway(false);
+                }}
               >
                 Credit Bill
               </Button>
@@ -1495,7 +1490,7 @@ export default function BillingPage() {
               <CardTitle className="text-base">Payment</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {paymentGatewayAvailable && remaining > 0.01 && (
+              {paymentGatewayAvailable && billType !== "credit_bill" && remaining > 0.01 && (
                 <div className="flex items-start gap-2">
                   <Checkbox
                     id="use-gateway"
@@ -1508,7 +1503,8 @@ export default function BillingPage() {
                   />
                   <Label htmlFor="use-gateway" className="text-sm font-normal">
                     Collect via QR / Link / Card — clicking &quot;Proceed to payment&quot; below
-                    will open payment collection instead of asking for a method here.
+                    will save the bill and take you to a payment collection page instead of asking
+                    for a method here.
                   </Label>
                 </div>
               )}
@@ -1528,30 +1524,6 @@ export default function BillingPage() {
                   </p>
                 )}
               </div>
-
-              {paymentGatewayAvailable && remaining > 0.01 && !useGateway && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => void openGatewayDialog()}
-                >
-                  Collect via QR / Link / Card
-                </Button>
-              )}
-              {paymentGatewayAvailable && gatewayBillId && (
-                <CollectGatewayPaymentDialog
-                  billId={gatewayBillId}
-                  amount={remaining}
-                  currencySymbol={currencySymbol}
-                  onPaid={() => void handleGatewayPaid()}
-                  open={gatewayDialogOpen}
-                  onOpenChange={setGatewayDialogOpen}
-                  hideTrigger
-                  customerEmail={customerDraft.email || undefined}
-                  customerPhone={customerDraft.phone || undefined}
-                />
-              )}
 
               {existingPayments.length > 0 && (
                 <div className="divide-y border-t pt-2 text-sm">

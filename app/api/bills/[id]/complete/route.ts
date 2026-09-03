@@ -20,7 +20,7 @@ import { withStoreContext } from "@/middleware/scope";
 // but a bill going straight from draft to complete never went through
 // that check (draft only ever warns, never blocks), so it's re-verified
 // here for real before finalizing either way.
-export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = asAppSession(await auth());
   if (!session?.user) {
     return apiErrorResponse("unauthorized", "You must be signed in.", 401);
@@ -55,12 +55,19 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
       return apiErrorResponse("bad_request", "Add at least one item before completing.", 400);
     }
 
+    const body = await request.json().catch(() => ({}));
+    const allowUnpaidForGateway = body?.allowUnpaidForGateway === true;
+
     const payments = await db.billPayment.aggregate({
       _sum: { amount: true },
       where: { billId: id, status: "success" },
     });
     const totalPaid = Number(payments._sum.amount ?? 0);
-    if (bill.billType !== "credit_bill" && totalPaid < Number(bill.grandTotal)) {
+    if (
+      bill.billType !== "credit_bill" &&
+      !allowUnpaidForGateway &&
+      totalPaid < Number(bill.grandTotal)
+    ) {
       return apiErrorResponse(
         "bad_request",
         `Payments total ${totalPaid} — ${(Number(bill.grandTotal) - totalPaid).toFixed(2)} still due.`,
