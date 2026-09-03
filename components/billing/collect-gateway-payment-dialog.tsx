@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { SendLinkPanel } from "@/components/billing/send-link-panel";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -46,6 +47,8 @@ export function CollectGatewayPaymentDialog({
   open: controlledOpen,
   onOpenChange: setControlledOpen,
   hideTrigger = false,
+  customerEmail,
+  customerPhone,
 }: {
   billId: string;
   amount: number;
@@ -59,6 +62,9 @@ export function CollectGatewayPaymentDialog({
   /** Hide the built-in trigger button — used together with the controlled
    * open props above. */
   hideTrigger?: boolean;
+  /** Pre-fills the send-link panel when known. */
+  customerEmail?: string;
+  customerPhone?: string;
 }) {
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
@@ -261,6 +267,13 @@ export function CollectGatewayPaymentDialog({
                 {request.deliverySent === true && (
                   <p className="text-muted-foreground text-xs">Sent to the customer.</p>
                 )}
+                <SendLinkPanel
+                  link={request.presentationValue}
+                  amount={amount}
+                  currencySymbol={currencySymbol}
+                  defaultEmail={customerEmail}
+                  defaultPhone={customerPhone}
+                />
               </div>
             )}
             {method === "card_machine" && (

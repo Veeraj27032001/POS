@@ -271,12 +271,26 @@ export default function BillingPage() {
   const paymentGatewayAvailable = useStorePaymentGatewayAvailable();
   const [gatewayDialogOpen, setGatewayDialogOpen] = useState(false);
   const [gatewayBillId, setGatewayBillId] = useState<string | null>(null);
+  const [useGateway, setUseGateway] = useState(false);
 
   async function openGatewayDialog() {
     const billId = savedBillId ?? (await syncCart());
     if (!billId) return;
     setGatewayBillId(billId);
     setGatewayDialogOpen(true);
+  }
+
+  async function handlePrimaryAction() {
+    if (useGateway && remaining > 0.01) {
+      await openGatewayDialog();
+      return;
+    }
+    await createBill();
+  }
+
+  async function handleGatewayPaid() {
+    await refreshExistingPayments();
+    if (useGateway) await createBill();
   }
 
   async function loadForResume(id: string) {
@@ -793,6 +807,7 @@ export default function BillingPage() {
     setOverallDiscountReasonCodeId(null);
     setExistingPayments([]);
     setPaymentMethodId(null);
+    setUseGateway(false);
     setSavedBillId(null);
     setSavedDocumentNumber(null);
     setBillStatus(null);
@@ -872,7 +887,7 @@ export default function BillingPage() {
       toast.error("Add items first.");
       return;
     }
-    if (remaining > 0.01 && !paymentMethodId && billType !== "credit_bill") {
+    if (remaining > 0.01 && !paymentMethodId && billType !== "credit_bill" && !useGateway) {
       toast.error("Select a payment method.");
       return;
     }
@@ -899,7 +914,7 @@ export default function BillingPage() {
         .reduce((sum, p) => sum + Number(p.amount), 0);
       const serverRemaining = Math.max(0, Number(freshBill.grandTotal) - alreadyPaid);
 
-      if (serverRemaining > 0.01 && !paymentMethodId && billType !== "credit_bill") {
+      if (serverRemaining > 0.01 && !paymentMethodId && billType !== "credit_bill" && !useGateway) {
         toast.error("Select a payment method.");
         return;
       }
@@ -1456,14 +1471,21 @@ export default function BillingPage() {
             </CardContent>
             <CardFooter className="justify-end">
               <Button
-                onClick={createBill}
+                onClick={() => void handlePrimaryAction()}
                 disabled={
                   busy ||
                   cartLines.length === 0 ||
-                  (remaining > 0.01 && !paymentMethodId && billType !== "credit_bill")
+                  (remaining > 0.01 &&
+                    !paymentMethodId &&
+                    billType !== "credit_bill" &&
+                    !useGateway)
                 }
               >
-                {creating ? "Creating…" : "Create bill"}
+                {creating
+                  ? "Creating…"
+                  : useGateway && remaining > 0.01
+                    ? "Proceed to payment"
+                    : "Create bill"}
               </Button>
             </CardFooter>
           </Card>
@@ -1473,6 +1495,24 @@ export default function BillingPage() {
               <CardTitle className="text-base">Payment</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
+              {paymentGatewayAvailable && remaining > 0.01 && (
+                <div className="flex items-start gap-2">
+                  <Checkbox
+                    id="use-gateway"
+                    checked={useGateway}
+                    onCheckedChange={(checked) => {
+                      const next = checked === true;
+                      setUseGateway(next);
+                      if (next) setPaymentMethodId(null);
+                    }}
+                  />
+                  <Label htmlFor="use-gateway" className="text-sm font-normal">
+                    Collect via QR / Link / Card — clicking &quot;Proceed to payment&quot; below
+                    will open payment collection instead of asking for a method here.
+                  </Label>
+                </div>
+              )}
+
               <div className="space-y-1.5">
                 <Label>Method</Label>
                 <SearchableSelect
@@ -1480,6 +1520,7 @@ export default function BillingPage() {
                   value={paymentMethodId}
                   onChange={setPaymentMethodId}
                   placeholder="Select payment method…"
+                  disabled={useGateway}
                 />
                 {billType === "credit_bill" && (
                   <p className="text-muted-foreground text-xs">
@@ -1488,28 +1529,28 @@ export default function BillingPage() {
                 )}
               </div>
 
-              {paymentGatewayAvailable && remaining > 0.01 && (
-                <>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => void openGatewayDialog()}
-                  >
-                    Collect via QR / Link / Card
-                  </Button>
-                  {gatewayBillId && (
-                    <CollectGatewayPaymentDialog
-                      billId={gatewayBillId}
-                      amount={remaining}
-                      currencySymbol={currencySymbol}
-                      onPaid={() => void refreshExistingPayments()}
-                      open={gatewayDialogOpen}
-                      onOpenChange={setGatewayDialogOpen}
-                      hideTrigger
-                    />
-                  )}
-                </>
+              {paymentGatewayAvailable && remaining > 0.01 && !useGateway && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void openGatewayDialog()}
+                >
+                  Collect via QR / Link / Card
+                </Button>
+              )}
+              {paymentGatewayAvailable && gatewayBillId && (
+                <CollectGatewayPaymentDialog
+                  billId={gatewayBillId}
+                  amount={remaining}
+                  currencySymbol={currencySymbol}
+                  onPaid={() => void handleGatewayPaid()}
+                  open={gatewayDialogOpen}
+                  onOpenChange={setGatewayDialogOpen}
+                  hideTrigger
+                  customerEmail={customerDraft.email || undefined}
+                  customerPhone={customerDraft.phone || undefined}
+                />
               )}
 
               {existingPayments.length > 0 && (

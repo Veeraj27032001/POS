@@ -67,7 +67,7 @@ interface BillDetail {
   billType: string;
   status: string;
   billDate: string;
-  customer: { name: string; phone: string } | null;
+  customer: { name: string; phone: string; email: string | null } | null;
   terminal: { name: string };
   cashierUser: { name: string };
   subtotal: string;
@@ -340,6 +340,8 @@ export default function BillViewPage() {
                           maxAmount={bill.outstandingBalance}
                           currencySymbol={currencySymbol}
                           onPaid={load}
+                          customerEmail={bill.customer?.email ?? undefined}
+                          customerPhone={bill.customer?.phone ?? undefined}
                         />
                       )}
                       <RecordPaymentDialog

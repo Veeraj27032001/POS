@@ -13,7 +13,21 @@ export async function GET(
 
   const paymentRequest = await unscoped().paymentRequest.findFirst({
     where: { gatewayReference: reference },
-    include: { store: { select: { name: true } } },
+    include: {
+      store: { select: { name: true } },
+      bill: {
+        select: {
+          documentNumber: true,
+          grandTotal: true,
+          taxTotal: true,
+          discountTotal: true,
+          lines: {
+            where: { status: "active" },
+            select: { productName: true, quantity: true, unitPrice: true, lineTotal: true },
+          },
+        },
+      },
+    },
   });
   if (!paymentRequest) {
     return apiErrorResponse("not_found", "This payment link is invalid.", 404);
@@ -25,5 +39,17 @@ export async function GET(
     amount: Number(paymentRequest.amount),
     method: paymentRequest.method,
     status: paymentRequest.status,
+    bill: {
+      documentNumber: paymentRequest.bill.documentNumber,
+      grandTotal: Number(paymentRequest.bill.grandTotal),
+      taxTotal: Number(paymentRequest.bill.taxTotal),
+      discountTotal: Number(paymentRequest.bill.discountTotal),
+      lines: paymentRequest.bill.lines.map((line) => ({
+        productName: line.productName,
+        quantity: line.quantity,
+        unitPrice: Number(line.unitPrice),
+        lineTotal: Number(line.lineTotal),
+      })),
+    },
   });
 }

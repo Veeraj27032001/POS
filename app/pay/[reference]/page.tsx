@@ -13,6 +13,13 @@ interface PayInfo {
   amount: number;
   method: string;
   status: "pending" | "paid" | "expired" | "cancelled";
+  bill: {
+    documentNumber: string;
+    grandTotal: number;
+    taxTotal: number;
+    discountTotal: number;
+    lines: { productName: string; quantity: number; unitPrice: number; lineTotal: number }[];
+  };
 }
 
 export default function PayPage() {
@@ -67,7 +74,40 @@ export default function PayPage() {
             </CardHeader>
             <CardContent className="flex flex-col items-center gap-4 text-center">
               <p className="text-muted-foreground text-sm">{info.documentNumber}</p>
-              <p className="text-3xl font-bold">₹{info.amount.toFixed(2)}</p>
+
+              {info.bill.lines.length > 0 && (
+                <div className="w-full space-y-1 rounded-md border p-3 text-left text-sm">
+                  {info.bill.lines.map((line, i) => (
+                    <div key={i} className="flex justify-between gap-3">
+                      <span className="text-muted-foreground">
+                        {line.productName} × {line.quantity}
+                      </span>
+                      <span>₹{line.lineTotal.toFixed(2)}</span>
+                    </div>
+                  ))}
+                  {info.bill.discountTotal > 0 && (
+                    <div className="flex justify-between gap-3 border-t pt-1">
+                      <span className="text-muted-foreground">Discount</span>
+                      <span>−₹{info.bill.discountTotal.toFixed(2)}</span>
+                    </div>
+                  )}
+                  {info.bill.taxTotal > 0 && (
+                    <div className="flex justify-between gap-3">
+                      <span className="text-muted-foreground">Tax</span>
+                      <span>₹{info.bill.taxTotal.toFixed(2)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between gap-3 border-t pt-1 font-medium">
+                    <span>Bill total</span>
+                    <span>₹{info.bill.grandTotal.toFixed(2)}</span>
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <p className="text-muted-foreground text-xs">Amount due now</p>
+                <p className="text-3xl font-bold">₹{info.amount.toFixed(2)}</p>
+              </div>
 
               {info.status === "paid" && (
                 <div className="flex flex-col items-center gap-2 pt-2">

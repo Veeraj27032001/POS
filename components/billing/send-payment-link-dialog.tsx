@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { SendLinkPanel } from "@/components/billing/send-link-panel";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -37,11 +38,15 @@ export function SendPaymentLinkDialog({
   maxAmount,
   currencySymbol,
   onPaid,
+  customerEmail,
+  customerPhone,
 }: {
   billId: string;
   maxAmount: number;
   currencySymbol: string;
   onPaid: () => void;
+  customerEmail?: string;
+  customerPhone?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState(() => maxAmount.toFixed(2));
@@ -223,6 +228,14 @@ export function SendPaymentLinkDialog({
                 <p className="text-muted-foreground text-xs">Sent to the customer.</p>
               )}
             </div>
+
+            <SendLinkPanel
+              link={request.presentationValue}
+              amount={Number(amount)}
+              currencySymbol={currencySymbol}
+              defaultEmail={customerEmail}
+              defaultPhone={customerPhone}
+            />
 
             {status === "expired" ? (
               <p className="text-destructive text-sm">This request expired.</p>
