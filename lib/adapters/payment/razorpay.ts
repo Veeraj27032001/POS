@@ -1,17 +1,181 @@
-import type { PaymentGateway } from "./types";
+import { env } from "@/lib/config/env";
+
+import type {
+  CreatePaymentRequestParams,
+  PaymentGateway,
+  PaymentRequestResult,
+  PaymentStatusResult,
+  RefundParams,
+  RefundResult,
+} from "./types";
+
+const RAZORPAY_API_BASE = "https://api.razorpay.com/v1";
+
+function authHeader(): string {
+  const { RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET } = env();
+  if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
+    throw new Error(
+      "RAZORPAY_KEY_ID/RAZORPAY_KEY_SECRET must be set in the environment when PAYMENT_ADAPTER=razorpay.",
+    );
+  }
+  return `Basic ${Buffer.from(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`).toString("base64")}`;
+}
+
+async function razorpayFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${RAZORPAY_API_BASE}${path}`, {
+    ...init,
+    headers: { Authorization: authHeader(), "Content-Type": "application/json", ...init?.headers },
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) {
+    const message =
+      (body as { error?: { description?: string } } | null)?.error?.description ??
+      `Razorpay request failed (${res.status}).`;
+    throw new Error(message);
+  }
+  return body as T;
+}
+
+const toPaise = (amount: number) => Math.round(amount * 100);
+
+interface RazorpayQrCode {
+  id: string;
+  image_url: string;
+  status: string;
+}
+
+interface RazorpayQrPayment {
+  id: string;
+  status: string;
+  created_at: number;
+}
+
+interface RazorpayPaymentLink {
+  id: string;
+  short_url: string;
+  status: string;
+  payments?: Array<{ payment_id: string; status: string; created_at?: number }>;
+}
+
+async function createQrCode(params: CreatePaymentRequestParams): Promise<PaymentRequestResult> {
+  const qr = await razorpayFetch<RazorpayQrCode>("/payments/qr_codes", {
+    method: "POST",
+    body: JSON.stringify({
+      type: "upi_qr",
+      name: "Payment",
+      usage: "single_use",
+      fixed_amount: true,
+      payment_amount: toPaise(params.amount),
+      description: params.documentNumber,
+      notes: { documentNumber: params.documentNumber },
+    }),
+  });
+  return { gatewayReference: qr.id, presentationValue: qr.image_url };
+}
+
+async function createPaymentLink(
+  params: CreatePaymentRequestParams,
+): Promise<PaymentRequestResult> {
+  const hasCustomer = Boolean(
+    params.customer?.name || params.customer?.email || params.customer?.phone,
+  );
+  const link = await razorpayFetch<RazorpayPaymentLink>("/payment_links", {
+    method: "POST",
+    body: JSON.stringify({
+      amount: toPaise(params.amount),
+      currency: params.currency,
+      accept_partial: false,
+      description: params.documentNumber,
+      customer: hasCustomer
+        ? {
+            name: params.customer?.name || "Customer",
+            email: params.customer?.email,
+            contact: params.customer?.phone,
+          }
+        : undefined,
+      // The app's own Notifier adapter already delivers the link when a
+      // delivery channel is requested — don't let Razorpay send a second,
+      // duplicate SMS/email for the same link.
+      notify: { sms: false, email: false },
+      reminder_enable: false,
+      notes: { documentNumber: params.documentNumber },
+    }),
+  });
+  return { gatewayReference: link.id, presentationValue: link.short_url };
+}
+
+async function resolveCapturedPaymentId(gatewayReference: string): Promise<string | null> {
+  if (gatewayReference.startsWith("qr_")) {
+    const payments = await razorpayFetch<{ items: RazorpayQrPayment[] }>(
+      `/payments/qr_codes/${gatewayReference}/payments`,
+    );
+    return payments.items.find((p) => p.status === "captured")?.id ?? null;
+  }
+  if (gatewayReference.startsWith("plink_")) {
+    const link = await razorpayFetch<RazorpayPaymentLink>(`/payment_links/${gatewayReference}`);
+    return link.payments?.find((p) => p.status === "captured")?.payment_id ?? null;
+  }
+  return null;
+}
 
 export const razorpayPaymentGateway: PaymentGateway = {
-  async createRequest() {
-    throw new Error(
-      "PAYMENT_ADAPTER=razorpay but RAZORPAY_KEY_ID/RAZORPAY_KEY_SECRET aren't wired up yet. " +
-        "Implement this adapter against Razorpay's Orders/Payment Links API, or switch " +
-        "PAYMENT_ADAPTER back to 'stub'.",
+  async createRequest(params: CreatePaymentRequestParams): Promise<PaymentRequestResult> {
+    if (params.method === "qr_code") return createQrCode(params);
+    if (params.method === "payment_link") return createPaymentLink(params);
+    // card_machine is a physical terminal — it never talks to Razorpay.
+    // Confirmed manually via the /confirm route, same as the stub adapter.
+    return {
+      gatewayReference: `card_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`,
+      presentationValue: "",
+    };
+  },
+
+  async checkStatus(gatewayReference: string): Promise<PaymentStatusResult> {
+    if (gatewayReference.startsWith("qr_")) {
+      const payments = await razorpayFetch<{ items: RazorpayQrPayment[] }>(
+        `/payments/qr_codes/${gatewayReference}/payments`,
+      );
+      const captured = payments.items.find((p) => p.status === "captured");
+      if (captured) {
+        return { status: "paid", gatewayReference, paidAt: new Date(captured.created_at * 1000) };
+      }
+      const qr = await razorpayFetch<RazorpayQrCode>(`/payments/qr_codes/${gatewayReference}`);
+      return { status: qr.status === "closed" ? "expired" : "pending", gatewayReference };
+    }
+
+    if (gatewayReference.startsWith("plink_")) {
+      const link = await razorpayFetch<RazorpayPaymentLink>(`/payment_links/${gatewayReference}`);
+      if (link.status === "paid") {
+        const paidAt = link.payments?.find((p) => p.status === "captured")?.created_at;
+        return {
+          status: "paid",
+          gatewayReference,
+          paidAt: paidAt ? new Date(paidAt * 1000) : new Date(),
+        };
+      }
+      if (link.status === "cancelled" || link.status === "expired") {
+        return { status: "expired", gatewayReference };
+      }
+      return { status: "pending", gatewayReference };
+    }
+
+    // card_machine references never reach here — reconcilePaymentRequestStatus
+    // skips gateway polling for that method entirely.
+    return { status: "pending", gatewayReference };
+  },
+
+  async refund(params: RefundParams): Promise<RefundResult> {
+    const paymentId = await resolveCapturedPaymentId(params.gatewayReference);
+    if (!paymentId) {
+      throw new Error("Can't refund — no captured Razorpay payment found for this request.");
+    }
+    const result = await razorpayFetch<{ id: string; status: string }>(
+      `/payments/${paymentId}/refund`,
+      { method: "POST", body: JSON.stringify({ amount: toPaise(params.amount) }) },
     );
-  },
-  async checkStatus() {
-    throw new Error("PAYMENT_ADAPTER=razorpay is not yet implemented.");
-  },
-  async refund() {
-    throw new Error("PAYMENT_ADAPTER=razorpay is not yet implemented.");
+    return {
+      gatewayRefundReference: result.id,
+      status: result.status === "processed" ? "completed" : "pending",
+    };
   },
 };

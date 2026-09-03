@@ -102,7 +102,7 @@ export default function UserViewPage() {
         ← Back to Users
       </Link>
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-semibold">User details</h1>
           {row && (
@@ -117,7 +117,7 @@ export default function UserViewPage() {
           )}
         </div>
         {row && (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" disabled={toggling} onClick={handleToggleActive}>
               {toggling && <Loader2Icon className="size-3.5 animate-spin" />}
               {row.isActive ? "Deactivate" : "Activate"}

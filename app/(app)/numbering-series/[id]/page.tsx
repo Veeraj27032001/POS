@@ -99,7 +99,7 @@ export default function SeriesViewPage() {
         ← Back to Numbering Series
       </Link>
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-semibold">Numbering series details</h1>
           {row && (
@@ -114,7 +114,7 @@ export default function SeriesViewPage() {
           )}
         </div>
         {row && (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <EditSeriesDialog
               id={id}
               prefix={row.prefix}

@@ -38,8 +38,10 @@ import {
   Users,
   Wallet,
   Warehouse,
+  XIcon,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
+import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import { AppNav, type AppNavGroup } from "@/components/app-nav";
@@ -285,6 +287,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { data } = useSession();
   const session = asAppSession(data ?? null);
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     try {
@@ -293,6 +297,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       // ignore
     }
   }, []);
+
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [pathname]);
 
   function toggleCollapsed() {
     setCollapsed((prev) => {
@@ -328,36 +336,69 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen overflow-hidden">
+      {mobileNavOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 md:hidden"
+          onClick={() => setMobileNavOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
       <aside
         className={cn(
-          "bg-sidebar flex shrink-0 flex-col overflow-hidden border-r backdrop-blur-xl transition-[width] duration-150",
-          collapsed ? "w-16" : "w-64",
+          "bg-sidebar fixed inset-y-0 left-0 z-50 flex w-64 shrink-0 flex-col overflow-hidden border-r backdrop-blur-xl transition-transform duration-200 md:static md:z-auto md:translate-x-0 md:transition-[width] md:duration-150",
+          mobileNavOpen ? "translate-x-0" : "-translate-x-full",
+          collapsed ? "md:w-16" : "md:w-64",
         )}
       >
         <div
-          className={cn("flex shrink-0 items-center gap-2 p-3 pb-4", collapsed && "justify-center")}
+          className={cn(
+            "flex shrink-0 items-center gap-2 p-3 pb-4",
+            collapsed && "md:justify-center",
+          )}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo.png" alt="POS logo" className="size-7 shrink-0 rounded-lg object-cover" />
-          {!collapsed && <span className="flex-1 text-[15px] font-extrabold">POS</span>}
+          {(!collapsed || mobileNavOpen) && (
+            <span className="flex-1 text-[15px] font-extrabold">POS</span>
+          )}
           <Button
             variant="ghost"
             size="icon-sm"
             onClick={toggleCollapsed}
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            className="hidden md:inline-flex"
           >
             <Menu className="size-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => setMobileNavOpen(false)}
+            aria-label="Close menu"
+            className="md:hidden"
+          >
+            <XIcon className="size-4" />
           </Button>
         </div>
 
         <div className="min-h-0 flex-1 space-y-1 overflow-y-auto p-3 pt-0">
-          <AppNav groups={visibleGroups} collapsed={collapsed} />
+          <AppNav groups={visibleGroups} collapsed={collapsed && !mobileNavOpen} />
         </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <header className="flex shrink-0 items-center gap-4 border-b px-6 py-3">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => setMobileNavOpen(true)}
+            aria-label="Open menu"
+            className="md:hidden"
+          >
+            <Menu className="size-4" />
+          </Button>
           <HeaderSearch items={flatVisibleItems} />
           <div className="flex-1" />
           <FinancialYearSwitcher />

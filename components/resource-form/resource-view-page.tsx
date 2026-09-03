@@ -187,7 +187,7 @@ export function ResourceViewPage<
         ← Back to {title}
       </Link>
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-semibold">{singular} details</h1>
           {row && "isActive" in row && (
@@ -204,7 +204,7 @@ export function ResourceViewPage<
           )}
         </div>
         {row && (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {headerActions?.(row)}
             <Dialog open={editOpen} onOpenChange={setEditOpen}>
               <DialogTrigger

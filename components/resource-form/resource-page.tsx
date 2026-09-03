@@ -167,7 +167,7 @@ export function ResourcePage<
       key: "__actions",
       header: "",
       render: (row) => (
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Link
             href={`/${resource}/${getRowId(row)}`}
             className={buttonVariants({ variant: "outline", size: "sm" })}

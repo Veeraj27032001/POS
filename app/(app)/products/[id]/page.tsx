@@ -130,7 +130,7 @@ export default function ProductViewPage() {
         ← Back to Products
       </Link>
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-semibold">Product details</h1>
           {row && (
@@ -145,7 +145,7 @@ export default function ProductViewPage() {
           )}
         </div>
         {row && (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={handlePrintLabel}>
               Print Label
             </Button>
