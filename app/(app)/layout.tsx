@@ -108,6 +108,8 @@ const NAV_ITEM_MODULE: Record<string, string> = {
   "/settings/roles": "roles",
 };
 
+const STORE_SPECIFIC_NAV_GROUPS = new Set(["Overview", "Billing", "Stock", "Reports"]);
+
 const NAV_GROUPS: AppNavGroup[] = [
   {
     label: "Overview",
@@ -318,16 +320,23 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const userRole = session?.user?.roleName ?? "";
   const permissions = session?.user?.permissions ?? [];
 
+  // A session with no single store (only Super Admin) can't meaningfully use
+  // store-specific operational screens — hide those groups entirely rather
+  // than show links that don't work without a store context.
+  const hasStore = !!session?.user?.storeId;
+
   const visibleGroups = useMemo(() => {
-    return NAV_GROUPS.map((group) => ({
-      ...group,
-      items: group.items.filter((item) => {
-        const requiredModule = NAV_ITEM_MODULE[item.href];
-        return !requiredModule || hasPermission(permissions, requiredModule, "view");
-      }),
-    })).filter((group) => group.items.length > 0);
+    return NAV_GROUPS.filter((group) => hasStore || !STORE_SPECIFIC_NAV_GROUPS.has(group.label))
+      .map((group) => ({
+        ...group,
+        items: group.items.filter((item) => {
+          const requiredModule = NAV_ITEM_MODULE[item.href];
+          return !requiredModule || hasPermission(permissions, requiredModule, "view");
+        }),
+      }))
+      .filter((group) => group.items.length > 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [permissions.join(",")]);
+  }, [permissions.join(","), hasStore]);
 
   const flatVisibleItems = useMemo(
     () => visibleGroups.flatMap((group) => group.items),
