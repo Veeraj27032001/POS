@@ -81,7 +81,7 @@ const NAV_ITEM_MODULE: Record<string, string> = {
   "/payment-methods": "payment_methods",
   "/reason-codes": "reason_codes",
   "/cash-denominations": "settings",
-  "/bill-formats": "settings",
+  "/bill-formats": "bill_formats",
   "/numbering-series": "numbering_series",
   "/product-requests": "stock",
   "/stock-inwards": "stock",

@@ -32,6 +32,7 @@ export const SUPER_ADMIN_ONLY_MODULES = [
   "tax_settings",
   "hsn_codes",
   "financial_years",
+  "bill_formats",
 ] as const;
 
 // Regular business modules — open to Admin (and Super Admin), denied to

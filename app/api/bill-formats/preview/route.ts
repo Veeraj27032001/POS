@@ -25,7 +25,7 @@ export async function POST(request: Request) {
   if (!session?.user) {
     return apiErrorResponse("unauthorized", "You must be signed in.", 401);
   }
-  if (!hasPermission(session.user.permissions, "settings", "view")) {
+  if (!hasPermission(session.user.permissions, "bill_formats", "view")) {
     return apiErrorResponse("forbidden", "You don't have permission to view this.", 403);
   }
 

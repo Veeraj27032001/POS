@@ -249,7 +249,7 @@ export const cashDenominationResource = defineResource({
 
 export const billFormatResource = defineResource({
   name: "bill_format",
-  module: "settings",
+  module: "bill_formats",
   scoping: "required",
   explicitStoreId: true,
   createSchema: schemas.billFormatCreateSchema,
