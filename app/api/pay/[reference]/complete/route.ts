@@ -54,6 +54,7 @@ export async function POST(
   const customerPhone = bill.customer?.phone ?? bill.customerPhone ?? undefined;
 
   const result = await getPaymentGateway().createRequest({
+    requestId: paymentRequest.id,
     documentNumber: paymentRequest.documentNumber,
     amount: Number(paymentRequest.amount),
     currency: bill.store.currency?.code ?? "INR",

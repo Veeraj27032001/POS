@@ -54,6 +54,7 @@ async function createPaymentLink(
   const hasCustomer = Boolean(
     params.customer?.name || params.customer?.email || params.customer?.phone,
   );
+  const ownPageUrl = `${process.env.AUTH_URL ?? "http://localhost:3000"}/pay/${params.requestId}`;
   const link = await razorpayFetch<RazorpayPaymentLink>("/payment_links", {
     method: "POST",
     body: JSON.stringify({
@@ -72,9 +73,10 @@ async function createPaymentLink(
       notify: { sms: false, email: false },
       reminder_enable: false,
       notes: { documentNumber: params.documentNumber },
+      callback_url: ownPageUrl,
+      callback_method: "get",
     }),
   });
-  const ownPageUrl = `${process.env.AUTH_URL ?? "http://localhost:3000"}/pay/${link.id}`;
   return {
     gatewayReference: link.id,
     presentationValue: ownPageUrl,

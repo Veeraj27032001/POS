@@ -142,6 +142,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           presentationValue: `${process.env.AUTH_URL ?? "http://localhost:3000"}/pay/${created.id}`,
         }
       : await getPaymentGateway().createRequest({
+          requestId: created.id,
           documentNumber: created.documentNumber,
           amount,
           currency: bill.store.currency?.code ?? "INR",

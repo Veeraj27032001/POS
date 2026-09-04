@@ -7,6 +7,8 @@ export type PaymentRequestMethod = PrismaPaymentRequestMethod;
 export type PaymentRequestStatus = PrismaPaymentRequestStatus;
 
 export interface CreatePaymentRequestParams {
+  /** The PaymentRequest's own stable id — known before any gateway call. */
+  requestId: string;
   documentNumber: string;
   amount: number;
   currency: string;

@@ -10,7 +10,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Label } from "@/components/ui/label";
 import { useStoreCurrencySymbol } from "@/lib/hooks/useStoreCurrencySymbol";
 
-type GatewayMethod = "qr_code" | "payment_link" | "card_machine";
+type UiMethod = "qr_link" | "card_machine";
 
 interface BillInfo {
   id: string;
@@ -34,9 +34,8 @@ interface StatusResponse {
   status: string;
 }
 
-const METHOD_LABELS: Record<GatewayMethod, string> = {
-  qr_code: "QR Code",
-  payment_link: "Payment Link",
+const UI_METHOD_LABELS: Record<UiMethod, string> = {
+  qr_link: "QR / Link",
   card_machine: "Card Machine",
 };
 
@@ -49,7 +48,7 @@ export default function CollectGatewayPaymentPage() {
   const currencySymbol = useStoreCurrencySymbol();
 
   const [bill, setBill] = useState<BillInfo | null | undefined>(undefined);
-  const [method, setMethod] = useState<GatewayMethod>("qr_code");
+  const [uiMethod, setUiMethod] = useState<UiMethod>("qr_link");
   const [requesting, setRequesting] = useState(false);
   const [request, setRequest] = useState<CreateResponse | null>(null);
   const [status, setStatus] = useState<string>("pending");
@@ -123,13 +122,13 @@ export default function CollectGatewayPaymentPage() {
     intervalRef.current = setInterval(() => void pollOnce(id), POLL_INTERVAL_MS);
   }
 
-  async function requestPayment() {
+  async function requestPayment(m: UiMethod) {
     setRequesting(true);
     try {
       const res = await fetch(`/api/bills/${billId}/payment-requests`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ method }),
+        body: JSON.stringify({ method: m === "qr_link" ? "qr_code" : "card_machine" }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
@@ -139,11 +138,19 @@ export default function CollectGatewayPaymentPage() {
       const body = (await res.json()) as CreateResponse;
       setRequest(body);
       setStatus(body.status);
-      if (method !== "card_machine") startPolling(body.id);
+      if (m === "qr_link") startPolling(body.id);
     } finally {
       setRequesting(false);
     }
   }
+
+  // QR/Link starts sharing immediately, with no separate "Request payment"
+  // click — only Card Machine needs an explicit action.
+  useEffect(() => {
+    if (clearingStale || !bill || request || requesting) return;
+    if (uiMethod === "qr_link") void requestPayment(uiMethod);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clearingStale, bill, uiMethod, request, requesting]);
 
   async function confirmCardMachine() {
     if (!request) return;
@@ -162,12 +169,12 @@ export default function CollectGatewayPaymentPage() {
     }
   }
 
-  function reset() {
+  function reset(nextMethod: UiMethod) {
     stopPolling();
     setRequest(null);
     setStatus("pending");
     setPaused(false);
-    setMethod("qr_code");
+    setUiMethod(nextMethod);
   }
 
   async function cancelRequest() {
@@ -177,9 +184,9 @@ export default function CollectGatewayPaymentPage() {
     }
   }
 
-  async function switchMethod() {
+  async function switchMethod(nextMethod: UiMethod) {
     await cancelRequest();
-    reset();
+    reset(nextMethod);
   }
 
   async function cancelAndGoBack() {
@@ -243,49 +250,42 @@ export default function CollectGatewayPaymentPage() {
           <CardTitle className="text-xl">Collect Payment</CardTitle>
         </CardHeader>
 
-        {!request && (
-          <>
-            <CardContent className="space-y-3">
-              <div className="space-y-1.5">
-                <Label>Amount</Label>
-                <p className="text-lg font-semibold">
-                  {currencySymbol}
-                  {remaining.toFixed(2)}
-                </p>
-                <p className="text-muted-foreground text-xs">{bill.documentNumber}</p>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Method</Label>
-                <div className="flex gap-2">
-                  {(Object.keys(METHOD_LABELS) as GatewayMethod[]).map((m) => (
-                    <Button
-                      key={m}
-                      type="button"
-                      size="sm"
-                      variant={method === m ? "default" : "outline"}
-                      onClick={() => setMethod(m)}
-                    >
-                      {METHOD_LABELS[m]}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-            <CardFooter className="justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => void cancelAndGoBack()}>
-                Back
-              </Button>
-              <Button type="button" onClick={() => void requestPayment()} disabled={requesting}>
-                {requesting ? "Requesting…" : "Request payment"}
-              </Button>
-            </CardFooter>
-          </>
-        )}
+        <CardContent className="space-y-3">
+          <div className="space-y-1.5">
+            <Label>Amount</Label>
+            <p className="text-lg font-semibold">
+              {currencySymbol}
+              {remaining.toFixed(2)}
+            </p>
+            <p className="text-muted-foreground text-xs">{bill.documentNumber}</p>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Method</Label>
+            <div className="flex gap-2">
+              {(Object.keys(UI_METHOD_LABELS) as UiMethod[]).map((m) => (
+                <Button
+                  key={m}
+                  type="button"
+                  size="sm"
+                  variant={uiMethod === m ? "default" : "outline"}
+                  onClick={() => void switchMethod(m)}
+                >
+                  {UI_METHOD_LABELS[m]}
+                </Button>
+              ))}
+            </div>
+          </div>
 
-        {request && (
-          <>
-            <CardContent className="space-y-3">
-              {(method === "qr_code" || method === "payment_link") &&
+          {!request && uiMethod === "card_machine" && (
+            <p className="text-muted-foreground text-sm">Click Request payment to begin.</p>
+          )}
+          {!request && uiMethod === "qr_link" && (
+            <p className="text-muted-foreground text-sm">Generating…</p>
+          )}
+
+          {request && (
+            <>
+              {uiMethod === "qr_link" &&
                 request.presentationValue &&
                 (request.presentationValue.startsWith("data:") ? (
                   <div className="flex flex-col items-center gap-2">
@@ -301,7 +301,7 @@ export default function CollectGatewayPaymentPage() {
                   </div>
                 ) : (
                   <div className="space-y-1.5">
-                    {method === "qr_code" && request.qrImageDataUrl && (
+                    {request.qrImageDataUrl && (
                       <div className="flex flex-col items-center gap-2 pb-2">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
@@ -348,48 +348,50 @@ export default function CollectGatewayPaymentPage() {
                     />
                   </div>
                 ))}
-              {method === "card_machine" && (
+              {uiMethod === "card_machine" && (
                 <p className="text-sm">Waiting for the card machine — confirm once it approves.</p>
               )}
 
               {status === "expired" ? (
                 <p className="text-destructive text-sm">This request expired.</p>
-              ) : method !== "card_machine" ? (
+              ) : uiMethod !== "card_machine" ? (
                 <p className="text-muted-foreground text-sm">
                   {paused ? "Still waiting — check again, or cancel." : "Waiting for payment…"}
                 </p>
               ) : null}
-            </CardContent>
+            </>
+          )}
+        </CardContent>
 
-            <CardFooter className="justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => void cancelAndGoBack()}>
-                Cancel
-              </Button>
-              <Button type="button" variant="outline" onClick={() => void switchMethod()}>
-                Switch method
-              </Button>
-              {status === "expired" && (
-                <Button type="button" variant="outline" onClick={reset}>
-                  Try again
-                </Button>
-              )}
-              {paused && status === "pending" && method !== "card_machine" && (
-                <Button type="button" variant="outline" onClick={() => startPolling(request.id)}>
-                  Check now
-                </Button>
-              )}
-              {method === "card_machine" && status === "pending" && (
-                <Button
-                  type="button"
-                  onClick={() => void confirmCardMachine()}
-                  disabled={confirming}
-                >
-                  {confirming ? "Confirming…" : "Mark as paid"}
-                </Button>
-              )}
-            </CardFooter>
-          </>
-        )}
+        <CardFooter className="justify-end gap-2">
+          <Button type="button" variant="outline" onClick={() => void cancelAndGoBack()}>
+            Cancel
+          </Button>
+          {!request && uiMethod === "card_machine" && (
+            <Button
+              type="button"
+              onClick={() => void requestPayment(uiMethod)}
+              disabled={requesting}
+            >
+              {requesting ? "Requesting…" : "Request payment"}
+            </Button>
+          )}
+          {request && status === "expired" && (
+            <Button type="button" variant="outline" onClick={() => reset(uiMethod)}>
+              Try again
+            </Button>
+          )}
+          {request && paused && status === "pending" && uiMethod !== "card_machine" && (
+            <Button type="button" variant="outline" onClick={() => startPolling(request.id)}>
+              Check now
+            </Button>
+          )}
+          {request && uiMethod === "card_machine" && status === "pending" && (
+            <Button type="button" onClick={() => void confirmCardMachine()} disabled={confirming}>
+              {confirming ? "Confirming…" : "Mark as paid"}
+            </Button>
+          )}
+        </CardFooter>
       </Card>
     </div>
   );
