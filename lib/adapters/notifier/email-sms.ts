@@ -25,12 +25,33 @@ function getTransport() {
   return cachedTransport;
 }
 
+// Fast2SMS wants a bare 10-digit Indian number, not +91-prefixed.
+function toIndianMobile(raw: string): string {
+  const digits = raw.replace(/\D/g, "");
+  return digits.slice(-10);
+}
+
+async function sendSms(to: string, body: string): Promise<{ status: "sent" | "failed" }> {
+  const apiKey = env().FAST2SMS_API_KEY;
+  if (!apiKey) {
+    throw new Error("Sending SMS requires FAST2SMS_API_KEY to be set.");
+  }
+
+  const params = new URLSearchParams({
+    route: "q",
+    message: body,
+    numbers: toIndianMobile(to),
+  });
+  const res = await fetch(`https://www.fast2sms.com/dev/bulkV2?${params.toString()}`, {
+    headers: { Authorization: apiKey },
+  });
+  return { status: res.ok ? "sent" : "failed" };
+}
+
 export const emailSmsNotifier: Notifier = {
   async send(message) {
-    if (message.channel !== "email") {
-      throw new Error(
-        `Notifier channel "${message.channel}" is not supported by the SMTP adapter.`,
-      );
+    if (message.channel === "sms") {
+      return sendSms(message.to, message.body);
     }
 
     const config = env();

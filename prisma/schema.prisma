@@ -902,6 +902,9 @@ model Customer {
   state         State?   @relation(fields: [stateId], references: [id])
   pincode       String?
   taxId         String?  @map("tax_id")
+  // Storefront login only (step7's merchant API doesn't touch this) —
+  // optional, since phone + OTP works with no password at all.
+  passwordHash  String?  @map("password_hash")
   creditLimit   Decimal? @map("credit_limit") @db.Decimal(12, 2)
   loyaltyPoints Int?     @map("loyalty_points")
   isActive      Boolean  @default(true) @map("is_active")
@@ -1452,6 +1455,21 @@ model Notification {
   createdAt   DateTime                @default(now()) @map("created_at")
 
   @@map("notifications")
+}
+
+// Dummy storefront (not part of step7's merchant API) — phone-identified
+// customer login: a code is emailed (the only channel the Notifier adapter
+// actually delivers today) and verified against this row.
+model CustomerOtpChallenge {
+  id         String    @id @default(uuid())
+  phone      String
+  codeHash   String    @map("code_hash")
+  attempts   Int       @default(0)
+  expiresAt  DateTime  @map("expires_at")
+  consumedAt DateTime? @map("consumed_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@map("customer_otp_challenges")
 }
 
 model BillReturn {

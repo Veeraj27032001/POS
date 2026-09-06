@@ -18,7 +18,20 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatTimestamp } from "@/lib/datetime/format";
+import { buildIntegrationGuideHtml } from "@/lib/ecommerce/integrationGuideHtml";
+import { useOptionsList } from "@/lib/masters/useOptionsList";
 import { useInvalidateResource } from "@/lib/pagination/useList";
+
+function openAndPrintHtml(html: string): void {
+  const win = window.open("", "_blank", "width=800,height=900");
+  if (!win) {
+    toast.error("The setup guide window was blocked by the browser's popup blocker.");
+    return;
+  }
+  win.document.write(html);
+  win.document.write("<script>window.onload = () => window.print();<\/script>");
+  win.document.close();
+}
 
 interface ApiCredentialRow {
   id: string;
@@ -59,7 +72,15 @@ const API_LIST: { method: string; path: string; description: string }[] = [
   },
 ];
 
-function NewCredentialDialog({ storeId, onCreated }: { storeId: string; onCreated: () => void }) {
+function NewCredentialDialog({
+  storeId,
+  storeName,
+  onCreated,
+}: {
+  storeId: string;
+  storeName: string;
+  onCreated: () => void;
+}) {
   const [open, setOpen] = useState(false);
   const [label, setLabel] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -170,7 +191,20 @@ function NewCredentialDialog({ storeId, onCreated }: { storeId: string; onCreate
                 </Button>
               </div>
             </div>
-            <DialogFooter>
+            <DialogFooter className="sm:justify-between">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  const html = buildIntegrationGuideHtml({
+                    storeName,
+                    apiKey: created.apiKey,
+                  }).replace("{{API_SECRET}}", created.apiSecret);
+                  openAndPrintHtml(html);
+                }}
+              >
+                Download setup guide
+              </Button>
               <Button type="button" onClick={close}>
                 Done
               </Button>
@@ -184,8 +218,10 @@ function NewCredentialDialog({ storeId, onCreated }: { storeId: string; onCreate
 
 export default function EcommerceSettingsPage() {
   const invalidate = useInvalidateResource();
+  const stores = useOptionsList("stores/options", "name");
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const [revokingId, setRevokingId] = useState<string | null>(null);
+  const selectedStoreName = stores.find((s) => s.value === selectedStoreId)?.label ?? "Your store";
 
   async function revoke(id: string) {
     setRevokingId(id);
@@ -205,20 +241,12 @@ export default function EcommerceSettingsPage() {
 
   return (
     <div className="space-y-8 p-8">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">E-commerce</h1>
-          <p className="text-muted-foreground text-sm">
-            Connect your own e-commerce app/website to this POS so stock and orders stay in sync.
-          </p>
-        </div>
-        <Button
-          variant="outline"
-          nativeButton={false}
-          render={<a href="/docs/Ecommerce_API_Integration_Guide.md" download />}
-        >
-          Download integration guide
-        </Button>
+      <div>
+        <h1 className="text-2xl font-semibold">E-commerce</h1>
+        <p className="text-muted-foreground text-sm">
+          Connect your own e-commerce app/website to this POS so stock and orders stay in sync. Each
+          credential below has its own setup guide — no separate download needed.
+        </p>
       </div>
 
       <div className="space-y-3">
@@ -231,6 +259,7 @@ export default function EcommerceSettingsPage() {
           <div className="flex justify-end">
             <NewCredentialDialog
               storeId={selectedStoreId}
+              storeName={selectedStoreName}
               onCreated={() => invalidate("api-credentials")}
             />
           </div>
@@ -271,17 +300,36 @@ export default function EcommerceSettingsPage() {
               {
                 key: "actions",
                 header: "",
-                render: (row) =>
-                  !row.revokedAt && (
+                render: (row) => (
+                  <div className="flex justify-end gap-2">
                     <Button
                       size="sm"
                       variant="outline"
-                      disabled={revokingId === row.id}
-                      onClick={() => void revoke(row.id)}
+                      onClick={() => {
+                        const html = buildIntegrationGuideHtml({
+                          storeName: selectedStoreName,
+                          apiKey: row.apiKey,
+                        }).replace(
+                          "{{API_SECRET}}",
+                          "(already shown once at creation — not retrievable again)",
+                        );
+                        openAndPrintHtml(html);
+                      }}
                     >
-                      {revokingId === row.id ? "Revoking…" : "Revoke"}
+                      Guide
                     </Button>
-                  ),
+                    {!row.revokedAt && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={revokingId === row.id}
+                        onClick={() => void revoke(row.id)}
+                      >
+                        {revokingId === row.id ? "Revoking…" : "Revoke"}
+                      </Button>
+                    )}
+                  </div>
+                ),
               },
             ]}
           />
