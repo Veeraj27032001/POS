@@ -75,13 +75,15 @@ const API_LIST: { method: string; path: string; description: string }[] = [
   },
   {
     method: "POST",
-    path: "/api/v1/ecommerce/bills",
-    description: "Create a completed Online Bill once the order is confirmed/paid on your side.",
+    path: "/api/v1/ecommerce/orders",
+    description:
+      "Place an order once payment is confirmed on your side — lands as pending, awaiting staff Accept/Reject in Online Orders.",
   },
   {
     method: "GET",
     path: "/api/v1/ecommerce/orders/{order_id}",
-    description: "Single order lookup — order confirmation/tracking.",
+    description:
+      "Single order lookup — order confirmation/tracking, at any stage of its lifecycle.",
   },
   {
     method: "POST",

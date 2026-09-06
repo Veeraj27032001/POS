@@ -19,7 +19,11 @@ function buildBlocks(params: { storeName: string; apiKey: string; apiSecret: str
     { kind: "credentials", apiKey: params.apiKey, apiSecret: params.apiSecret },
     {
       kind: "p",
-      text: "Payment is NOT part of this API. How your e-commerce app collects payment is between you and your payment provider — this API only records the resulting order and keeps stock in sync once the order is confirmed/paid.",
+      text: "Payment is NOT part of this API. How your e-commerce app collects payment is between you and your payment provider — this API only records the resulting order and keeps stock in sync.",
+    },
+    {
+      kind: "p",
+      text: "An order placed through this API is NOT automatically a finished sale. It lands as a pending order that your store staff reviews in the POS's Online Orders screen — they Accept it (which is the moment the real invoice is created and stock is permanently deducted) or Reject it (stock is released, no invoice is ever created, your customer is notified). This exists so a store can decline an order it can't actually fulfil — a stock issue, a delivery problem, whatever — without that ever becoming a real, GST-numbered bill that then has to be reversed.",
     },
     { kind: "h2", text: "Typical order flow" },
     {
@@ -28,7 +32,7 @@ function buildBlocks(params: { storeName: string; apiKey: string; apiSecret: str
     },
     {
       kind: "p",
-      text: "2. Sign the customer in — customers/request-otp then verify-otp, or customers/login if they've set a password. Guest checkout (no sign-in) is fine too — bills just needs a name/phone.",
+      text: "2. Sign the customer in — customers/request-otp then verify-otp, or customers/login if they've set a password. Guest checkout (no sign-in) is fine too — placing an order just needs a name/phone.",
     },
     {
       kind: "p",
@@ -36,15 +40,19 @@ function buildBlocks(params: { storeName: string; apiKey: string; apiSecret: str
     },
     {
       kind: "p",
-      text: "4. If checkout fails or the cart is abandoned, call DELETE /v1/ecommerce/stock-lock/{id} for each lock you took.",
+      text: "4. If checkout fails or the cart is abandoned before payment, call DELETE /v1/ecommerce/stock-lock/{id} for each lock you took.",
     },
     {
       kind: "p",
-      text: "5. Once payment is confirmed, call POST /v1/ecommerce/bills ONCE with every line together (each carrying its own stockLockId) — this always produces exactly one order, even for a multi-item cart, and releases the locks and permanently deducts stock as part of the same call.",
+      text: "5. Once payment is confirmed, call POST /v1/ecommerce/orders ONCE with every line together (each carrying its own stockLockId) — this always produces exactly one order, even for a multi-item cart. Every line's stock is guaranteed reserved from this point on (its lock stops being an abandonable-cart lock and won't expire) — nothing else can sell it out from under this order while staff review it.",
     },
     {
       kind: "p",
-      text: "Locking before billing is recommended but not required — bill creation checks availability itself for any line with no stockLockId. A typical payment-gateway integration (Razorpay, etc.) creates the gateway order right after locking, then calls bills from your server only after your server has verified the gateway's payment signature — never from the browser, and never before verification.",
+      text: "6. Poll or otherwise check GET /v1/ecommerce/orders/{order_id} for the status to change from pending to accepted or rejected, and let the customer know.",
+    },
+    {
+      kind: "p",
+      text: "Locking before placing the order is recommended but not required — order creation checks availability itself for any line with no stockLockId, and still guarantees the reservation the same way. A typical payment-gateway integration (Razorpay, etc.) creates the gateway order right after locking, then calls orders from your server only after your server has verified the gateway's payment signature — never from the browser, and never before verification. Pass what you know about the payment in the optional payment field so staff can see it on the pending order.",
     },
 
     { kind: "h2", text: "Multi-store (only if enabled for this credential)" },
@@ -54,15 +62,15 @@ function buildBlocks(params: { storeName: string; apiKey: string; apiSecret: str
     },
     {
       kind: "p",
-      text: "GET /v1/ecommerce/stores lists exactly that pre-configured set (with isDefault marking the admin's chosen default) — use it to let the shopper pick among them, e.g. a pickup location. On stock-lock/bills, storeId is optional: pass one of the ids from that list to bill this particular order under it instead of the default; omit it and the default billing store is used.",
+      text: "GET /v1/ecommerce/stores lists exactly that pre-configured set (with isDefault marking the admin's chosen default) — use it to let the shopper pick among them, e.g. a pickup location. On stock-lock/orders, storeId is optional: pass one of the ids from that list to bill this particular order under it instead of the default; omit it and the default billing store is used.",
     },
     {
       kind: "p",
-      text: "Whichever store results — named or default — is the ONLY store that ever bills the order. Stock itself is a separate concern: if that billing store's own stock falls short and splitting is enabled for this credential, the shortfall is transferred in automatically from another store in the admin-configured set. The customer still only ever sees one bill, from the one store that was resolved.",
+      text: "Whichever store results — named or default — is the ONLY store that ever bills the order. Stock itself is a separate concern: if that billing store's own stock falls short and splitting is enabled for this credential, the shortfall is transferred in automatically from another store in the admin-configured set, at the moment the order is placed (not deferred to when staff accept it) — so the reservation is already correct and complete during review. The customer still only ever sees one order, and — once accepted — one bill, from the one store that was resolved.",
     },
     {
       kind: "p",
-      text: "Worked example — Store A (billing) has 50 units, Store B (also eligible, splitting on) has 50 — GET /products shows available: 100 combined, with stockByStore showing 50/50. A customer orders 62: Store A's own 50 are used first and fully consumed, then the remaining 12 transfer in from Store B automatically (a real, immediately-accepted Stock Transfer — visible in the POS's own Stock Transfers list, not a fake movement). Store A ends at 0 available, Store B at 38. Exactly one bill is created, billed at Store A, for all 62 units.",
+      text: "Worked example — Store A (billing) has 50 units, Store B (also eligible, splitting on) has 50 — GET /products shows available: 100 combined, with stockByStore showing 50/50. A customer orders 62: Store A's own 50 are locked first, then the remaining 12 transfer in from Store B automatically (a real, immediately-accepted Stock Transfer — visible in the POS's own Stock Transfers list, not a fake movement) and get locked too. Store A shows 0 available, Store B 38 — both reflecting the reservation immediately, before any staff decision. If accepted, exactly one bill is created at Store A for all 62 units; if rejected, both locks release and stock returns to 50/50.",
     },
 
     { kind: "h2", text: "Customer accounts" },
@@ -155,20 +163,33 @@ function buildBlocks(params: { storeName: string; apiKey: string; apiSecret: str
     { kind: "p", text: "DELETE /v1/ecommerce/stock-lock/{id}" },
     { kind: "code", text: '{ "released": true }' },
 
-    { kind: "p", text: "POST /v1/ecommerce/bills" },
+    { kind: "p", text: "POST /v1/ecommerce/orders" },
     {
       kind: "code",
-      text: '{\n  "billDate": "2027-06-01",\n  "customer": {\n    "name":"Jane Doe","phone":"9999999999","email":"jane@example.com",\n    "address":"221B Baker Street","pincode":"400001"\n  },\n  "lines": [\n    { "productId": "…", "quantity": 2, "stockLockId": "…" },\n    { "productId": "…", "quantity": 1, "stockLockId": "…" }\n  ]\n}',
+      text: '{\n  "orderDate": "2027-06-01",\n  "customer": {\n    "name":"Jane Doe","phone":"9999999999","email":"jane@example.com",\n    "address":"221B Baker Street","pincode":"400001"\n  },\n  "lines": [\n    { "productId": "…", "quantity": 2, "stockLockId": "…" },\n    { "productId": "…", "quantity": 1, "stockLockId": "…" }\n  ],\n  "payment": { "method": "razorpay", "reference": "pay_xxx", "amount": 547.00 }\n}',
     },
     {
       kind: "p",
-      text: "customer is matched by phone, or created. address/pincode are optional free-text shipping details — not validated against any address master, just stored on the order and returned by GET /orders/{id}. lines takes as many products as the cart has, each with its own stockLockId (optional — omit any one to have that line's stock checked at bill time instead of pre-locked); this is the batching point — one call, however many lines, always exactly one bill.",
+      text: "customer is matched by phone, or created. address/city/taluk/state/country/pincode are all optional free-text shipping details — not validated against any address master, just stored on the order and returned by GET /orders/{id}. lines takes as many products as the cart has, each with its own stockLockId (optional — omit any one to have that line's stock checked and locked fresh instead of using a pre-existing lock); this is the batching point — one call, however many lines, always exactly one order. payment is optional and purely informational — what you tell us about how the customer paid, shown to staff reviewing the order; this API never processes it.",
     },
-    { kind: "code", text: '201 → the created bill, status "completed", with all its lines.' },
+    { kind: "code", text: '201 → the created order, status "pending", with all its lines.' },
 
+    { kind: "h2", text: "Order lifecycle" },
     {
       kind: "p",
-      text: "GET /v1/ecommerce/orders/{order_id} — single order lookup, for a confirmation page or tracking link. Includes customerAddress/customerPincode when they were provided.",
+      text: "Every order starts pending. A staff member at the store then either:",
+    },
+    {
+      kind: "p",
+      text: "Accepts it — the real Bill/invoice is created at that moment (this is when a document number is actually allocated), every line's reserved stock is permanently deducted, and the order's status becomes accepted with billDocumentNumber set.",
+    },
+    {
+      kind: "p",
+      text: "Rejects it — every line's reserved stock is released back to available, no invoice is ever created, and the order's status becomes rejected with a rejectionReason. The customer is notified automatically (email or SMS, whichever contact detail is on file) — no integration work needed for this.",
+    },
+    {
+      kind: "p",
+      text: "GET /v1/ecommerce/orders/{order_id} — single order lookup, for a confirmation page or tracking link/polling. Works at every stage: while pending it reports the reserved-stock total; once accepted, grandTotal/subtotal/taxTotal come from the real bill. Includes customerAddress etc. when they were provided.",
     },
 
     { kind: "h2", text: "Errors" },
@@ -182,7 +203,7 @@ function buildBlocks(params: { storeName: string; apiKey: string; apiSecret: str
     { kind: "h2", text: "Refund & cancellation notifications" },
     {
       kind: "p",
-      text: "Once an order is created through this API, the customer is notified by email or SMS when a refund against it is issued, and if it's later cancelled. No integration work is needed for this.",
+      text: "Once an order is accepted (a real bill exists), the customer is notified by email or SMS when a refund against it is issued, and if it's later cancelled. Combined with order rejection above, the customer is always told automatically whenever their order doesn't go through as expected, at whichever stage that happens — no integration work is needed for any of this.",
     },
   ];
 }

@@ -153,6 +153,7 @@ model Store {
   billPayments      BillPayment[]
   shifts            Shift[]
   billFormats       BillFormat[]
+  ecommerceOrders   EcommerceOrder[]
 
   @@map("stores")
 }
@@ -187,6 +188,7 @@ model FinancialYear {
   creditNotes       CreditNote[]
   billPayments      BillPayment[]
   shifts            Shift[]
+  ecommerceOrders   EcommerceOrder[]
 
   @@map("financial_years")
 }
@@ -212,6 +214,7 @@ enum SeriesType {
   bill_payment
   shift
   online_bill
+  ecommerce_order
   quality_check
   product_request
 }
@@ -274,14 +277,15 @@ model User {
   stockTransfersRequested StockTransferMain[] @relation("StockTransferRequestedBy")
   stockTransfersResponded StockTransferMain[] @relation("StockTransferRespondedBy")
 
-  billsAsCashier       Bill[]
-  billLinesVoided      BillLine[]
-  paymentRequests      PaymentRequest[]
-  refundsProcessed     Refund[]
-  billCancellations    BillCancellation[]
-  billReturnsProcessed BillReturn[]
-  creditNotes          CreditNote[]
-  shiftsAsCashier      Shift[]
+  billsAsCashier           Bill[]
+  billLinesVoided          BillLine[]
+  paymentRequests          PaymentRequest[]
+  refundsProcessed         Refund[]
+  billCancellations        BillCancellation[]
+  billReturnsProcessed     BillReturn[]
+  creditNotes              CreditNote[]
+  shiftsAsCashier          Shift[]
+  ecommerceOrdersResponded EcommerceOrder[]
 
   @@map("users")
 }
@@ -840,7 +844,8 @@ model Product {
   supplierPrices               ProductSupplierPrice[]
   priceHistory                 ProductPriceHistory[]
 
-  billLines BillLine[]
+  billLines           BillLine[]
+  ecommerceOrderItems EcommerceOrderItem[]
 
   @@map("products")
 }
@@ -917,6 +922,7 @@ model Customer {
   creditNotes       CreditNote[]
   notifications     Notification[]
   ecommerceCustomer EcommerceCustomer?
+  ecommerceOrders   EcommerceOrder[]
 
   @@map("customers")
 }
@@ -1185,6 +1191,84 @@ model ApiCredential {
   @@map("api_credentials")
 }
 
+enum EcommerceOrderStatus {
+  pending
+  accepted
+  rejected
+}
+
+// A paid-on-the-storefront-side order lands here first, not directly as a
+// Bill — staff must Accept (generates the real Bill/invoice now, permanently
+// deducts stock) or Reject (releases the stock lock, no invoice ever
+// created) before it becomes a real accounting document. This is what keeps
+// a rejected/undeliverable order from ever burning a GST invoice number.
+model EcommerceOrder {
+  id                  String               @id @default(uuid())
+  documentNumber      String               @map("document_number")
+  financialYearId     String               @map("financial_year_id")
+  financialYear       FinancialYear        @relation(fields: [financialYearId], references: [id])
+  storeId             String               @map("store_id")
+  store               Store                @relation(fields: [storeId], references: [id])
+  customerId          String               @map("customer_id")
+  customer            Customer             @relation(fields: [customerId], references: [id])
+  customerName        String               @map("customer_name")
+  customerPhone       String               @map("customer_phone")
+  customerEmail       String?              @map("customer_email")
+  customerAddress     String?              @map("customer_address")
+  customerCity        String?              @map("customer_city")
+  customerTaluk       String?              @map("customer_taluk")
+  customerStateName   String?              @map("customer_state_name")
+  customerCountryName String?              @map("customer_country_name")
+  customerPincode     String?              @map("customer_pincode")
+  status              EcommerceOrderStatus @default(pending)
+  rejectionReason     String?              @map("rejection_reason")
+  billId              String?              @unique @map("bill_id")
+  bill                Bill?                @relation(fields: [billId], references: [id])
+  respondedByUserId   String?              @map("responded_by_user_id")
+  respondedByUser     User?                @relation(fields: [respondedByUserId], references: [id])
+  respondedAt         DateTime?            @map("responded_at")
+  createdAt           DateTime             @default(now()) @map("created_at")
+
+  items    EcommerceOrderItem[]
+  payments EcommerceOrderPayment[]
+
+  @@map("ecommerce_orders")
+}
+
+model EcommerceOrderItem {
+  id               String         @id @default(uuid())
+  ecommerceOrderId String         @map("ecommerce_order_id")
+  ecommerceOrder   EcommerceOrder @relation(fields: [ecommerceOrderId], references: [id], onDelete: Cascade)
+  productId        String         @map("product_id")
+  product          Product        @relation(fields: [productId], references: [id])
+  productName      String         @map("product_name")
+  productBarcode   String         @map("product_barcode")
+  quantity         Int
+  unitPrice        Decimal        @map("unit_price") @db.Decimal(12, 2)
+  // The lock this item's stock is held under while the order is pending —
+  // required (unlike bills' now-retired optional stockLockId) since a
+  // pending order has to have guaranteed stock behind it.
+  // Null only for a non-stock-tracked product, which never gets locked.
+  stockLockId      String?        @map("stock_lock_id")
+
+  @@map("ecommerce_order_items")
+}
+
+// What the storefront told us about how the customer paid — for staff to
+// see on the pending order, not something this POS ever processes itself.
+model EcommerceOrderPayment {
+  id               String         @id @default(uuid())
+  ecommerceOrderId String         @map("ecommerce_order_id")
+  ecommerceOrder   EcommerceOrder @relation(fields: [ecommerceOrderId], references: [id], onDelete: Cascade)
+  method           String
+  reference        String?
+  amount           Decimal        @db.Decimal(12, 2)
+  paidAt           DateTime       @default(now()) @map("paid_at")
+  createdAt        DateTime       @default(now()) @map("created_at")
+
+  @@map("ecommerce_order_payments")
+}
+
 enum BillType {
   cash_bill
   credit_bill
@@ -1284,6 +1368,14 @@ model Bill {
   customerPhone              String?       @map("customer_phone")
   customerEmail              String?       @map("customer_email")
   customerAddress            String?       @map("customer_address")
+  customerCity               String?       @map("customer_city")
+  customerTaluk              String?       @map("customer_taluk")
+  // Free-text — distinct from customerCountryId/customerStateId below, which
+  // are FK-linked and feed GST intra/inter-state tax resolution. These two
+  // are purely descriptive shipping-address text for an e-commerce order and
+  // never touch tax logic.
+  customerStateName          String?       @map("customer_state_name")
+  customerCountryName        String?       @map("customer_country_name")
   customerCountryId          String?       @map("customer_country_id")
   customerCountry            Country?      @relation(fields: [customerCountryId], references: [id])
   customerStateId            String?       @map("customer_state_id")
@@ -1314,6 +1406,7 @@ model Bill {
   cancellations   BillCancellation[]
   returns         BillReturn[]
   creditNotes     CreditNote[]
+  ecommerceOrder  EcommerceOrder?
 
   @@map("bills")
 }
@@ -1452,6 +1545,7 @@ enum NotificationEventType {
   refund_completed
   refund_failed
   order_cancelled
+  order_rejected
 }
 
 enum NotificationChannel {
@@ -1462,6 +1556,7 @@ enum NotificationChannel {
 enum NotificationRelatedType {
   refund
   bill_cancellation
+  ecommerce_order
 }
 
 enum NotificationStatus {

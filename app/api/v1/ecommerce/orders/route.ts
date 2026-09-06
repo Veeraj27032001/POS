@@ -1,47 +1,43 @@
-import { replaceBillLineAllocations } from "@/lib/billing/allocateBillLineStock";
-import { recomputeBillTotals } from "@/lib/billing/recomputeBillTotals";
-import { resolveTax } from "@/lib/billing/resolveTax";
+import { transferStockForFulfilment } from "@/lib/ecommerce/transferForFulfilment";
 import { runWithStoreContext, unscoped } from "@/lib/db";
 import { dateOnlyToUtcMidnight, toDateOnly, todayAsDateOnly } from "@/lib/datetime/dateOnly";
 import { authenticateApiCredential } from "@/lib/ecommerce/authenticateApiCredential";
 import { getDefaultWarehouseId } from "@/lib/ecommerce/defaultWarehouse";
 import { resolveFinancialYearForDate } from "@/lib/ecommerce/resolveFinancialYear";
 import { resolveFulfilment, type FulfilmentAllocation } from "@/lib/ecommerce/resolveFulfilment";
-import { ecommerceBillCreateSchema } from "@/lib/ecommerce/schemas";
-import { transferStockForFulfilment } from "@/lib/ecommerce/transferForFulfilment";
+import { ecommerceOrderCreateSchema } from "@/lib/ecommerce/schemas";
 import { allocateDocumentNumber } from "@/lib/numbering/allocateDocumentNumber";
 import { writeAuditLog } from "@/lib/security/audit";
 import { apiErrorResponse, parseJsonOrRespond } from "@/lib/validation/response";
 
-class EcommerceBillError extends Error {}
+class EcommerceOrderError extends Error {}
 
-// step7 §3/§5 — POST /v1/ecommerce/bills: records a confirmed/paid online
-// order (payment itself stays outside this API). One order always produces
-// exactly one bill, at one store — the caller's preferred store when it can
-// cover the order alone; when it can't, whatever's short is auto-transferred
-// in from another store the integration is allowed to sell from, so the
-// customer still only ever sees a single order, and the billing store's own
-// books show a normal transfer-in, not a second bill.
+// step7 (extended) — POST /v1/ecommerce/orders: records a paid-on-the-
+// storefront-side order as a PENDING order awaiting staff acceptance — it
+// never directly creates a Bill/invoice. Stock is fully reserved (a real,
+// non-expiring stock lock) by the time this returns, whether the caller
+// pre-locked each line or not, so a rejected order never touches the books
+// and an accepted one is guaranteed the stock it was promised.
 export async function POST(request: Request) {
   const auth = await authenticateApiCredential(request);
   if (!auth) {
     return apiErrorResponse("unauthorized", "Invalid or missing API credentials.", 401);
   }
 
-  const parsed = await parseJsonOrRespond(request, ecommerceBillCreateSchema);
+  const parsed = await parseJsonOrRespond(request, ecommerceOrderCreateSchema);
   if ("response" in parsed) return parsed.response;
   const data = parsed.data;
 
   const db = unscoped();
-  const billDate = dateOnlyToUtcMidnight(
-    data.billDate ? toDateOnly(data.billDate) : todayAsDateOnly(),
+  const orderDate = dateOnlyToUtcMidnight(
+    data.orderDate ? toDateOnly(data.orderDate) : todayAsDateOnly(),
   );
 
-  const financialYear = await resolveFinancialYearForDate(billDate);
+  const financialYear = await resolveFinancialYearForDate(orderDate);
   if (!financialYear) {
     return apiErrorResponse(
       "bad_request",
-      "No active financial year covers this bill date — contact the store admin.",
+      "No active financial year covers this order date — contact the store admin.",
       400,
     );
   }
@@ -49,27 +45,13 @@ export async function POST(request: Request) {
   if (data.storeId && !auth.storeIds.includes(data.storeId)) {
     return apiErrorResponse("bad_request", "That store isn't available to this integration.", 400);
   }
-  // The one store the order is billed from. Defaults to the credential's own
-  // store — the caller can name a different one only from the set this
-  // integration is allowed to sell from.
   const billingStoreId = data.storeId ?? auth.billingStoreId;
 
-  const [store, terminal, billingWarehouseId] = await Promise.all([
-    db.store.findUnique({ where: { id: billingStoreId }, include: { taxEngine: true } }),
-    db.terminal.findFirst({
-      where: { storeId: billingStoreId, isActive: true, isDeleted: false },
-      orderBy: { name: "asc" },
-    }),
+  const [store, billingWarehouseId] = await Promise.all([
+    db.store.findUnique({ where: { id: billingStoreId } }),
     getDefaultWarehouseId(billingStoreId),
   ]);
   if (!store) return apiErrorResponse("not_found", "Store not found.", 404);
-  if (!terminal) {
-    return apiErrorResponse(
-      "bad_request",
-      "No active terminal configured for this store — contact a Super Admin.",
-      400,
-    );
-  }
 
   let customer = await db.customer.findFirst({ where: { phone: data.customer.phone } });
   if (!customer) {
@@ -96,7 +78,7 @@ export async function POST(request: Request) {
   const productIds = [...new Set(data.lines.map((line) => line.productId))];
   const products = await db.product.findMany({
     where: { id: { in: productIds } },
-    include: { hsnCode: true },
+    include: { hsnCode: { select: { hsnCode: true } } },
   });
   const productById = new Map(products.map((p) => [p.id, p]));
 
@@ -111,10 +93,9 @@ export async function POST(request: Request) {
     }
   }
 
-  // Lines that name a stock lock are already pinned to wherever that lock
-  // reserved stock; everything else gets allocated fresh, preferring the
-  // billing store before reaching into any other store this integration
-  // can sell from.
+  // Same pinned-vs-fresh split bills used to do: a line naming a stock lock
+  // is already reserved somewhere; everything else gets resolved fresh,
+  // preferring the billing store before reaching into any other eligible one.
   const pinned: (FulfilmentAllocation & { stockLockItemId: string })[] = [];
   const toAllocate: { productId: string; quantity: number }[] = [];
 
@@ -142,7 +123,7 @@ export async function POST(request: Request) {
         !lockItem ||
         lockItem.quantityBlocked !== line.quantity
       ) {
-        throw new EcommerceBillError(
+        throw new EcommerceOrderError(
           `Stock lock ${line.stockLockId} doesn't match this line — release it and lock again.`,
         );
       }
@@ -155,7 +136,7 @@ export async function POST(request: Request) {
       });
     }
   } catch (error) {
-    if (error instanceof EcommerceBillError) {
+    if (error instanceof EcommerceOrderError) {
       return apiErrorResponse("bad_request", error.message, 400);
     }
     throw error;
@@ -191,7 +172,8 @@ export async function POST(request: Request) {
   const now = new Date();
   const result = await db.$transaction(async (tx) => {
     // Bring in anything sourced from another store first — after this, it's
-    // physically at the billing store's own warehouse.
+    // physically at the billing store's own warehouse, whether it started
+    // there or not.
     await transferStockForFulfilment(tx, {
       allocations: [...pinned, ...freshAllocations],
       billingStoreId,
@@ -207,81 +189,104 @@ export async function POST(request: Request) {
     });
 
     const { documentNumber } = await allocateDocumentNumber(tx, {
-      seriesType: "online_bill",
+      seriesType: "ecommerce_order",
       storeId: billingStoreId,
       financialYearId: financialYear.id,
     });
 
-    const bill = await tx.bill.create({
+    const order = await tx.ecommerceOrder.create({
       data: {
         documentNumber,
         financialYearId: financialYear.id,
-        billType: "online_bill",
-        billDate,
         storeId: billingStoreId,
-        terminalId: terminal.id,
-        cashierUserId: auth.createdByUserId,
         customerId: customer!.id,
-        customerName: customer!.name,
-        customerPhone: customer!.phone,
+        customerName: data.customer.name,
+        customerPhone: data.customer.phone,
         customerEmail: customer!.email,
         customerAddress: data.customer.address ?? null,
+        customerCity: data.customer.city ?? null,
+        customerTaluk: data.customer.taluk ?? null,
+        customerStateName: data.customer.state ?? null,
+        customerCountryName: data.customer.country ?? null,
         customerPincode: data.customer.pincode ?? null,
-        status: "completed",
-        completedAt: now,
+        status: "pending",
       },
     });
 
+    if (data.payment) {
+      await tx.ecommerceOrderPayment.create({
+        data: {
+          ecommerceOrderId: order.id,
+          method: data.payment.method,
+          reference: data.payment.reference ?? null,
+          amount: data.payment.amount,
+        },
+      });
+    }
+
     for (const line of data.lines) {
       const product = productById.get(line.productId)!;
-      const lineSubtotal = Number(product.price) * line.quantity;
-      const tax = await resolveTax({
-        productId: line.productId,
-        lineSubtotal,
-        storeTaxEngineCode: store.taxEngine?.code ?? null,
-        storeStateId: store.stateId,
-        customerStateId: customer!.stateId,
-        excludeTax: false,
-      });
+      let stockLockId: string | null = null;
 
-      const billLine = await tx.billLine.create({
+      if (product.stockTracked) {
+        // Every unit is now physically at the billing store's warehouse
+        // (transferred in just above, if it wasn't already there) — a fresh,
+        // non-expiring lock consolidates the whole line's reservation there,
+        // regardless of how many source stores contributed to it.
+        const ownAllocations = [...pinned, ...freshAllocations].filter(
+          (a) => a.productId === line.productId,
+        );
+        const consolidated = await tx.stockBlockMain.create({
+          data: {
+            documentNumber: `${documentNumber}-${line.productId.slice(0, 8)}`,
+            financialYearId: financialYear.id,
+            storeId: billingStoreId,
+            warehouseId: billingWarehouseId ?? ownAllocations[0]?.warehouseId,
+            sourceType: "ecommerce_order",
+            sourceId: order.id,
+            expiresAt: null,
+            blockedByUserId: auth.createdByUserId,
+            blockedAt: now,
+          },
+        });
+        await tx.stockBlockItem.create({
+          data: {
+            stockBlockMainId: consolidated.id,
+            productId: line.productId,
+            productName: product.name,
+            productBarcode: product.systemBarcode,
+            productPrice: product.price,
+            quantityBlocked: line.quantity,
+            reasonCodeId: (await tx.reasonCode.findFirst({
+              where: { category: "stock_block", label: "Reserved — online order" },
+            }))!.id,
+          },
+        });
+        stockLockId = consolidated.id;
+
+        for (const allocation of pinned) {
+          if (allocation.productId !== line.productId) continue;
+          await tx.stockBlockItem.update({
+            where: { id: allocation.stockLockItemId },
+            data: { status: "released", releasedByUserId: auth.createdByUserId, releasedAt: now },
+          });
+        }
+      }
+
+      await tx.ecommerceOrderItem.create({
         data: {
-          billId: bill.id,
+          ecommerceOrderId: order.id,
           productId: line.productId,
           productName: product.name,
           productBarcode: product.systemBarcode,
           quantity: line.quantity,
           unitPrice: product.price,
-          taxBreakdown: tax as never,
-          lineTotal: lineSubtotal + tax.taxAmount,
+          stockLockId,
         },
       });
-
-      if (!product.stockTracked) continue;
-
-      // Every unit ends up physically at the billing store now (transferred
-      // in, if it wasn't already there) — the sale is recorded there too.
-      const ownAllocations = [...pinned, ...freshAllocations].filter(
-        (a) => a.productId === line.productId,
-      );
-      await replaceBillLineAllocations(tx, {
-        billLineId: billLine.id,
-        allocations: ownAllocations.map((a) => ({
-          warehouseId: a.storeId === billingStoreId ? a.warehouseId : billingWarehouseId!,
-          quantity: a.quantity,
-        })),
-      });
-
-      for (const allocation of pinned) {
-        if (allocation.productId !== line.productId) continue;
-        await tx.stockBlockItem.update({
-          where: { id: allocation.stockLockItemId },
-          data: { status: "released", releasedByUserId: auth.createdByUserId, releasedAt: now },
-        });
-      }
     }
 
-    return recomputeBillTotals(tx, bill.id);
+    return order;
   });
 
   await runWithStoreContext({ storeId: billingStoreId, userId: auth.createdByUserId }, () =>
@@ -289,12 +294,11 @@ export async function POST(request: Request) {
       userId: auth.createdByUserId,
       storeId: billingStoreId,
       action: "create",
-      entityType: "bill",
+      entityType: "ecommerce_order",
       entityId: result.id,
-      afterData: result,
     }),
   );
 
-  const lines = await db.billLine.findMany({ where: { billId: result.id } });
-  return Response.json({ ...result, lines }, { status: 201 });
+  const items = await db.ecommerceOrderItem.findMany({ where: { ecommerceOrderId: result.id } });
+  return Response.json({ ...result, items }, { status: 201 });
 }

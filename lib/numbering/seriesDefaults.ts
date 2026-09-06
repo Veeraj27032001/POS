@@ -19,6 +19,7 @@ export const SERIES_TYPES = [
   "bill_payment",
   "shift",
   "online_bill",
+  "ecommerce_order",
   "quality_check",
   "product_request",
 ] as const;
@@ -44,6 +45,7 @@ export const SERIES_PREFIXES: Record<(typeof SERIES_TYPES)[number], string> = {
   bill_payment: "BP",
   shift: "SH",
   online_bill: "OB2",
+  ecommerce_order: "EO",
   quality_check: "QC",
   product_request: "PQ",
 };

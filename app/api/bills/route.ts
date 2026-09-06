@@ -32,6 +32,8 @@ export async function GET(request: Request) {
   const page = Math.max(1, Number(url.searchParams.get("page") ?? 1));
   const pageSize = Math.max(1, Math.min(200, Number(url.searchParams.get("pageSize") ?? 25)));
   const status = url.searchParams.get("status") ?? undefined;
+  const billType = url.searchParams.get("billType") ?? undefined;
+  const search = url.searchParams.get("search")?.trim() || undefined;
 
   return withStoreContext(async () => {
     const db = unscoped();
@@ -39,6 +41,18 @@ export async function GET(request: Request) {
       ...(session.user.storeId ? { storeId: session.user.storeId } : {}),
       ...(session.user.financialYearId ? { financialYearId: session.user.financialYearId } : {}),
       ...(status ? { status: status as never } : {}),
+      ...(billType ? { billType: billType as never } : {}),
+      ...(search
+        ? {
+            OR: [
+              { documentNumber: { contains: search, mode: "insensitive" as const } },
+              { customerName: { contains: search, mode: "insensitive" as const } },
+              { customerPhone: { contains: search, mode: "insensitive" as const } },
+              { customer: { is: { name: { contains: search, mode: "insensitive" as const } } } },
+              { customer: { is: { phone: { contains: search, mode: "insensitive" as const } } } },
+            ],
+          }
+        : {}),
     };
 
     const totalRecords = await db.bill.count({ where });

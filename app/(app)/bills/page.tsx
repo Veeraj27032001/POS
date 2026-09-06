@@ -75,6 +75,7 @@ export default function BillsPage() {
         getRowId={(row) => row.id}
         rowHref={(row) => `/bills/${row.id}`}
         filters={{ status: "completed" }}
+        searchable
         columns={[
           { key: "documentNumber", header: "Bill No." },
           { key: "billType", header: "Type", render: (row) => BILL_TYPE_LABELS[row.billType] },

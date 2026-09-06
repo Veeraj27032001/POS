@@ -19,6 +19,10 @@ const EVENT_MESSAGES: Record<NotificationEventType, { subject: string; body: str
     subject: "Your order was cancelled",
     body: "Your order has been cancelled.",
   },
+  order_rejected: {
+    subject: "We couldn't accept your order",
+    body: "We're sorry, we couldn't fulfil your order. Any payment will be refunded — please contact the store if you have questions.",
+  },
 };
 
 // step7 §6 — an online customer isn't standing at the counter to be told in
