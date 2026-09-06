@@ -911,8 +911,9 @@ model Customer {
 
   stores Store[]
 
-  bills       Bill[]
-  creditNotes CreditNote[]
+  bills         Bill[]
+  creditNotes   CreditNote[]
+  notifications Notification[]
 
   @@map("customers")
 }
@@ -1411,6 +1412,46 @@ model BillCancellation {
   creditNotes CreditNote[]
 
   @@map("bill_cancellations")
+}
+
+enum NotificationEventType {
+  refund_processing
+  refund_completed
+  refund_failed
+  order_cancelled
+}
+
+enum NotificationChannel {
+  email
+  sms
+}
+
+enum NotificationRelatedType {
+  refund
+  bill_cancellation
+}
+
+enum NotificationStatus {
+  pending
+  sent
+  failed
+}
+
+// step7 §6 — a customer isn't standing at the counter for an online order,
+// so refund-progress and cancellation events get sent to them instead.
+model Notification {
+  id          String                  @id @default(uuid())
+  customerId  String                  @map("customer_id")
+  customer    Customer                @relation(fields: [customerId], references: [id])
+  eventType   NotificationEventType   @map("event_type")
+  channel     NotificationChannel
+  relatedType NotificationRelatedType @map("related_type")
+  relatedId   String                  @map("related_id")
+  status      NotificationStatus      @default(pending)
+  sentAt      DateTime?               @map("sent_at")
+  createdAt   DateTime                @default(now()) @map("created_at")
+
+  @@map("notifications")
 }
 
 model BillReturn {

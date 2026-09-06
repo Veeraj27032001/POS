@@ -4,6 +4,7 @@ import { asAppSession } from "@/lib/auth/types";
 import { releaseBillLineAllocations } from "@/lib/billing/allocateBillLineStock";
 import { billCancelSchema } from "@/lib/billing/schemas";
 import { unscoped } from "@/lib/db";
+import { createNotification } from "@/lib/ecommerce/createNotification";
 import { allocateDocumentNumber } from "@/lib/numbering/allocateDocumentNumber";
 import { writeAuditLog } from "@/lib/security/audit";
 import { apiErrorResponse, parseJsonOrRespond } from "@/lib/validation/response";
@@ -87,6 +88,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       beforeData: bill,
       afterData: result.bill,
     });
+
+    // step7 §6 — cancelling an online bill notifies the customer, since
+    // they're not standing at the counter to be told in person.
+    if (bill.billType === "online_bill" && bill.customerId) {
+      void createNotification({
+        customerId: bill.customerId,
+        eventType: "order_cancelled",
+        relatedType: "bill_cancellation",
+        relatedId: result.cancellation.id,
+      });
+    }
 
     return Response.json(result);
   });

@@ -5,6 +5,7 @@ import { getRefundableAmount } from "@/lib/billing/getRefundableAmount";
 import { getReturnValue } from "@/lib/billing/getReturnValue";
 import { refundCreateSchema } from "@/lib/billing/schemas";
 import { unscoped } from "@/lib/db";
+import { createNotification } from "@/lib/ecommerce/createNotification";
 import { allocateDocumentNumber } from "@/lib/numbering/allocateDocumentNumber";
 import { writeAuditLog } from "@/lib/security/audit";
 import { apiErrorResponse, parseJsonOrRespond } from "@/lib/validation/response";
@@ -97,6 +98,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       entityId: result.id,
       afterData: result,
     });
+
+    // step7 §6 — an online customer isn't at the counter to be told in
+    // person, so a refund against an online bill also sends a notification.
+    if (billReturn.bill.billType === "online_bill" && billReturn.bill.customerId) {
+      void createNotification({
+        customerId: billReturn.bill.customerId,
+        eventType: result.status === "completed" ? "refund_completed" : "refund_processing",
+        relatedType: "refund",
+        relatedId: result.id,
+      });
+    }
 
     return Response.json(result, { status: 201 });
   });

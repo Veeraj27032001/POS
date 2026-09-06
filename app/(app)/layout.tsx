@@ -12,6 +12,7 @@ import {
   ClipboardEdit,
   ClipboardList,
   CreditCard,
+  Globe,
   Hash,
   Landmark,
   LayoutDashboard,
@@ -109,6 +110,7 @@ const NAV_ITEM_MODULE: Record<string, string> = {
   "/reports/gst-summary": "reports",
   "/settings/hsn-codes": "hsn_codes",
   "/settings/tax-engine": "stores",
+  "/settings/ecommerce": "settings",
   "/settings/financial-years": "financial_years",
   "/settings/roles": "roles",
 };
@@ -298,6 +300,11 @@ const NAV_GROUPS: AppNavGroup[] = [
         href: "/settings/preferences",
         label: "Preferences",
         icon: <SettingsIcon className="h-4 w-4" />,
+      },
+      {
+        href: "/settings/ecommerce",
+        label: "E-commerce",
+        icon: <Globe className="h-4 w-4" />,
       },
     ],
   },
