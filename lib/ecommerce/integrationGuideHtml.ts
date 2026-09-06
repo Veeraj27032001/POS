@@ -2,12 +2,11 @@ function escapeHtml(value: string): string {
   return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-// Same content as public/docs/Ecommerce_API_Integration_Guide.md, rendered
-// as a printable HTML page — the browser's own print-to-PDF is this app's
-// standard way of producing a document (see lib/billing/printing.ts), not a
-// PDF/DOCX library. The API secret is left as a token for the caller to
-// substitute client-side, since it only ever exists in the browser at the
-// moment of creation.
+// The per-credential setup guide, rendered as a printable HTML page — the
+// browser's own print-to-PDF is this app's standard way of producing a
+// document (see lib/billing/printing.ts), not a PDF/DOCX library. The API
+// secret is left as a token for the caller to substitute client-side, since
+// it only ever exists in the browser at the moment of creation.
 export function buildIntegrationGuideHtml(params: { storeName: string; apiKey: string }): string {
   const storeName = escapeHtml(params.storeName);
   const apiKey = escapeHtml(params.apiKey);

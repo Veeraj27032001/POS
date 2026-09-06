@@ -1,14 +1,21 @@
 import { z } from "zod";
 
 import { unscoped } from "@/lib/db";
+import { authenticateApiCredential } from "@/lib/ecommerce/authenticateApiCredential";
 import { verifySecret } from "@/lib/security/hash";
-import { issueCustomerSessionCookie } from "@/lib/storefront/session";
 import { phoneSchema } from "@/lib/validation/common";
 import { apiErrorResponse, parseJsonOrRespond } from "@/lib/validation/response";
 
 const schema = z.object({ phone: phoneSchema, password: z.string().min(1) });
 
+// The second sign-in option: phone + password, for customers who set one via
+// customers/set-password. Returns the customer on success.
 export async function POST(request: Request) {
+  const auth = await authenticateApiCredential(request);
+  if (!auth) {
+    return apiErrorResponse("unauthorized", "Invalid or missing API credentials.", 401);
+  }
+
   const parsed = await parseJsonOrRespond(request, schema);
   if ("response" in parsed) return parsed.response;
 
@@ -26,6 +33,13 @@ export async function POST(request: Request) {
     return apiErrorResponse("bad_request", "Incorrect phone number or password.", 400);
   }
 
-  await issueCustomerSessionCookie(customer.id);
-  return Response.json({ ok: true });
+  return Response.json({
+    customer: {
+      id: customer.id,
+      name: customer.name,
+      phone: customer.phone,
+      email: customer.email,
+      hasPassword: true,
+    },
+  });
 }

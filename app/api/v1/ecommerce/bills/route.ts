@@ -4,6 +4,7 @@ import { resolveTax } from "@/lib/billing/resolveTax";
 import { runWithStoreContext, unscoped } from "@/lib/db";
 import { dateOnlyToUtcMidnight, todayAsDateOnly, toDateOnly } from "@/lib/datetime/dateOnly";
 import { authenticateApiCredential } from "@/lib/ecommerce/authenticateApiCredential";
+import { getDefaultWarehouseId } from "@/lib/ecommerce/defaultWarehouse";
 import { resolveFinancialYearForDate } from "@/lib/ecommerce/resolveFinancialYear";
 import { ecommerceBillCreateSchema } from "@/lib/ecommerce/schemas";
 import { allocateDocumentNumber } from "@/lib/numbering/allocateDocumentNumber";
@@ -87,6 +88,7 @@ export async function POST(request: Request) {
     include: { hsnCode: true },
   });
   const productById = new Map(products.map((p) => [p.id, p]));
+  const defaultWarehouseId = await getDefaultWarehouseId(auth.storeId);
 
   const preparedLines: {
     product: (typeof products)[number];
@@ -105,9 +107,15 @@ export async function POST(request: Request) {
         throw new EcommerceBillError(`Product not found or inactive: ${line.productId}`);
       }
 
-      const warehouse = await db.warehouse.findUnique({ where: { id: line.warehouseId } });
+      // An online shopper never picks a warehouse — default to the store's
+      // own unless the caller named one.
+      const lineWarehouseId = line.warehouseId ?? defaultWarehouseId;
+      if (!lineWarehouseId) {
+        throw new EcommerceBillError("This store has no active warehouse.");
+      }
+      const warehouse = await db.warehouse.findUnique({ where: { id: lineWarehouseId } });
       if (!warehouse || warehouse.storeId !== auth.storeId) {
-        throw new EcommerceBillError(`Warehouse not found for this store: ${line.warehouseId}`);
+        throw new EcommerceBillError(`Warehouse not found for this store: ${lineWarehouseId}`);
       }
 
       let stockLockItemId: string | undefined;
@@ -124,7 +132,7 @@ export async function POST(request: Request) {
             !lockMain ||
             lockMain.storeId !== auth.storeId ||
             lockMain.sourceType !== "ecommerce_order" ||
-            lockMain.warehouseId !== line.warehouseId ||
+            lockMain.warehouseId !== lineWarehouseId ||
             !lockItem ||
             lockItem.quantityBlocked !== line.quantity
           ) {
@@ -136,7 +144,7 @@ export async function POST(request: Request) {
         } else {
           const { available } = await getStockLevels({
             productId: product.id,
-            warehouseId: line.warehouseId,
+            warehouseId: lineWarehouseId,
           });
           if (line.quantity > available) {
             throw new EcommerceBillError(
@@ -158,7 +166,7 @@ export async function POST(request: Request) {
 
       preparedLines.push({
         product,
-        warehouseId: line.warehouseId,
+        warehouseId: lineWarehouseId,
         quantity: line.quantity,
         stockLockItemId,
         lineSubtotal,

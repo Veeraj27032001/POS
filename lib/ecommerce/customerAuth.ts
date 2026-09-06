@@ -16,18 +16,31 @@ export async function requestOtp(params: {
   phone: string;
   email: string;
   name?: string;
+  storeId: string;
 }): Promise<{ customerId: string }> {
   const db = unscoped();
 
   let customer = await db.customer.findFirst({ where: { phone: params.phone } });
   if (!customer) {
     customer = await db.customer.create({
-      data: { phone: params.phone, email: params.email, name: params.name ?? null },
+      data: {
+        phone: params.phone,
+        email: params.email,
+        name: params.name ?? null,
+        stores: { connect: [{ id: params.storeId }] },
+      },
     });
-  } else if (customer.email !== params.email || (params.name && customer.name !== params.name)) {
+  } else {
+    const linked = await db.customer.findFirst({
+      where: { id: customer.id, stores: { some: { id: params.storeId } } },
+    });
     customer = await db.customer.update({
       where: { id: customer.id },
-      data: { email: params.email, name: params.name ?? customer.name },
+      data: {
+        email: params.email,
+        name: params.name ?? customer.name,
+        ...(linked ? {} : { stores: { connect: [{ id: params.storeId }] } }),
+      },
     });
   }
 
@@ -43,7 +56,7 @@ export async function requestOtp(params: {
 
   // Also logged server-side so a developer can read the code without a real
   // inbox/handset during local testing.
-  console.log(`[storefront-otp] code for ${params.phone} (${params.email}): ${code}`);
+  console.log(`[ecommerce-otp] code for ${params.phone} (${params.email}): ${code}`);
 
   const body = `Your verification code is ${code}. It expires in ${CODE_TTL_MINUTES} minutes.`;
   const smsConfigured = Boolean(env().FAST2SMS_API_KEY);

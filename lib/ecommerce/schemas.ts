@@ -18,7 +18,7 @@ export const ecommerceStockLockCreateSchema = z.object({
 
 export const ecommerceBillLineSchema = z.object({
   productId: opaqueIdSchema,
-  warehouseId: opaqueIdSchema,
+  warehouseId: opaqueIdSchema.optional(),
   quantity: positiveInt,
   stockLockId: opaqueIdSchema.optional(),
 });

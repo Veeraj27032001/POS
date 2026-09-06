@@ -1,4 +1,5 @@
 import { authenticateApiCredential } from "@/lib/ecommerce/authenticateApiCredential";
+import { getDefaultWarehouseId } from "@/lib/ecommerce/defaultWarehouse";
 import { ecommerceStockLockCreateSchema } from "@/lib/ecommerce/schemas";
 import { resolveFinancialYearForDate } from "@/lib/ecommerce/resolveFinancialYear";
 import { runWithStoreContext, unscoped } from "@/lib/db";
@@ -32,18 +33,12 @@ export async function POST(request: Request) {
 
   let warehouseId = data.warehouseId;
   if (!warehouseId) {
-    const warehouses = await db.warehouse.findMany({
-      where: { storeId: auth.storeId, isActive: true, isDeleted: false },
-      select: { id: true },
-    });
-    if (warehouses.length !== 1) {
-      return apiErrorResponse(
-        "bad_request",
-        "warehouseId is required — this store has more than one warehouse.",
-        400,
-      );
+    // An online shopper never picks a warehouse — fulfil from the store's
+    // default one unless the caller names a specific one.
+    warehouseId = (await getDefaultWarehouseId(auth.storeId)) ?? undefined;
+    if (!warehouseId) {
+      return apiErrorResponse("bad_request", "This store has no active warehouse.", 400);
     }
-    warehouseId = warehouses[0].id;
   } else {
     const warehouse = await db.warehouse.findUnique({ where: { id: warehouseId } });
     if (!warehouse || warehouse.storeId !== auth.storeId) {
