@@ -104,3 +104,30 @@ All authenticated using the credentials from Section 2 (API key + secret), store
 **Refund's `status` enum gains `processing`** (Section 6 above) — between `pending` and `completed`, reflecting that a gateway refund actually takes time to settle.
 
 **New entity: `TXN-NOTIFICATION`** (Section 6 above) — didn't exist before this document; tracks every refund-progress and cancellation message sent to a customer.
+
+---
+
+## Update 2026-09-07: orders land pending, not as a completed bill
+
+Built and shipped after real usage surfaced a gap in Section 5's original design: `POST /v1/ecommerce/bills` created a **completed, invoiced** Online Bill the instant it was called — meaning any order the store later couldn't actually fulfil (stock issue, delivery problem, anything) had already burned a real GST document number and had to be formally reversed to undo. There was no point between "payment confirmed on the storefront" and "this is now a real invoice" for a store to say no.
+
+**New entity: `TXN-ECOMMERCE-ORDER`** (`ecommerce_orders` / `ecommerce_order_items` / `ecommerce_order_payments`) — a staging order, separate from Bill. Every field the old Section 3 bill type would have needed (customer snapshot, shipping address/city/taluk/state/country/pincode, line items with product/qty/price, and whatever the storefront told us about how the customer paid) lives here first. Its own numbering series, `ecommerce_order` (prefix `EO`) — distinct from `online_bill`, which is now only allocated once a real bill actually gets created.
+
+**`POST /v1/ecommerce/bills` is retired.** Replaced by `POST /v1/ecommerce/orders`, same idea (called once payment is confirmed on the storefront's side) but it creates a `pending` `TXN-ECOMMERCE-ORDER`, never a Bill. Stock is still locked exactly as Section 4 describes — reusing the same `stock_block_item` / `source_type = ecommerce_order` mechanism — except the lock created (or consolidated, if the order needed stock split in from another store) at order-placement time no longer carries the abandoned-cart expiry a shopping-cart lock does; it holds firm for as long as the order stays pending.
+
+**New staff screen: Online Orders** (in the existing POS admin, gated on the `billing` module like everything else Bill-adjacent) — lists every `TXN-ECOMMERCE-ORDER` for the store. Opening a `pending` one offers exactly two actions:
+
+- **Accept** — this is the moment Section 3's Online Bill actually gets created: `online_bill` document number allocated now (not before), tax resolved, bill lines written, and each item's stock lock converted into the permanent deduction (released, same as the original flow did inline). The order becomes `accepted` and links to the new bill.
+- **Reject** — every item's stock lock is released back to available stock. No bill, no document number, nothing to reverse. The order becomes `rejected` with a staff-entered reason.
+
+**Section 6's notifications gain `order_rejected`** (`TXN-NOTIFICATION.event_type`, `related_type` gains `ecommerce_order`) — fires on Reject, same channel-selection and Notifier-adapter mechanism already used for `order_cancelled`. Combined with the existing refund/cancellation notifications (which still apply from Accept onward, since only then does a real bill exist to refund or cancel), a customer is now told automatically at every stage their order might not go through — not just the ones that happen after a bill already existed.
+
+Section 5's API table is superseded by:
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /v1/ecommerce/orders` | Create a pending order (Section-3-shaped payload plus optional shipping detail and payment info) — stock is locked/reserved in full, no bill yet |
+| `GET /v1/ecommerce/orders/{order_id}` | Order lookup at any stage — pending, accepted (bill totals merged in), or rejected |
+| `GET /v1/ecommerce/customers/{customer_id}/orders` | A customer's order history across every stage |
+
+`GET /v1/ecommerce/products` and `/products/{id}` also gained `stockByStore` (the per-store breakdown behind the combined `available` total) for a multi-store integration that lets the shopper pick a store — see the integration guide for when that actually matters.

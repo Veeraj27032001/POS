@@ -137,7 +137,6 @@ export default function OnlineOrderDetailPage() {
   const currencySymbol = useStoreCurrencySymbol();
   const [order, setOrder] = useState<OnlineOrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [accepting, setAccepting] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -153,22 +152,6 @@ export default function OnlineOrderDetailPage() {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id]);
-
-  async function accept() {
-    setAccepting(true);
-    try {
-      const res = await fetch(`/api/online-orders/${params.id}/accept`, { method: "POST" });
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        toast.error(body?.error?.message ?? "Failed to accept the order.");
-        return;
-      }
-      toast.success("Order accepted — bill created, stock deducted.");
-      await load();
-    } finally {
-      setAccepting(false);
-    }
-  }
 
   if (loading) return <div className="p-8">Loading…</div>;
   if (!order) return <div className="p-8">Online order not found.</div>;
@@ -200,9 +183,7 @@ export default function OnlineOrderDetailPage() {
         {order.status === "pending" && (
           <div className="flex gap-2">
             <RejectDialog orderId={order.id} onDone={load} />
-            <Button onClick={() => void accept()} disabled={accepting}>
-              {accepting ? "Accepting…" : "Accept"}
-            </Button>
+            <Button onClick={() => router.push(`/online-orders/${order.id}/bill`)}>Accept</Button>
           </div>
         )}
         {order.bill && (
