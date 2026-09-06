@@ -45,7 +45,17 @@ async function sendSms(to: string, body: string): Promise<{ status: "sent" | "fa
   const res = await fetch(`https://www.fast2sms.com/dev/bulkV2?${params.toString()}`, {
     headers: { Authorization: apiKey },
   });
-  return { status: res.ok ? "sent" : "failed" };
+  const data = await res.json().catch(() => null);
+  // Fast2SMS returns HTTP 200 even on some failures — actual success/failure
+  // is only signalled by the "return" field in the JSON body. Its "message"
+  // field is an array on success but a plain string on some error responses.
+  if (!res.ok || !data?.return) {
+    const reason = Array.isArray(data?.message)
+      ? data.message.join(" ")
+      : (data?.message ?? `HTTP ${res.status}`);
+    throw new Error(`Fast2SMS failed to send: ${reason}`);
+  }
+  return { status: "sent" };
 }
 
 export const emailSmsNotifier: Notifier = {
