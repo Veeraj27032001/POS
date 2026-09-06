@@ -96,7 +96,11 @@ export async function getStockLevels({
       where: {
         productId,
         status: "active",
-        stockBlockMain: { warehouseId, blockedAt: { lte: cutoff } },
+        stockBlockMain: {
+          warehouseId,
+          blockedAt: { lte: cutoff },
+          OR: [{ expiresAt: null }, { expiresAt: { gt: cutoff } }],
+        },
       },
     }),
     db.billLineWarehouseAllocation.aggregate({

@@ -12,24 +12,37 @@ function generateCode(): string {
   return String(randomInt(0, 1_000_000)).padStart(6, "0");
 }
 
+// Thrown when neither SMS nor a supplied email leaves any way to actually
+// deliver the code — a 400 the storefront should show the customer, not a
+// 500 (the request-otp route maps this to bad_request).
+export class NoDeliveryMethodError extends Error {}
+
 // Registers (on first use) or re-sends a code for an EcommerceCustomer —
 // step7's own login identity, kept separate from the in-store Customer
 // master. First registration also creates the linked Customer record, since
-// that's what actually appears on the resulting Bill.
+// that's what actually appears on the resulting Bill. `email` is only
+// required when SMS delivery isn't configured — a phone-only storefront
+// shouldn't have to collect an email it'll never use.
 export async function requestOtp(params: {
   phone: string;
-  email: string;
+  email?: string;
   name?: string;
   storeId: string;
 }): Promise<{ ecommerceCustomerId: string }> {
   const db = unscoped();
+  const smsConfigured = Boolean(env().FAST2SMS_API_KEY);
+  if (!smsConfigured && !params.email) {
+    throw new NoDeliveryMethodError(
+      "SMS delivery isn't configured for this store — provide an email to receive the code.",
+    );
+  }
 
   let ecommerceCustomer = await db.ecommerceCustomer.findUnique({ where: { phone: params.phone } });
   if (!ecommerceCustomer) {
     const customer = await db.customer.create({
       data: {
         phone: params.phone,
-        email: params.email,
+        email: params.email ?? null,
         name: params.name ?? null,
         stores: { connect: [{ id: params.storeId }] },
       },
@@ -47,7 +60,7 @@ export async function requestOtp(params: {
     await db.customer.update({
       where: { id: ecommerceCustomer.customerId },
       data: {
-        email: params.email,
+        email: params.email ?? customer?.email,
         name: params.name ?? customer?.name,
         ...(linked ? {} : { stores: { connect: [{ id: params.storeId }] } }),
       },
@@ -66,14 +79,13 @@ export async function requestOtp(params: {
 
   // Also logged server-side so a developer can read the code without a real
   // inbox/handset during local testing.
-  console.log(`[ecommerce-otp] code for ${params.phone} (${params.email}): ${code}`);
+  console.log(`[ecommerce-otp] code for ${params.phone} (${params.email ?? "no email"}): ${code}`);
 
   const body = `Your verification code is ${code}. It expires in ${CODE_TTL_MINUTES} minutes.`;
-  const smsConfigured = Boolean(env().FAST2SMS_API_KEY);
   await getNotifier().send(
     smsConfigured
       ? { to: params.phone, channel: "sms", body }
-      : { to: params.email, channel: "email", subject: "Your sign-in code", body },
+      : { to: params.email!, channel: "email", subject: "Your sign-in code", body },
   );
 
   return { ecommerceCustomerId: ecommerceCustomer.id };

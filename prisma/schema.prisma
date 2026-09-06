@@ -454,6 +454,7 @@ model StockBlockMain {
   sourceType      StockBlockSourceType @default(manual) @map("source_type")
   sourceId        String?              @map("source_id")
   reviewByDate    DateTime?            @map("review_by_date") @db.Date
+  expiresAt       DateTime?            @map("expires_at")
   blockedByUserId String               @map("blocked_by_user_id")
   blockedByUser   User                 @relation(fields: [blockedByUserId], references: [id])
   blockedAt       DateTime             @default(now()) @map("blocked_at")

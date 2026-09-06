@@ -307,7 +307,19 @@ export const apiCredentialResource = defineResource({
   createSchema: schemas.apiCredentialCreateSchema,
   updateSchema: schemas.apiCredentialUpdateSchema,
   getDelegate: delegateForApiCredential,
-  beforeUpdate: (data) => withStoreIds(data, "update"),
+  beforeUpdate: (data, existing) => {
+    // Whichever of these isn't being changed in this edit still has to hold
+    // against the other's new value — same invariant POST enforces at
+    // creation, but PATCH goes through this generic hook instead of its own
+    // route, so it needs checking again here.
+    const billingStoreId =
+      (data.billingStoreId as string | undefined) ?? (existing.billingStoreId as string);
+    const storeIds = (data.storeIds as string[] | undefined) ?? (existing.storeIds as string[]);
+    if (!storeIds.includes(billingStoreId)) {
+      return { forbidden: "The billing store must be one of the selected stores." };
+    }
+    return withStoreIds(data, "update");
+  },
 });
 
 export const storeResource = defineResource({

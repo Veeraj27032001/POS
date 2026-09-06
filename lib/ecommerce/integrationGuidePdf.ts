@@ -66,7 +66,7 @@ function buildBlocks(params: { storeName: string; apiKey: string; apiSecret: str
     },
     {
       kind: "p",
-      text: "Registers the customer on first use. Sends a 6-digit code by SMS (or email if SMS isn't configured).",
+      text: "Registers the customer on first use. Sends a 6-digit code by SMS (or email if SMS isn't configured). email is only required when SMS delivery isn't configured for this store — omit it otherwise; 400 if there's no way to deliver the code.",
     },
 
     { kind: "h2", text: "POST /v1/ecommerce/customers/verify-otp" },
@@ -129,7 +129,11 @@ function buildBlocks(params: { storeName: string; apiKey: string; apiSecret: str
     },
     {
       kind: "code",
-      text: '201 → { "lockId": "…", "storeId": "…", "warehouseId": "…", "quantity": 2 }',
+      text: '201 → { "lockId": "…", "storeId": "…", "warehouseId": "…", "quantity": 2, "expiresAt": "…" }',
+    },
+    {
+      kind: "p",
+      text: "A lock expires 30 minutes after it's taken — if checkout is abandoned and you never call DELETE, the reserved stock becomes available to other customers again automatically once expiresAt passes. Still call DELETE when you know checkout failed or was cancelled; don't rely on the timeout as your primary release path.",
     },
 
     { kind: "p", text: "DELETE /v1/ecommerce/stock-lock/{id}" },

@@ -31,6 +31,7 @@ interface ApiCredentialRow {
   createdAt: string;
   lastUsedAt: string | null;
   revokedAt: string | null;
+  billingStoreId: string;
   billingStore: { name: string } | null;
   storeIds: string[];
 }
@@ -85,7 +86,8 @@ const API_LIST: { method: string; path: string; description: string }[] = [
   {
     method: "POST",
     path: "/api/v1/ecommerce/customers/request-otp",
-    description: "Registers or re-sends a sign-in code (SMS, or email as a fallback).",
+    description:
+      "Registers or re-sends a sign-in code — phone required; email only needed if SMS isn't configured.",
   },
   {
     method: "POST",
@@ -341,6 +343,144 @@ function NewCredentialDialog({ onCreated }: { onCreated: () => void }) {
   );
 }
 
+function EditCredentialDialog({ row, onSaved }: { row: ApiCredentialRow; onSaved: () => void }) {
+  const stores = useOptionsList("stores/options", "name");
+  const [open, setOpen] = useState(false);
+  const [label, setLabel] = useState(row.label);
+  const [billingStoreId, setBillingStoreId] = useState<string | null>(row.billingStoreId);
+  const [otherStoreIds, setOtherStoreIds] = useState<string[]>(
+    row.storeIds.filter((id) => id !== row.billingStoreId),
+  );
+  const [splitOrdersEnabled, setSplitOrdersEnabled] = useState(row.storeIds.length > 1);
+  const [submitting, setSubmitting] = useState(false);
+
+  const otherStores = stores.filter((s) => s.value !== billingStoreId);
+
+  function toggleOtherStore(id: string, checked: boolean) {
+    setOtherStoreIds((prev) => (checked ? [...prev, id] : prev.filter((s) => s !== id)));
+  }
+
+  function reset() {
+    setLabel(row.label);
+    setBillingStoreId(row.billingStoreId);
+    setOtherStoreIds(row.storeIds.filter((id) => id !== row.billingStoreId));
+    setSplitOrdersEnabled(row.storeIds.length > 1);
+  }
+
+  async function submit() {
+    if (!label.trim()) {
+      toast.error("Give this credential a label.");
+      return;
+    }
+    if (!billingStoreId) {
+      toast.error("Select which store handles billing.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await fetch(`/api/api-credentials/${row.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          label,
+          billingStoreId,
+          storeIds: [billingStoreId, ...otherStoreIds],
+          splitOrdersEnabled: otherStoreIds.length > 0 && splitOrdersEnabled,
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        toast.error(body?.error?.message ?? "Failed to save changes.");
+        return;
+      }
+      toast.success("Credential updated.");
+      onSaved();
+      setOpen(false);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) reset();
+        setOpen(next);
+      }}
+    >
+      <DialogTrigger render={<Button size="sm" variant="outline" />}>Edit</DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Edit API credential</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-1.5">
+          <Label>Label</Label>
+          <Input value={label} onChange={(e) => setLabel(e.target.value)} />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label>Billing store</Label>
+          <SearchableSelect
+            options={stores}
+            value={billingStoreId}
+            onChange={(id) => {
+              setBillingStoreId(id);
+              setOtherStoreIds((prev) => prev.filter((s) => s !== id));
+            }}
+            placeholder="Select a store…"
+          />
+          <p className="text-muted-foreground text-xs">
+            Every order is billed here by default, unless the request names a different store below.
+          </p>
+        </div>
+
+        {billingStoreId && otherStores.length > 0 && (
+          <div className="space-y-3 rounded-lg border p-3">
+            <div className="space-y-1.5">
+              <Label>Also sell from</Label>
+              <div className="max-h-32 space-y-1.5 overflow-y-auto">
+                {otherStores.map((store) => (
+                  <div key={store.value} className="flex items-center gap-2">
+                    <Checkbox
+                      id={`edit-store-${row.id}-${store.value}`}
+                      checked={otherStoreIds.includes(store.value)}
+                      onCheckedChange={(checked) => toggleOtherStore(store.value, checked === true)}
+                    />
+                    <Label htmlFor={`edit-store-${row.id}-${store.value}`}>{store.label}</Label>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {otherStoreIds.length > 0 && (
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id={`edit-split-${row.id}`}
+                  checked={splitOrdersEnabled}
+                  onCheckedChange={(checked) => setSplitOrdersEnabled(checked === true)}
+                />
+                <Label htmlFor={`edit-split-${row.id}`}>
+                  Allow one order to split across stores when no single store has enough stock
+                </Label>
+              </div>
+            )}
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            Cancel
+          </Button>
+          <Button type="button" onClick={() => void submit()} disabled={submitting}>
+            {submitting ? "Saving…" : "Save"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function EcommerceSettingsPage() {
   const invalidate = useInvalidateResource();
   const [revokingId, setRevokingId] = useState<string | null>(null);
@@ -429,6 +569,9 @@ export default function EcommerceSettingsPage() {
               header: "",
               render: (row) => (
                 <div className="flex justify-end gap-2">
+                  {!row.revokedAt && (
+                    <EditCredentialDialog row={row} onSaved={() => invalidate("api-credentials")} />
+                  )}
                   <Button
                     size="sm"
                     variant="outline"

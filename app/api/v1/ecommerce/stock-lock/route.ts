@@ -8,6 +8,12 @@ import { getStockLevels } from "@/lib/stock/getStockLevels";
 import { writeAuditLog } from "@/lib/security/audit";
 import { apiErrorResponse, parseJsonOrRespond } from "@/lib/validation/response";
 
+// An abandoned checkout (tab closed, never paid) must not reserve stock
+// forever — getStockLevels stops counting a lock as blocking once this
+// window passes, even though the row itself stays "active" until someone
+// (or the storefront) explicitly releases it.
+const LOCK_TTL_MINUTES = 30;
+
 // step7 §4/§5 — POST /v1/ecommerce/stock-lock: reserves stock for a cart/
 // checkout in progress, reusing the Stock Block mechanism (source_type
 // "ecommerce_order") rather than a parallel reservation system.
@@ -91,6 +97,7 @@ export async function POST(request: Request) {
         warehouseId,
         sourceType: "ecommerce_order",
         sourceId: data.externalReference ?? null,
+        expiresAt: new Date(now.getTime() + LOCK_TTL_MINUTES * 60 * 1000),
         blockedByUserId: auth.createdByUserId,
         blockedAt: now,
       },
@@ -127,6 +134,7 @@ export async function POST(request: Request) {
       productId: product.id,
       warehouseId,
       quantity: data.quantity,
+      expiresAt: result.expiresAt,
     },
     { status: 201 },
   );

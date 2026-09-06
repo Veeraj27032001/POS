@@ -1,13 +1,16 @@
 import { z } from "zod";
 
 import { authenticateApiCredential } from "@/lib/ecommerce/authenticateApiCredential";
-import { requestOtp } from "@/lib/ecommerce/customerAuth";
+import { NoDeliveryMethodError, requestOtp } from "@/lib/ecommerce/customerAuth";
 import { emailSchema, phoneSchema } from "@/lib/validation/common";
 import { apiErrorResponse, parseJsonOrRespond } from "@/lib/validation/response";
 
 const schema = z.object({
   phone: phoneSchema,
-  email: emailSchema,
+  // Only required when SMS delivery isn't configured for this store — the
+  // code has to go somewhere. requestOtp() enforces that, not this schema,
+  // since it depends on server config the schema can't see.
+  email: emailSchema.optional(),
   name: z.string().trim().min(1).optional(),
 });
 
@@ -25,7 +28,10 @@ export async function POST(request: Request) {
 
   try {
     await requestOtp({ ...parsed.data, storeId: auth.billingStoreId });
-  } catch {
+  } catch (error) {
+    if (error instanceof NoDeliveryMethodError) {
+      return apiErrorResponse("bad_request", error.message, 400);
+    }
     return apiErrorResponse("internal_error", "Failed to send the verification code.", 500);
   }
 
