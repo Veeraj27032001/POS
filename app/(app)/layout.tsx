@@ -102,6 +102,11 @@ const NAV_ITEM_MODULE: Record<string, string> = {
   "/shifts": "billing",
   "/reports/stock": "reports",
   "/reports/sales": "reports",
+  "/reports/stock-ledger": "reports",
+  "/reports/inventory-valuation": "reports",
+  "/reports/sales-register": "reports",
+  "/reports/credit-outstanding": "reports",
+  "/reports/gst-summary": "reports",
   "/settings/hsn-codes": "hsn_codes",
   "/settings/tax-engine": "stores",
   "/settings/financial-years": "financial_years",
@@ -221,6 +226,31 @@ const NAV_GROUPS: AppNavGroup[] = [
     items: [
       { href: "/reports/stock", label: "Stock Report", icon: <BarChart3 className="h-4 w-4" /> },
       { href: "/reports/sales", label: "Sales Report", icon: <LineChart className="h-4 w-4" /> },
+      {
+        href: "/reports/stock-ledger",
+        label: "Stock Ledger",
+        icon: <ClipboardList className="h-4 w-4" />,
+      },
+      {
+        href: "/reports/inventory-valuation",
+        label: "Inventory Valuation",
+        icon: <Wallet className="h-4 w-4" />,
+      },
+      {
+        href: "/reports/sales-register",
+        label: "Sales Register",
+        icon: <Receipt className="h-4 w-4" />,
+      },
+      {
+        href: "/reports/credit-outstanding",
+        label: "Credit Outstanding / Aging",
+        icon: <CreditCard className="h-4 w-4" />,
+      },
+      {
+        href: "/reports/gst-summary",
+        label: "GST Summary",
+        icon: <Landmark className="h-4 w-4" />,
+      },
     ],
   },
   {
