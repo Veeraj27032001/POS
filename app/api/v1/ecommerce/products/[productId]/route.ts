@@ -1,6 +1,9 @@
 import { authenticateApiCredential } from "@/lib/ecommerce/authenticateApiCredential";
 import { unscoped } from "@/lib/db";
-import { getStockLevels } from "@/lib/stock/getStockLevels";
+import {
+  getProductAvailability,
+  type StoreWithWarehouses,
+} from "@/lib/ecommerce/getProductAvailability";
 import { apiErrorResponse } from "@/lib/validation/response";
 
 // GET /v1/ecommerce/products/{product_id}: single-product detail — a real
@@ -17,7 +20,7 @@ export async function GET(
   const { productId } = await params;
   const db = unscoped();
 
-  const [product, preferences, warehouses] = await Promise.all([
+  const [product, preferences, warehouses, stores] = await Promise.all([
     db.product.findUnique({
       where: { id: productId },
       select: {
@@ -38,19 +41,24 @@ export async function GET(
     db.taxPreferences.findFirst(),
     db.warehouse.findMany({
       where: { storeId: { in: auth.storeIds }, isActive: true, isDeleted: false },
-      select: { id: true },
+      select: { id: true, storeId: true },
     }),
+    db.store.findMany({ where: { id: { in: auth.storeIds } }, select: { id: true, name: true } }),
   ]);
   if (!product || !product.isActive || product.isDeleted) {
     return apiErrorResponse("not_found", "Product not found.", 404);
   }
 
+  const storesWithWarehouses: StoreWithWarehouses[] = stores.map((store) => ({
+    storeId: store.id,
+    storeName: store.name,
+    warehouseIds: warehouses.filter((w) => w.storeId === store.id).map((w) => w.id),
+  }));
+
   let available = 0;
+  let stockByStore: Awaited<ReturnType<typeof getProductAvailability>>["stockByStore"] = [];
   if (product.stockTracked) {
-    for (const warehouse of warehouses) {
-      const levels = await getStockLevels({ productId, warehouseId: warehouse.id });
-      available += levels.available;
-    }
+    ({ available, stockByStore } = await getProductAvailability(productId, storesWithWarehouses));
   }
 
   return Response.json({
@@ -64,6 +72,7 @@ export async function GET(
     categoryId: product.category?.id ?? null,
     categoryName: product.category?.name ?? null,
     available,
+    stockByStore,
     tax:
       preferences?.hsnTaxDisplayEnabled && product.hsnCode
         ? {

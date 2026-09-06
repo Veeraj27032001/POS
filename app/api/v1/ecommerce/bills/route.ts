@@ -225,6 +225,8 @@ export async function POST(request: Request) {
         customerName: customer!.name,
         customerPhone: customer!.phone,
         customerEmail: customer!.email,
+        customerAddress: data.customer.address ?? null,
+        customerPincode: data.customer.pincode ?? null,
         status: "completed",
         completedAt: now,
       },

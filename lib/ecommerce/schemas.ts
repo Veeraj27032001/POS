@@ -34,6 +34,12 @@ export const ecommerceBillCreateSchema = z.object({
     name: z.string().trim().min(1, "Customer name is required."),
     phone: phoneSchema,
     email: emailSchema.optional(),
+    // Free-text shipping address — deliberately not a country/state FK pair
+    // (that would need its own lookup endpoints for an external caller to
+    // populate); this covers the common "where do we ship this" need
+    // without that extra surface.
+    address: optionalString(500),
+    pincode: optionalString(20),
   }),
   lines: z.array(ecommerceBillLineSchema).min(1, "At least one line is required."),
 });

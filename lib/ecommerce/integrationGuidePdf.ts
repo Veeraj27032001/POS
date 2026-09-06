@@ -28,29 +28,41 @@ function buildBlocks(params: { storeName: string; apiKey: string; apiSecret: str
     },
     {
       kind: "p",
-      text: "2. Sign the customer in — customers/request-otp then verify-otp, or customers/login if they've set a password.",
+      text: "2. Sign the customer in — customers/request-otp then verify-otp, or customers/login if they've set a password. Guest checkout (no sign-in) is fine too — bills just needs a name/phone.",
     },
     {
       kind: "p",
-      text: "3. When checkout starts, call POST /v1/ecommerce/stock-lock per line to reserve stock.",
+      text: "3. When checkout starts, call POST /v1/ecommerce/stock-lock once per distinct product in the cart — there's no batch-lock endpoint, so a 3-item cart makes 3 lock calls, each returning its own lockId.",
     },
     {
       kind: "p",
-      text: "4. If checkout fails or the cart is abandoned, call DELETE /v1/ecommerce/stock-lock/{id}.",
+      text: "4. If checkout fails or the cart is abandoned, call DELETE /v1/ecommerce/stock-lock/{id} for each lock you took.",
     },
     {
       kind: "p",
-      text: "5. Once payment is confirmed, call POST /v1/ecommerce/bills — this releases the lock(s) and permanently deducts stock.",
+      text: "5. Once payment is confirmed, call POST /v1/ecommerce/bills ONCE with every line together (each carrying its own stockLockId) — this always produces exactly one order, even for a multi-item cart, and releases the locks and permanently deducts stock as part of the same call.",
     },
     {
       kind: "p",
-      text: "Locking before billing is recommended but not required — bill creation checks availability itself when a line has no stock_lock_id.",
+      text: "Locking before billing is recommended but not required — bill creation checks availability itself for any line with no stockLockId. A typical payment-gateway integration (Razorpay, etc.) creates the gateway order right after locking, then calls bills from your server only after your server has verified the gateway's payment signature — never from the browser, and never before verification.",
     },
 
     { kind: "h2", text: "Multi-store (only if enabled for this credential)" },
     {
       kind: "p",
-      text: "GET /v1/ecommerce/stores lists every store this credential can sell from. stock-lock and bills both accept an optional storeId — omit it and the credential's own billing store is tried first. An order always produces exactly one bill: if the billing store can't cover it alone and splitting is enabled, the shortfall transfers in from another eligible store automatically.",
+      text: "Which stores this credential can even use is fixed on the POS side, not by you — your store admin configures it in Settings → E-commerce: a required default billing store, plus an optional set of other stores it may also sell from. This API never creates or changes that set; it only works within it.",
+    },
+    {
+      kind: "p",
+      text: "GET /v1/ecommerce/stores lists exactly that pre-configured set (with isDefault marking the admin's chosen default) — use it to let the shopper pick among them, e.g. a pickup location. On stock-lock/bills, storeId is optional: pass one of the ids from that list to bill this particular order under it instead of the default; omit it and the default billing store is used.",
+    },
+    {
+      kind: "p",
+      text: "Whichever store results — named or default — is the ONLY store that ever bills the order. Stock itself is a separate concern: if that billing store's own stock falls short and splitting is enabled for this credential, the shortfall is transferred in automatically from another store in the admin-configured set. The customer still only ever sees one bill, from the one store that was resolved.",
+    },
+    {
+      kind: "p",
+      text: "Worked example — Store A (billing) has 50 units, Store B (also eligible, splitting on) has 50 — GET /products shows available: 100 combined, with stockByStore showing 50/50. A customer orders 62: Store A's own 50 are used first and fully consumed, then the remaining 12 transfer in from Store B automatically (a real, immediately-accepted Stock Transfer — visible in the POS's own Stock Transfers list, not a fake movement). Store A ends at 0 available, Store B at 38. Exactly one bill is created, billed at Store A, for all 62 units.",
     },
 
     { kind: "h2", text: "Customer accounts" },
@@ -112,11 +124,15 @@ function buildBlocks(params: { storeName: string; apiKey: string; apiSecret: str
     },
     {
       kind: "code",
-      text: '{ "data": [{ "id":"…","name":"…","price":199.0,"images":["https://…"],\n  "available":23,"tax":{"hsnCode":"…","cgstRate":9,"sgstRate":9,"igstRate":18} }] }',
+      text: '{ "data": [{ "id":"…","name":"…","price":199.0,"images":["https://…"],\n  "available":23,"stockByStore":[{"storeId":"…","storeName":"…","available":23}],\n  "tax":{"hsnCode":"…","cgstRate":9,"sgstRate":9,"igstRate":18} }] }',
     },
     {
       kind: "p",
-      text: "GET /v1/ecommerce/products/{product_id} — full detail, plus description and videos.",
+      text: "available is the combined total across every eligible store — that's all a single-store integration, or one that never lets the shopper pick a store, ever needs. stockByStore is the per-store breakdown behind that total; only relevant if your storefront offers a store picker (see Multi-store above) — otherwise ignore it.",
+    },
+    {
+      kind: "p",
+      text: "GET /v1/ecommerce/products/{product_id} — full detail: same fields plus description, videos, and categoryId.",
     },
     { kind: "p", text: "GET /v1/ecommerce/products/{product_id}/stock" },
     { kind: "code", text: '{ "productId": "…", "available": 23 }' },
@@ -142,17 +158,17 @@ function buildBlocks(params: { storeName: string; apiKey: string; apiSecret: str
     { kind: "p", text: "POST /v1/ecommerce/bills" },
     {
       kind: "code",
-      text: '{\n  "billDate": "2027-06-01",\n  "customer": {"name":"Jane Doe","phone":"9999999999","email":"jane@example.com"},\n  "lines": [{ "productId": "…", "quantity": 2, "stockLockId": "…" }]\n}',
+      text: '{\n  "billDate": "2027-06-01",\n  "customer": {\n    "name":"Jane Doe","phone":"9999999999","email":"jane@example.com",\n    "address":"221B Baker Street","pincode":"400001"\n  },\n  "lines": [\n    { "productId": "…", "quantity": 2, "stockLockId": "…" },\n    { "productId": "…", "quantity": 1, "stockLockId": "…" }\n  ]\n}',
     },
     {
       kind: "p",
-      text: "customer is matched by phone, or created. stockLockId is optional — omit it to check availability itself.",
+      text: "customer is matched by phone, or created. address/pincode are optional free-text shipping details — not validated against any address master, just stored on the order and returned by GET /orders/{id}. lines takes as many products as the cart has, each with its own stockLockId (optional — omit any one to have that line's stock checked at bill time instead of pre-locked); this is the batching point — one call, however many lines, always exactly one bill.",
     },
-    { kind: "code", text: '201 → the created bill, status "completed", with its lines.' },
+    { kind: "code", text: '201 → the created bill, status "completed", with all its lines.' },
 
     {
       kind: "p",
-      text: "GET /v1/ecommerce/orders/{order_id} — single order lookup, for a confirmation page or tracking link.",
+      text: "GET /v1/ecommerce/orders/{order_id} — single order lookup, for a confirmation page or tracking link. Includes customerAddress/customerPincode when they were provided.",
     },
 
     { kind: "h2", text: "Errors" },

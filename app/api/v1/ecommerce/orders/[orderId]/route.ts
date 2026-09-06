@@ -28,6 +28,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ orde
     subtotal: Number(bill.subtotal),
     taxTotal: Number(bill.taxTotal),
     grandTotal: Number(bill.grandTotal),
+    customerAddress: bill.customerAddress,
+    customerPincode: bill.customerPincode,
     createdAt: bill.createdAt,
     lines: bill.lines.map((line) => ({
       productId: line.productId,

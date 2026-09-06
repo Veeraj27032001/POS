@@ -1,6 +1,9 @@
 import { authenticateApiCredential } from "@/lib/ecommerce/authenticateApiCredential";
 import { unscoped } from "@/lib/db";
-import { getStockLevels } from "@/lib/stock/getStockLevels";
+import {
+  getProductAvailability,
+  type StoreWithWarehouses,
+} from "@/lib/ecommerce/getProductAvailability";
 import { apiErrorResponse } from "@/lib/validation/response";
 
 // step7 §5 — GET /v1/ecommerce/products: catalog feed for the merchant's own
@@ -19,14 +22,20 @@ export async function GET(request: Request) {
   const categoryId = url.searchParams.get("categoryId") || undefined;
 
   const db = unscoped();
-  const [preferences, warehouses] = await Promise.all([
+  const [preferences, warehouses, stores] = await Promise.all([
     db.taxPreferences.findFirst(),
     db.warehouse.findMany({
       where: { storeId: { in: auth.storeIds }, isActive: true, isDeleted: false },
-      select: { id: true },
+      select: { id: true, storeId: true },
     }),
+    db.store.findMany({ where: { id: { in: auth.storeIds } }, select: { id: true, name: true } }),
   ]);
   const showTax = preferences?.hsnTaxDisplayEnabled ?? false;
+  const storesWithWarehouses: StoreWithWarehouses[] = stores.map((store) => ({
+    storeId: store.id,
+    storeName: store.name,
+    warehouseIds: warehouses.filter((w) => w.storeId === store.id).map((w) => w.id),
+  }));
 
   const where = {
     isActive: true,
@@ -65,11 +74,10 @@ export async function GET(request: Request) {
 
   const data = [];
   for (const product of products) {
-    let available = 0;
-    for (const warehouse of warehouses) {
-      const levels = await getStockLevels({ productId: product.id, warehouseId: warehouse.id });
-      available += levels.available;
-    }
+    const { available, stockByStore } = await getProductAvailability(
+      product.id,
+      storesWithWarehouses,
+    );
     data.push({
       id: product.id,
       name: product.name,
@@ -79,6 +87,7 @@ export async function GET(request: Request) {
       systemBarcode: product.systemBarcode,
       categoryName: product.category?.name ?? null,
       available,
+      stockByStore,
       tax:
         showTax && product.hsnCode
           ? {
