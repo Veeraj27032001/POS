@@ -245,8 +245,8 @@ export default function BillFormatDesignPage() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="bg-background flex items-center justify-between border-b px-6 py-3">
-        <div className="flex items-center gap-3">
+      <div className="bg-background flex flex-col gap-2 border-b px-6 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-3">
           <Link
             href={`/bill-formats/${id}`}
             className="text-muted-foreground text-sm hover:underline"
@@ -258,7 +258,7 @@ export default function BillFormatDesignPage() {
           <Badge variant="outline">{BILL_TYPE_LABELS[row.billType] ?? row.billType}</Badge>
           {isDirty && <Badge variant="secondary">Unsaved changes</Badge>}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Tabs value={mode} onValueChange={handleModeChange}>
             <TabsList>
               <TabsTrigger value="visual" disabled={!design}>

@@ -199,10 +199,10 @@ export default function BillReturnDetailPage() {
             const hasAnyRefund = detail.refunds.length > 0;
             return (
               <>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <h1 className="text-2xl font-semibold">{detail.documentNumber}</h1>
                   {!detail.settled && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       {!hasAnyRefund && (
                         <Button
                           size="sm"

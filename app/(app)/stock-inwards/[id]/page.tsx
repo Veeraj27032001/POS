@@ -92,10 +92,10 @@ export default function StockInwardViewPage() {
 
       {row && (
         <>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h1 className="text-2xl font-semibold">{row.documentNumber}</h1>
             {canEdit && (
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Link
                   href={`/stock-inwards/${row.id}/edit`}
                   className={buttonVariants({ variant: "outline", size: "sm" })}

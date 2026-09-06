@@ -73,7 +73,7 @@ export default function ShiftDetailPage() {
 
       {shift && (
         <>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h1 className="text-2xl font-semibold">{shift.documentNumber}</h1>
             {shift.status === "open" && (
               <Link href={`/shifts/${shift.id}/close`} className={buttonVariants({ size: "sm" })}>

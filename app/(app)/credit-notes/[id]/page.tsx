@@ -64,7 +64,7 @@ export default function CreditNoteDetailPage() {
             ← Back to Credit Notes
           </Link>
 
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h1 className="text-2xl font-semibold">{detail.documentNumber}</h1>
             <Button variant="outline" size="sm" onClick={handlePrint} disabled={printing}>
               {printing ? "Printing…" : "Print"}

@@ -142,7 +142,7 @@ export default function StockTransferViewPage() {
 
       {row && (
         <>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-semibold">{row.documentNumber}</h1>
               <span
@@ -154,7 +154,7 @@ export default function StockTransferViewPage() {
                 {STATUS_LABELS[row.status] ?? row.status}
               </span>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {canEdit && (
                 <Link
                   href={`/stock-transfers/${row.id}/edit`}
