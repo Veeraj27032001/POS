@@ -271,8 +271,9 @@ export const loyaltyRuleResource = defineResource({
 
 export const apiCredentialResource = defineResource({
   name: "api_credential",
-  module: "settings",
+  module: "ecommerce",
   scoping: "required",
+  explicitStoreId: true,
   createSchema: schemas.apiCredentialCreateSchema,
   updateSchema: schemas.apiCredentialUpdateSchema,
   getDelegate: delegateOf("apiCredential"),

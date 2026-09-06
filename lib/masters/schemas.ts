@@ -227,6 +227,7 @@ export const loyaltyRuleUpdateSchema = loyaltyRuleCreateSchema.partial();
 
 export const apiCredentialCreateSchema = z.object({
   label: requiredString("Label"),
+  storeId: opaqueIdSchema.optional(),
 });
 export const apiCredentialUpdateSchema = z.object({
   label: requiredString("Label").optional(),

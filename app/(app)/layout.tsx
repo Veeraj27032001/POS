@@ -110,7 +110,7 @@ const NAV_ITEM_MODULE: Record<string, string> = {
   "/reports/gst-summary": "reports",
   "/settings/hsn-codes": "hsn_codes",
   "/settings/tax-engine": "stores",
-  "/settings/ecommerce": "settings",
+  "/settings/ecommerce": "ecommerce",
   "/settings/financial-years": "financial_years",
   "/settings/roles": "roles",
 };

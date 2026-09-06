@@ -4,6 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { DataTable } from "@/components/data-table/data-table";
+import { StoreCardFilter } from "@/components/store-card-filter";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -58,7 +59,7 @@ const API_LIST: { method: string; path: string; description: string }[] = [
   },
 ];
 
-function NewCredentialDialog({ onCreated }: { onCreated: () => void }) {
+function NewCredentialDialog({ storeId, onCreated }: { storeId: string; onCreated: () => void }) {
   const [open, setOpen] = useState(false);
   const [label, setLabel] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -74,7 +75,7 @@ function NewCredentialDialog({ onCreated }: { onCreated: () => void }) {
       const res = await fetch("/api/api-credentials", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ label }),
+        body: JSON.stringify({ label, storeId }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
@@ -183,6 +184,7 @@ function NewCredentialDialog({ onCreated }: { onCreated: () => void }) {
 
 export default function EcommerceSettingsPage() {
   const invalidate = useInvalidateResource();
+  const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const [revokingId, setRevokingId] = useState<string | null>(null);
 
   async function revoke(id: string) {
@@ -210,71 +212,81 @@ export default function EcommerceSettingsPage() {
             Connect your own e-commerce app/website to this POS so stock and orders stay in sync.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            nativeButton={false}
-            render={<a href="/docs/Ecommerce_API_Integration_Guide.md" download />}
-          >
-            Download integration guide
-          </Button>
-          <NewCredentialDialog onCreated={() => invalidate("api-credentials")} />
-        </div>
+        <Button
+          variant="outline"
+          nativeButton={false}
+          render={<a href="/docs/Ecommerce_API_Integration_Guide.md" download />}
+        >
+          Download integration guide
+        </Button>
       </div>
 
       <div className="space-y-3">
         <h2 className="text-lg font-semibold">API credentials</h2>
-        <DataTable<ApiCredentialRow>
-          resource="api-credentials"
-          getRowId={(row) => row.id}
-          emptyMessage="No API credentials yet."
-          columns={[
-            { key: "label", header: "Label" },
-            {
-              key: "apiKey",
-              header: "API key",
-              render: (row) => <span className="font-mono text-xs">{row.apiKey}</span>,
-            },
-            {
-              key: "status",
-              header: "Status",
-              render: (row) =>
-                row.revokedAt ? (
-                  <Badge variant="secondary">Revoked</Badge>
-                ) : row.isActive ? (
-                  <Badge>Active</Badge>
-                ) : (
-                  <Badge variant="secondary">Inactive</Badge>
-                ),
-            },
-            {
-              key: "lastUsedAt",
-              header: "Last used",
-              render: (row) => (row.lastUsedAt ? formatTimestamp(row.lastUsedAt) : "Never"),
-            },
-            {
-              key: "createdAt",
-              header: "Created",
-              render: (row) => formatTimestamp(row.createdAt),
-            },
-            {
-              key: "actions",
-              header: "",
-              render: (row) =>
-                !row.revokedAt && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={revokingId === row.id}
-                    onClick={() => void revoke(row.id)}
-                  >
-                    {revokingId === row.id ? "Revoking…" : "Revoke"}
-                  </Button>
-                ),
-            },
-          ]}
-        />
+        <StoreCardFilter value={selectedStoreId} onChange={setSelectedStoreId} />
       </div>
+
+      {selectedStoreId && (
+        <div className="space-y-3">
+          <div className="flex justify-end">
+            <NewCredentialDialog
+              storeId={selectedStoreId}
+              onCreated={() => invalidate("api-credentials")}
+            />
+          </div>
+          <DataTable<ApiCredentialRow>
+            resource="api-credentials"
+            getRowId={(row) => row.id}
+            filters={{ storeId: selectedStoreId }}
+            emptyMessage="No API credentials yet for this store."
+            columns={[
+              { key: "label", header: "Label" },
+              {
+                key: "apiKey",
+                header: "API key",
+                render: (row) => <span className="font-mono text-xs">{row.apiKey}</span>,
+              },
+              {
+                key: "status",
+                header: "Status",
+                render: (row) =>
+                  row.revokedAt ? (
+                    <Badge variant="secondary">Revoked</Badge>
+                  ) : row.isActive ? (
+                    <Badge>Active</Badge>
+                  ) : (
+                    <Badge variant="secondary">Inactive</Badge>
+                  ),
+              },
+              {
+                key: "lastUsedAt",
+                header: "Last used",
+                render: (row) => (row.lastUsedAt ? formatTimestamp(row.lastUsedAt) : "Never"),
+              },
+              {
+                key: "createdAt",
+                header: "Created",
+                render: (row) => formatTimestamp(row.createdAt),
+              },
+              {
+                key: "actions",
+                header: "",
+                render: (row) =>
+                  !row.revokedAt && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={revokingId === row.id}
+                      onClick={() => void revoke(row.id)}
+                    >
+                      {revokingId === row.id ? "Revoking…" : "Revoke"}
+                    </Button>
+                  ),
+              },
+            ]}
+          />
+        </div>
+      )}
 
       <div className="space-y-3">
         <h2 className="text-lg font-semibold">Available APIs</h2>

@@ -16,19 +16,24 @@ export async function POST(request: Request) {
   if (!session?.user) {
     return apiErrorResponse("unauthorized", "You must be signed in.", 401);
   }
-  if (!hasPermission(session.user.permissions, "settings", "create")) {
-    return apiErrorResponse("forbidden", "You don't have permission to create settings.", 403);
-  }
-  if (!session.user.storeId) {
+  if (!hasPermission(session.user.permissions, "ecommerce", "create")) {
     return apiErrorResponse(
-      "no_store_selected",
-      "API credentials are store-specific — select a store first.",
-      400,
+      "forbidden",
+      "You don't have permission to create API credentials.",
+      403,
     );
   }
 
   const parsed = await parseJsonOrRespond(request, apiCredentialCreateSchema);
   if ("response" in parsed) return parsed.response;
+
+  // Super Admin has no single store of their own — they pick which store
+  // this credential belongs to. A store-scoped session always uses its own
+  // store, ignoring any storeId the client might have sent.
+  const storeId = session.user.storeId ?? parsed.data.storeId;
+  if (!storeId) {
+    return apiErrorResponse("bad_request", "Select a store first.", 400);
+  }
 
   const apiKey = generatePublicToken("pk");
   const apiSecret = generateSecretToken();
@@ -37,7 +42,7 @@ export async function POST(request: Request) {
   const created = await withStoreContext(() =>
     prisma.apiCredential.create({
       data: {
-        storeId: session.user.storeId!,
+        storeId,
         label: parsed.data.label,
         apiKey,
         apiSecretHash,

@@ -14,8 +14,12 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   if (!session?.user) {
     return apiErrorResponse("unauthorized", "You must be signed in.", 401);
   }
-  if (!hasPermission(session.user.permissions, "settings", "update")) {
-    return apiErrorResponse("forbidden", "You don't have permission to update settings.", 403);
+  if (!hasPermission(session.user.permissions, "ecommerce", "update")) {
+    return apiErrorResponse(
+      "forbidden",
+      "You don't have permission to update API credentials.",
+      403,
+    );
   }
 
   const { id } = await params;

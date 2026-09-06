@@ -15,6 +15,11 @@ import {
 import { formatDatePart } from "@/lib/datetime/format";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 
+interface FinancialYearOption {
+  id: string;
+  label: string;
+}
+
 interface StockLedgerRow {
   date: string;
   docType: string;
@@ -35,7 +40,15 @@ interface StockLedgerResponse {
 
 export default function StockLedgerReportPage() {
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
-  const financialYears = useOptionsList("financial-years", "label");
+  const [financialYears, setFinancialYears] = useState<FinancialYearOption[]>([]);
+  useEffect(() => {
+    fetch("/api/financial-years")
+      .then((res) => res.json())
+      .then((json: { financialYears: FinancialYearOption[] }) =>
+        setFinancialYears(json.financialYears),
+      )
+      .catch(() => setFinancialYears([]));
+  }, []);
   const warehouses = useOptionsList(
     selectedStoreId ? "warehouses" : "",
     "name",
@@ -99,7 +112,7 @@ export default function StockLedgerReportPage() {
         <div className="flex flex-wrap items-end gap-3">
           <div className="w-48 space-y-1.5">
             <SearchableSelect
-              options={financialYears}
+              options={financialYears.map((fy) => ({ value: fy.id, label: fy.label }))}
               value={financialYearId}
               onChange={setFinancialYearId}
               placeholder="Financial year"

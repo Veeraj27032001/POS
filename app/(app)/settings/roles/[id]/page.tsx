@@ -42,6 +42,7 @@ const MODULE_LABELS: Record<string, string> = {
   hsn_codes: "HSN Codes",
   financial_years: "Financial Years",
   bill_formats: "Bill Formats",
+  ecommerce: "E-commerce",
 };
 
 export default function RoleDetailPage() {
