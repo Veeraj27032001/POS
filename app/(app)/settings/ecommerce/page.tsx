@@ -7,6 +7,7 @@ import { DataTable } from "@/components/data-table/data-table";
 import { StoreCardFilter } from "@/components/store-card-filter";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -17,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { SearchableSelectOption } from "@/components/searchable-select";
 import { formatTimestamp } from "@/lib/datetime/format";
 import { buildIntegrationGuideHtml } from "@/lib/ecommerce/integrationGuideHtml";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
@@ -41,14 +43,31 @@ interface ApiCredentialRow {
   createdAt: string;
   lastUsedAt: string | null;
   revokedAt: string | null;
+  multiStoreEnabled: boolean;
+  splitOrdersEnabled: boolean;
 }
 
 const API_LIST: { method: string; path: string; description: string }[] = [
   {
     method: "GET",
+    path: "/api/v1/ecommerce/stores",
+    description: "Every store this credential can sell from and bill to.",
+  },
+  {
+    method: "GET",
+    path: "/api/v1/ecommerce/categories",
+    description: "Category list for catalog navigation/filtering.",
+  },
+  {
+    method: "GET",
     path: "/api/v1/ecommerce/products",
     description:
       "List active, stock-tracked products with price, images, tax info, and live available stock.",
+  },
+  {
+    method: "GET",
+    path: "/api/v1/ecommerce/products/{product_id}",
+    description: "Single product detail, for a product page.",
   },
   {
     method: "GET",
@@ -58,7 +77,7 @@ const API_LIST: { method: string; path: string; description: string }[] = [
   {
     method: "POST",
     path: "/api/v1/ecommerce/stock-lock",
-    description: "Reserve a quantity for a product at a warehouse — cart/checkout in progress.",
+    description: "Reserve a quantity for a product — cart/checkout in progress.",
   },
   {
     method: "DELETE",
@@ -70,21 +89,70 @@ const API_LIST: { method: string; path: string; description: string }[] = [
     path: "/api/v1/ecommerce/bills",
     description: "Create a completed Online Bill once the order is confirmed/paid on your side.",
   },
+  {
+    method: "GET",
+    path: "/api/v1/ecommerce/orders/{order_id}",
+    description: "Single order lookup — order confirmation/tracking.",
+  },
+  {
+    method: "POST",
+    path: "/api/v1/ecommerce/customers/request-otp",
+    description: "Registers or re-sends a sign-in code (SMS, or email as a fallback).",
+  },
+  {
+    method: "POST",
+    path: "/api/v1/ecommerce/customers/verify-otp",
+    description: "Verifies the code and returns the customer.",
+  },
+  {
+    method: "POST",
+    path: "/api/v1/ecommerce/customers/login",
+    description: "Phone + password sign-in, once a customer has set one.",
+  },
+  {
+    method: "POST",
+    path: "/api/v1/ecommerce/customers/set-password",
+    description: "Sets/changes a signed-in customer's password.",
+  },
+  {
+    method: "POST",
+    path: "/api/v1/ecommerce/customers/reset-password",
+    description: "Forgot password: verifies a code and sets a new password in one step.",
+  },
+  {
+    method: "GET",
+    path: "/api/v1/ecommerce/customers/{customer_id}",
+    description: "Re-fetch a signed-in customer's profile.",
+  },
+  {
+    method: "GET",
+    path: "/api/v1/ecommerce/customers/{customer_id}/orders",
+    description: "A customer's own order history.",
+  },
 ];
 
 function NewCredentialDialog({
   storeId,
   storeName,
+  otherStores,
   onCreated,
 }: {
   storeId: string;
   storeName: string;
+  otherStores: SearchableSelectOption[];
   onCreated: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [label, setLabel] = useState("");
+  const [multiStoreEnabled, setMultiStoreEnabled] = useState(false);
+  const [splitOrdersEnabled, setSplitOrdersEnabled] = useState(false);
+  const [fulfilmentStoreIds, setFulfilmentStoreIds] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [created, setCreated] = useState<{ apiKey: string; apiSecret: string } | null>(null);
+
+  function toggleFulfilmentStore(id: string, checked: boolean) {
+    setFulfilmentStoreIds((prev) => (checked ? [...prev, id] : prev.filter((s) => s !== id)));
+  }
 
   async function submit() {
     if (!label.trim()) {
@@ -96,7 +164,13 @@ function NewCredentialDialog({
       const res = await fetch("/api/api-credentials", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ label, storeId }),
+        body: JSON.stringify({
+          label,
+          storeId,
+          multiStoreEnabled,
+          splitOrdersEnabled: multiStoreEnabled && splitOrdersEnabled,
+          fulfilmentStoreIds: multiStoreEnabled ? fulfilmentStoreIds : [],
+        }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
@@ -114,6 +188,9 @@ function NewCredentialDialog({
   function close() {
     setOpen(false);
     setLabel("");
+    setMultiStoreEnabled(false);
+    setSplitOrdersEnabled(false);
+    setFulfilmentStoreIds([]);
     setCreated(null);
   }
 
@@ -141,6 +218,61 @@ function NewCredentialDialog({
                 placeholder="e.g. My Shopify Store"
               />
             </div>
+
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="multi-store-enabled"
+                checked={multiStoreEnabled}
+                onCheckedChange={(checked) => setMultiStoreEnabled(checked === true)}
+              />
+              <Label htmlFor="multi-store-enabled">
+                Sell from more than one store ({storeName} plus others)
+              </Label>
+            </div>
+
+            {multiStoreEnabled && (
+              <div className="space-y-3 rounded-lg border p-3">
+                {otherStores.length === 0 ? (
+                  <p className="text-muted-foreground text-sm">
+                    No other stores exist yet — this will only sell from {storeName}.
+                  </p>
+                ) : (
+                  <div className="space-y-1.5">
+                    <Label>Also sell from</Label>
+                    <div className="max-h-32 space-y-1.5 overflow-y-auto">
+                      {otherStores.map((store) => (
+                        <div key={store.value} className="flex items-center gap-2">
+                          <Checkbox
+                            id={`fulfil-${store.value}`}
+                            checked={fulfilmentStoreIds.includes(store.value)}
+                            onCheckedChange={(checked) =>
+                              toggleFulfilmentStore(store.value, checked === true)
+                            }
+                          />
+                          <Label htmlFor={`fulfil-${store.value}`}>{store.label}</Label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="split-orders-enabled"
+                    checked={splitOrdersEnabled}
+                    onCheckedChange={(checked) => setSplitOrdersEnabled(checked === true)}
+                  />
+                  <Label htmlFor="split-orders-enabled">
+                    Allow one order to split across stores when no single store has enough stock
+                  </Label>
+                </div>
+                <p className="text-muted-foreground text-xs">
+                  {storeName} is tried first. If it can&apos;t cover an order alone, stock moves in
+                  from another eligible store automatically — the order still gets one bill, at{" "}
+                  {storeName}.
+                </p>
+              </div>
+            )}
+
             <DialogFooter>
               <Button type="button" variant="outline" onClick={close}>
                 Cancel
@@ -222,6 +354,7 @@ export default function EcommerceSettingsPage() {
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const selectedStoreName = stores.find((s) => s.value === selectedStoreId)?.label ?? "Your store";
+  const otherStores = stores.filter((s) => s.value !== selectedStoreId);
 
   async function revoke(id: string) {
     setRevokingId(id);
@@ -260,6 +393,7 @@ export default function EcommerceSettingsPage() {
             <NewCredentialDialog
               storeId={selectedStoreId}
               storeName={selectedStoreName}
+              otherStores={otherStores}
               onCreated={() => invalidate("api-credentials")}
             />
           </div>
@@ -285,6 +419,18 @@ export default function EcommerceSettingsPage() {
                     <Badge>Active</Badge>
                   ) : (
                     <Badge variant="secondary">Inactive</Badge>
+                  ),
+              },
+              {
+                key: "multiStoreEnabled",
+                header: "Stores",
+                render: (row) =>
+                  row.multiStoreEnabled ? (
+                    <Badge variant="secondary">
+                      Multi-store{row.splitOrdersEnabled ? " + split" : ""}
+                    </Badge>
+                  ) : (
+                    "Single"
                   ),
               },
               {

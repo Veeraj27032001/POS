@@ -47,6 +47,11 @@ export async function POST(request: Request) {
         apiKey,
         apiSecretHash,
         createdByUserId: session.user.id,
+        multiStoreEnabled: parsed.data.multiStoreEnabled,
+        splitOrdersEnabled: parsed.data.splitOrdersEnabled,
+        fulfilmentStores: {
+          connect: parsed.data.fulfilmentStoreIds.map((id) => ({ id })),
+        },
       },
     }),
   );

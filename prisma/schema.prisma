@@ -127,6 +127,7 @@ model Store {
   priceLists        PriceList[]
   loyaltyRules      LoyaltyRule[]
   apiCredentials    ApiCredential[]
+  ecommerceFulfils  ApiCredential[]    @relation("ApiCredentialFulfilmentStores")
   customers         Customer[]
   suppliers         Supplier[]
   cashDenominations CashDenomination[]
@@ -902,9 +903,6 @@ model Customer {
   state         State?   @relation(fields: [stateId], references: [id])
   pincode       String?
   taxId         String?  @map("tax_id")
-  // Storefront login only (step7's merchant API doesn't touch this) —
-  // optional, since phone + OTP works with no password at all.
-  passwordHash  String?  @map("password_hash")
   creditLimit   Decimal? @map("credit_limit") @db.Decimal(12, 2)
   loyaltyPoints Int?     @map("loyalty_points")
   isActive      Boolean  @default(true) @map("is_active")
@@ -914,11 +912,31 @@ model Customer {
 
   stores Store[]
 
-  bills         Bill[]
-  creditNotes   CreditNote[]
-  notifications Notification[]
+  bills             Bill[]
+  creditNotes       CreditNote[]
+  notifications     Notification[]
+  ecommerceCustomer EcommerceCustomer?
 
   @@map("customers")
+}
+
+// step7's own customer master — a merchant's online shopper. Deliberately
+// separate from Customer (the in-store/credit-bill master every other part
+// of the app uses): this is the identity an e-commerce API key logs in and
+// authenticates, carrying only what login needs. `customerId` links it to
+// the Customer record that actually appears on the resulting Bill, so the
+// same person's online and in-store history still meet in one place without
+// login/password concerns ever touching the shared master.
+model EcommerceCustomer {
+  id           String   @id @default(uuid())
+  phone        String   @unique
+  customerId   String   @unique @map("customer_id")
+  customer     Customer @relation(fields: [customerId], references: [id])
+  passwordHash String?  @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("ecommerce_customers")
 }
 
 model Supplier {
@@ -1151,6 +1169,17 @@ model ApiCredential {
   createdAt       DateTime  @default(now()) @map("created_at")
   lastUsedAt      DateTime? @map("last_used_at")
   revokedAt       DateTime? @map("revoked_at")
+
+  // step7 multi-store: an online shop isn't tied to one store. When enabled,
+  // this integration can sell from every store in `fulfilmentStores` — the
+  // catalog aggregates their stock, and an order is fulfilled by whichever
+  // store(s) actually have it. Each fulfilling store gets its own Bill, so
+  // it only ever appears in that store's billing.
+  multiStoreEnabled  Boolean @default(false) @map("multi_store_enabled")
+  // Allows one order to be split across several stores when no single store
+  // has enough. Off means an order that can't be filled by one store fails.
+  splitOrdersEnabled Boolean @default(false) @map("split_orders_enabled")
+  fulfilmentStores   Store[] @relation("ApiCredentialFulfilmentStores")
 
   @@map("api_credentials")
 }

@@ -12,17 +12,21 @@ function generateCode(): string {
   return String(randomInt(0, 1_000_000)).padStart(6, "0");
 }
 
+// Registers (on first use) or re-sends a code for an EcommerceCustomer —
+// step7's own login identity, kept separate from the in-store Customer
+// master. First registration also creates the linked Customer record, since
+// that's what actually appears on the resulting Bill.
 export async function requestOtp(params: {
   phone: string;
   email: string;
   name?: string;
   storeId: string;
-}): Promise<{ customerId: string }> {
+}): Promise<{ ecommerceCustomerId: string }> {
   const db = unscoped();
 
-  let customer = await db.customer.findFirst({ where: { phone: params.phone } });
-  if (!customer) {
-    customer = await db.customer.create({
+  let ecommerceCustomer = await db.ecommerceCustomer.findUnique({ where: { phone: params.phone } });
+  if (!ecommerceCustomer) {
+    const customer = await db.customer.create({
       data: {
         phone: params.phone,
         email: params.email,
@@ -30,15 +34,21 @@ export async function requestOtp(params: {
         stores: { connect: [{ id: params.storeId }] },
       },
     });
-  } else {
-    const linked = await db.customer.findFirst({
-      where: { id: customer.id, stores: { some: { id: params.storeId } } },
+    ecommerceCustomer = await db.ecommerceCustomer.create({
+      data: { phone: params.phone, customerId: customer.id },
     });
-    customer = await db.customer.update({
-      where: { id: customer.id },
+  } else {
+    const customer = await db.customer.findUnique({ where: { id: ecommerceCustomer.customerId } });
+    const linked = customer
+      ? await db.customer.findFirst({
+          where: { id: customer.id, stores: { some: { id: params.storeId } } },
+        })
+      : null;
+    await db.customer.update({
+      where: { id: ecommerceCustomer.customerId },
       data: {
         email: params.email,
-        name: params.name ?? customer.name,
+        name: params.name ?? customer?.name,
         ...(linked ? {} : { stores: { connect: [{ id: params.storeId }] } }),
       },
     });
@@ -66,11 +76,11 @@ export async function requestOtp(params: {
       : { to: params.email, channel: "email", subject: "Your sign-in code", body },
   );
 
-  return { customerId: customer.id };
+  return { ecommerceCustomerId: ecommerceCustomer.id };
 }
 
 export type VerifyOtpResult =
-  | { ok: true; customerId: string }
+  | { ok: true; ecommerceCustomerId: string }
   | { ok: false; reason: "not_found" | "expired" | "too_many_attempts" | "incorrect" };
 
 export async function verifyOtp(phone: string, code: string): Promise<VerifyOtpResult> {
@@ -98,8 +108,8 @@ export async function verifyOtp(phone: string, code: string): Promise<VerifyOtpR
     data: { consumedAt: new Date() },
   });
 
-  const customer = await db.customer.findFirst({ where: { phone } });
-  if (!customer) return { ok: false, reason: "not_found" };
+  const ecommerceCustomer = await db.ecommerceCustomer.findUnique({ where: { phone } });
+  if (!ecommerceCustomer) return { ok: false, reason: "not_found" };
 
-  return { ok: true, customerId: customer.id };
+  return { ok: true, ecommerceCustomerId: ecommerceCustomer.id };
 }

@@ -228,10 +228,16 @@ export const loyaltyRuleUpdateSchema = loyaltyRuleCreateSchema.partial();
 export const apiCredentialCreateSchema = z.object({
   label: requiredString("Label"),
   storeId: opaqueIdSchema.optional(),
+  multiStoreEnabled: z.boolean().default(false),
+  splitOrdersEnabled: z.boolean().default(false),
+  fulfilmentStoreIds: z.array(opaqueIdSchema).default([]),
 });
 export const apiCredentialUpdateSchema = z.object({
   label: requiredString("Label").optional(),
   isActive: z.boolean().optional(),
+  multiStoreEnabled: z.boolean().optional(),
+  splitOrdersEnabled: z.boolean().optional(),
+  fulfilmentStoreIds: z.array(opaqueIdSchema).optional(),
 });
 
 export const storeCreateSchema = z.object({

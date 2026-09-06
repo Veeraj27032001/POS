@@ -23,7 +23,7 @@ export async function GET(
   }
 
   const warehouses = await db.warehouse.findMany({
-    where: { storeId: auth.storeId, isActive: true, isDeleted: false },
+    where: { storeId: { in: auth.storeIds }, isActive: true, isDeleted: false },
     select: { id: true },
   });
 

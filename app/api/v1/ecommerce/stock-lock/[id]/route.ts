@@ -15,7 +15,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   const db = unscoped();
 
   const main = await db.stockBlockMain.findUnique({ where: { id } });
-  if (!main || main.storeId !== auth.storeId || main.sourceType !== "ecommerce_order") {
+  if (!main || !auth.storeIds.includes(main.storeId) || main.sourceType !== "ecommerce_order") {
     return apiErrorResponse("not_found", "Stock lock not found.", 404);
   }
 
@@ -25,10 +25,10 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     data: { status: "released", releasedByUserId: auth.createdByUserId, releasedAt: now },
   });
 
-  await runWithStoreContext({ storeId: auth.storeId, userId: auth.createdByUserId }, () =>
+  await runWithStoreContext({ storeId: main.storeId, userId: auth.createdByUserId }, () =>
     writeAuditLog({
       userId: auth.createdByUserId,
-      storeId: auth.storeId,
+      storeId: main.storeId,
       action: "update",
       entityType: "stock_block",
       entityId: main.id,

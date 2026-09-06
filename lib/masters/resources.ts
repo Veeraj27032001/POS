@@ -269,6 +269,15 @@ export const loyaltyRuleResource = defineResource({
   getDelegate: delegateOf("loyaltyRule"),
 });
 
+function withFulfilmentStoreIds(data: Record<string, unknown>): Record<string, unknown> {
+  const { fulfilmentStoreIds, ...rest } = data;
+  if (!Array.isArray(fulfilmentStoreIds)) return rest;
+  return {
+    ...rest,
+    fulfilmentStores: { set: fulfilmentStoreIds.map((id) => ({ id: String(id) })) },
+  };
+}
+
 export const apiCredentialResource = defineResource({
   name: "api_credential",
   module: "ecommerce",
@@ -277,6 +286,7 @@ export const apiCredentialResource = defineResource({
   createSchema: schemas.apiCredentialCreateSchema,
   updateSchema: schemas.apiCredentialUpdateSchema,
   getDelegate: delegateOf("apiCredential"),
+  beforeUpdate: (data) => withFulfilmentStoreIds(data),
 });
 
 export const storeResource = defineResource({

@@ -1,24 +1,27 @@
-import { recomputeBillTotals } from "@/lib/billing/recomputeBillTotals";
 import { replaceBillLineAllocations } from "@/lib/billing/allocateBillLineStock";
+import { recomputeBillTotals } from "@/lib/billing/recomputeBillTotals";
 import { resolveTax } from "@/lib/billing/resolveTax";
 import { runWithStoreContext, unscoped } from "@/lib/db";
-import { dateOnlyToUtcMidnight, todayAsDateOnly, toDateOnly } from "@/lib/datetime/dateOnly";
+import { dateOnlyToUtcMidnight, toDateOnly, todayAsDateOnly } from "@/lib/datetime/dateOnly";
 import { authenticateApiCredential } from "@/lib/ecommerce/authenticateApiCredential";
 import { getDefaultWarehouseId } from "@/lib/ecommerce/defaultWarehouse";
 import { resolveFinancialYearForDate } from "@/lib/ecommerce/resolveFinancialYear";
+import { resolveFulfilment, type FulfilmentAllocation } from "@/lib/ecommerce/resolveFulfilment";
 import { ecommerceBillCreateSchema } from "@/lib/ecommerce/schemas";
+import { transferStockForFulfilment } from "@/lib/ecommerce/transferForFulfilment";
 import { allocateDocumentNumber } from "@/lib/numbering/allocateDocumentNumber";
 import { writeAuditLog } from "@/lib/security/audit";
-import { getStockLevels } from "@/lib/stock/getStockLevels";
 import { apiErrorResponse, parseJsonOrRespond } from "@/lib/validation/response";
 
 class EcommerceBillError extends Error {}
 
-// step7 §3/§5 — POST /v1/ecommerce/bills: creates a completed Online Bill,
-// called once the order is confirmed/paid on the e-commerce app's own side
-// (payment itself stays outside this API). Releases any stock locks the
-// lines reference and permanently deducts stock the same way any other
-// completed bill does.
+// step7 §3/§5 — POST /v1/ecommerce/bills: records a confirmed/paid online
+// order (payment itself stays outside this API). One order always produces
+// exactly one bill, at one store — the caller's preferred store when it can
+// cover the order alone; when it can't, whatever's short is auto-transferred
+// in from another store the integration is allowed to sell from, so the
+// customer still only ever sees a single order, and the billing store's own
+// books show a normal transfer-in, not a second bill.
 export async function POST(request: Request) {
   const auth = await authenticateApiCredential(request);
   if (!auth) {
@@ -30,7 +33,6 @@ export async function POST(request: Request) {
   const data = parsed.data;
 
   const db = unscoped();
-
   const billDate = dateOnlyToUtcMidnight(
     data.billDate ? toDateOnly(data.billDate) : todayAsDateOnly(),
   );
@@ -44,12 +46,21 @@ export async function POST(request: Request) {
     );
   }
 
-  const [store, terminal] = await Promise.all([
-    db.store.findUnique({ where: { id: auth.storeId }, include: { taxEngine: true } }),
+  if (data.storeId && !auth.storeIds.includes(data.storeId)) {
+    return apiErrorResponse("bad_request", "That store isn't available to this integration.", 400);
+  }
+  // The one store the order is billed from. Defaults to the credential's own
+  // store — the caller can name a different one only from the set this
+  // integration is allowed to sell from.
+  const billingStoreId = data.storeId ?? auth.storeId;
+
+  const [store, terminal, billingWarehouseId] = await Promise.all([
+    db.store.findUnique({ where: { id: billingStoreId }, include: { taxEngine: true } }),
     db.terminal.findFirst({
-      where: { storeId: auth.storeId, isActive: true, isDeleted: false },
+      where: { storeId: billingStoreId, isActive: true, isDeleted: false },
       orderBy: { name: "asc" },
     }),
+    getDefaultWarehouseId(billingStoreId),
   ]);
   if (!store) return apiErrorResponse("not_found", "Store not found.", 404);
   if (!terminal) {
@@ -67,17 +78,17 @@ export async function POST(request: Request) {
         name: data.customer.name,
         phone: data.customer.phone,
         email: data.customer.email ?? null,
-        stores: { connect: [{ id: auth.storeId }] },
+        stores: { connect: [{ id: billingStoreId }] },
       },
     });
   } else {
-    const alreadyLinked = await db.customer.findFirst({
-      where: { id: customer.id, stores: { some: { id: auth.storeId } } },
+    const linked = await db.customer.findFirst({
+      where: { id: customer.id, stores: { some: { id: billingStoreId } } },
     });
-    if (!alreadyLinked) {
+    if (!linked) {
       await db.customer.update({
         where: { id: customer.id },
-        data: { stores: { connect: [{ id: auth.storeId }] } },
+        data: { stores: { connect: [{ id: billingStoreId }] } },
       });
     }
   }
@@ -88,90 +99,59 @@ export async function POST(request: Request) {
     include: { hsnCode: true },
   });
   const productById = new Map(products.map((p) => [p.id, p]));
-  const defaultWarehouseId = await getDefaultWarehouseId(auth.storeId);
 
-  const preparedLines: {
-    product: (typeof products)[number];
-    warehouseId: string;
-    quantity: number;
-    stockLockItemId?: string;
-    lineSubtotal: number;
-    tax: Awaited<ReturnType<typeof resolveTax>>;
-    lineTotal: number;
-  }[] = [];
+  for (const line of data.lines) {
+    const product = productById.get(line.productId);
+    if (!product || !product.isActive || product.isDeleted) {
+      return apiErrorResponse(
+        "bad_request",
+        `Product not found or inactive: ${line.productId}`,
+        400,
+      );
+    }
+  }
+
+  // Lines that name a stock lock are already pinned to wherever that lock
+  // reserved stock; everything else gets allocated fresh, preferring the
+  // billing store before reaching into any other store this integration
+  // can sell from.
+  const pinned: (FulfilmentAllocation & { stockLockItemId: string })[] = [];
+  const toAllocate: { productId: string; quantity: number }[] = [];
 
   try {
     for (const line of data.lines) {
-      const product = productById.get(line.productId);
-      if (!product || !product.isActive || product.isDeleted) {
-        throw new EcommerceBillError(`Product not found or inactive: ${line.productId}`);
+      const product = productById.get(line.productId)!;
+      if (!product.stockTracked) continue;
+
+      if (!line.stockLockId) {
+        toAllocate.push({ productId: line.productId, quantity: line.quantity });
+        continue;
       }
 
-      // An online shopper never picks a warehouse — default to the store's
-      // own unless the caller named one.
-      const lineWarehouseId = line.warehouseId ?? defaultWarehouseId;
-      if (!lineWarehouseId) {
-        throw new EcommerceBillError("This store has no active warehouse.");
-      }
-      const warehouse = await db.warehouse.findUnique({ where: { id: lineWarehouseId } });
-      if (!warehouse || warehouse.storeId !== auth.storeId) {
-        throw new EcommerceBillError(`Warehouse not found for this store: ${lineWarehouseId}`);
-      }
-
-      let stockLockItemId: string | undefined;
-      if (product.stockTracked) {
-        if (line.stockLockId) {
-          const lockMain = await db.stockBlockMain.findUnique({
-            where: { id: line.stockLockId },
-            include: { items: true },
-          });
-          const lockItem = lockMain?.items.find(
-            (item) => item.productId === line.productId && item.status === "active",
-          );
-          if (
-            !lockMain ||
-            lockMain.storeId !== auth.storeId ||
-            lockMain.sourceType !== "ecommerce_order" ||
-            lockMain.warehouseId !== lineWarehouseId ||
-            !lockItem ||
-            lockItem.quantityBlocked !== line.quantity
-          ) {
-            throw new EcommerceBillError(
-              `Stock lock ${line.stockLockId} doesn't match this line — release it and lock again.`,
-            );
-          }
-          stockLockItemId = lockItem.id;
-        } else {
-          const { available } = await getStockLevels({
-            productId: product.id,
-            warehouseId: lineWarehouseId,
-          });
-          if (line.quantity > available) {
-            throw new EcommerceBillError(
-              `Only ${available} of ${product.name} available at that warehouse.`,
-            );
-          }
-        }
-      }
-
-      const lineSubtotal = Number(product.price) * line.quantity;
-      const tax = await resolveTax({
-        productId: product.id,
-        lineSubtotal,
-        storeTaxEngineCode: store.taxEngine?.code ?? null,
-        storeStateId: store.stateId,
-        customerStateId: customer.stateId,
-        excludeTax: false,
+      const lockMain = await db.stockBlockMain.findUnique({
+        where: { id: line.stockLockId },
+        include: { items: true },
       });
-
-      preparedLines.push({
-        product,
-        warehouseId: lineWarehouseId,
+      const lockItem = lockMain?.items.find(
+        (item) => item.productId === line.productId && item.status === "active",
+      );
+      if (
+        !lockMain ||
+        !auth.storeIds.includes(lockMain.storeId) ||
+        lockMain.sourceType !== "ecommerce_order" ||
+        !lockItem ||
+        lockItem.quantityBlocked !== line.quantity
+      ) {
+        throw new EcommerceBillError(
+          `Stock lock ${line.stockLockId} doesn't match this line — release it and lock again.`,
+        );
+      }
+      pinned.push({
+        storeId: lockMain.storeId,
+        warehouseId: lockMain.warehouseId,
+        productId: line.productId,
         quantity: line.quantity,
-        stockLockItemId,
-        lineSubtotal,
-        tax,
-        lineTotal: lineSubtotal + tax.taxAmount,
+        stockLockItemId: lockItem.id,
       });
     }
   } catch (error) {
@@ -181,11 +161,54 @@ export async function POST(request: Request) {
     throw error;
   }
 
+  let freshAllocations: FulfilmentAllocation[] = [];
+  if (toAllocate.length > 0) {
+    const fulfilment = await resolveFulfilment({
+      storeIds: auth.storeIds,
+      preferredStoreId: billingStoreId,
+      lines: toAllocate,
+      allowSplit: auth.splitOrdersEnabled,
+    });
+    if (!fulfilment.ok) {
+      return apiErrorResponse("bad_request", fulfilment.reason, 400);
+    }
+    freshAllocations = fulfilment.allocations;
+  }
+
+  if (
+    freshAllocations.some((a) => a.storeId !== billingStoreId) ||
+    pinned.some((p) => p.storeId !== billingStoreId)
+  ) {
+    if (!billingWarehouseId) {
+      return apiErrorResponse(
+        "bad_request",
+        `Store "${store.name}" has no active warehouse to receive transferred stock.`,
+        400,
+      );
+    }
+  }
+
   const now = new Date();
   const result = await db.$transaction(async (tx) => {
+    // Bring in anything sourced from another store first — after this, it's
+    // physically at the billing store's own warehouse.
+    await transferStockForFulfilment(tx, {
+      allocations: [...pinned, ...freshAllocations],
+      billingStoreId,
+      destinationWarehouseId: billingWarehouseId ?? "",
+      financialYearId: financialYear.id,
+      userId: auth.createdByUserId,
+      products: new Map(
+        products.map((p) => [
+          p.id,
+          { name: p.name, systemBarcode: p.systemBarcode, price: p.price, hsnCode: p.hsnCode },
+        ]),
+      ),
+    });
+
     const { documentNumber } = await allocateDocumentNumber(tx, {
       seriesType: "online_bill",
-      storeId: auth.storeId,
+      storeId: billingStoreId,
       financialYearId: financialYear.id,
     });
 
@@ -195,7 +218,7 @@ export async function POST(request: Request) {
         financialYearId: financialYear.id,
         billType: "online_bill",
         billDate,
-        storeId: auth.storeId,
+        storeId: billingStoreId,
         terminalId: terminal.id,
         cashierUserId: auth.createdByUserId,
         customerId: customer!.id,
@@ -207,41 +230,62 @@ export async function POST(request: Request) {
       },
     });
 
-    for (const line of preparedLines) {
+    for (const line of data.lines) {
+      const product = productById.get(line.productId)!;
+      const lineSubtotal = Number(product.price) * line.quantity;
+      const tax = await resolveTax({
+        productId: line.productId,
+        lineSubtotal,
+        storeTaxEngineCode: store.taxEngine?.code ?? null,
+        storeStateId: store.stateId,
+        customerStateId: customer!.stateId,
+        excludeTax: false,
+      });
+
       const billLine = await tx.billLine.create({
         data: {
           billId: bill.id,
-          productId: line.product.id,
-          productName: line.product.name,
-          productBarcode: line.product.systemBarcode,
+          productId: line.productId,
+          productName: product.name,
+          productBarcode: product.systemBarcode,
           quantity: line.quantity,
-          unitPrice: line.product.price,
-          taxBreakdown: line.tax as never,
-          lineTotal: line.lineTotal,
+          unitPrice: product.price,
+          taxBreakdown: tax as never,
+          lineTotal: lineSubtotal + tax.taxAmount,
         },
       });
 
-      if (line.product.stockTracked) {
-        await replaceBillLineAllocations(tx, {
-          billLineId: billLine.id,
-          allocations: [{ warehouseId: line.warehouseId, quantity: line.quantity }],
+      if (!product.stockTracked) continue;
+
+      // Every unit ends up physically at the billing store now (transferred
+      // in, if it wasn't already there) — the sale is recorded there too.
+      const ownAllocations = [...pinned, ...freshAllocations].filter(
+        (a) => a.productId === line.productId,
+      );
+      await replaceBillLineAllocations(tx, {
+        billLineId: billLine.id,
+        allocations: ownAllocations.map((a) => ({
+          warehouseId: a.storeId === billingStoreId ? a.warehouseId : billingWarehouseId!,
+          quantity: a.quantity,
+        })),
+      });
+
+      for (const allocation of pinned) {
+        if (allocation.productId !== line.productId) continue;
+        await tx.stockBlockItem.update({
+          where: { id: allocation.stockLockItemId },
+          data: { status: "released", releasedByUserId: auth.createdByUserId, releasedAt: now },
         });
-        if (line.stockLockItemId) {
-          await tx.stockBlockItem.update({
-            where: { id: line.stockLockItemId },
-            data: { status: "released", releasedByUserId: auth.createdByUserId, releasedAt: now },
-          });
-        }
       }
     }
 
     return recomputeBillTotals(tx, bill.id);
   });
 
-  await runWithStoreContext({ storeId: auth.storeId, userId: auth.createdByUserId }, () =>
+  await runWithStoreContext({ storeId: billingStoreId, userId: auth.createdByUserId }, () =>
     writeAuditLog({
       userId: auth.createdByUserId,
-      storeId: auth.storeId,
+      storeId: billingStoreId,
       action: "create",
       entityType: "bill",
       entityId: result.id,
@@ -250,6 +294,5 @@ export async function POST(request: Request) {
   );
 
   const lines = await db.billLine.findMany({ where: { billId: result.id } });
-
   return Response.json({ ...result, lines }, { status: 201 });
 }

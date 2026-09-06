@@ -16,12 +16,13 @@ export async function GET(request: Request) {
   const page = Math.max(1, Number(url.searchParams.get("page") ?? 1));
   const pageSize = Math.max(1, Math.min(200, Number(url.searchParams.get("pageSize") ?? 50)));
   const search = url.searchParams.get("search")?.trim() || undefined;
+  const categoryId = url.searchParams.get("categoryId") || undefined;
 
   const db = unscoped();
   const [preferences, warehouses] = await Promise.all([
     db.taxPreferences.findFirst(),
     db.warehouse.findMany({
-      where: { storeId: auth.storeId, isActive: true, isDeleted: false },
+      where: { storeId: { in: auth.storeIds }, isActive: true, isDeleted: false },
       select: { id: true },
     }),
   ]);
@@ -31,6 +32,7 @@ export async function GET(request: Request) {
     isActive: true,
     isDeleted: false,
     stockTracked: true,
+    ...(categoryId ? { categoryId } : {}),
     ...(search
       ? {
           OR: [

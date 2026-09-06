@@ -23,6 +23,11 @@ export async function POST(request: Request) {
 
   const db = unscoped();
 
+  if (data.storeId && !auth.storeIds.includes(data.storeId)) {
+    return apiErrorResponse("bad_request", "That store isn't available to this integration.", 400);
+  }
+  const targetStoreId = data.storeId ?? auth.storeId;
+
   const product = await db.product.findUnique({
     where: { id: data.productId },
     include: { hsnCode: true },
@@ -35,13 +40,13 @@ export async function POST(request: Request) {
   if (!warehouseId) {
     // An online shopper never picks a warehouse — fulfil from the store's
     // default one unless the caller names a specific one.
-    warehouseId = (await getDefaultWarehouseId(auth.storeId)) ?? undefined;
+    warehouseId = (await getDefaultWarehouseId(targetStoreId)) ?? undefined;
     if (!warehouseId) {
       return apiErrorResponse("bad_request", "This store has no active warehouse.", 400);
     }
   } else {
     const warehouse = await db.warehouse.findUnique({ where: { id: warehouseId } });
-    if (!warehouse || warehouse.storeId !== auth.storeId) {
+    if (!warehouse || warehouse.storeId !== targetStoreId) {
       return apiErrorResponse("bad_request", "Warehouse not found for this store.", 400);
     }
   }
@@ -75,14 +80,14 @@ export async function POST(request: Request) {
   const result = await db.$transaction(async (tx) => {
     const { documentNumber } = await allocateDocumentNumber(tx, {
       seriesType: "stock_block",
-      storeId: auth.storeId,
+      storeId: targetStoreId,
       financialYearId: financialYear.id,
     });
     const main = await tx.stockBlockMain.create({
       data: {
         documentNumber,
         financialYearId: financialYear.id,
-        storeId: auth.storeId,
+        storeId: targetStoreId,
         warehouseId,
         sourceType: "ecommerce_order",
         sourceId: data.externalReference ?? null,
@@ -105,10 +110,10 @@ export async function POST(request: Request) {
     return main;
   });
 
-  await runWithStoreContext({ storeId: auth.storeId, userId: auth.createdByUserId }, () =>
+  await runWithStoreContext({ storeId: targetStoreId, userId: auth.createdByUserId }, () =>
     writeAuditLog({
       userId: auth.createdByUserId,
-      storeId: auth.storeId,
+      storeId: targetStoreId,
       action: "create",
       entityType: "stock_block",
       entityId: result.id,
@@ -116,7 +121,13 @@ export async function POST(request: Request) {
   );
 
   return Response.json(
-    { lockId: result.id, productId: product.id, warehouseId, quantity: data.quantity },
+    {
+      lockId: result.id,
+      storeId: targetStoreId,
+      productId: product.id,
+      warehouseId,
+      quantity: data.quantity,
+    },
     { status: 201 },
   );
 }
