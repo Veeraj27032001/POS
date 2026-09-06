@@ -102,8 +102,13 @@ function RejectDialog({ orderId, onDone }: { orderId: string; onDone: () => void
           <DialogTitle>Reject this order</DialogTitle>
         </DialogHeader>
         <div className="space-y-1.5">
-          <Label>Reason</Label>
-          <Textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={3} />
+          <Label htmlFor="reject-reason">Reason</Label>
+          <Textarea
+            id="reject-reason"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            rows={3}
+          />
           <p className="text-muted-foreground text-xs">
             The customer is notified. No invoice is ever created for this order.
           </p>
