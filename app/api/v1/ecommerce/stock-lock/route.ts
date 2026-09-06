@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   if (data.storeId && !auth.storeIds.includes(data.storeId)) {
     return apiErrorResponse("bad_request", "That store isn't available to this integration.", 400);
   }
-  const targetStoreId = data.storeId ?? auth.storeId;
+  const targetStoreId = data.storeId ?? auth.billingStoreId;
 
   const product = await db.product.findUnique({
     where: { id: data.productId },

@@ -18,6 +18,6 @@ export async function GET(request: Request) {
   });
 
   return Response.json({
-    data: stores.map((store) => ({ ...store, isDefault: store.id === auth.storeId })),
+    data: stores.map((store) => ({ ...store, isDefault: store.id === auth.billingStoreId })),
   });
 }

@@ -27,12 +27,12 @@ export async function POST(request: Request) {
   const parsed = await parseJsonOrRespond(request, apiCredentialCreateSchema);
   if ("response" in parsed) return parsed.response;
 
-  // Super Admin has no single store of their own — they pick which store
-  // this credential belongs to. A store-scoped session always uses its own
-  // store, ignoring any storeId the client might have sent.
-  const storeId = session.user.storeId ?? parsed.data.storeId;
-  if (!storeId) {
-    return apiErrorResponse("bad_request", "Select a store first.", 400);
+  if (!parsed.data.storeIds.includes(parsed.data.billingStoreId)) {
+    return apiErrorResponse(
+      "bad_request",
+      "The billing store must be one of the selected stores.",
+      400,
+    );
   }
 
   const apiKey = generatePublicToken("pk");
@@ -42,16 +42,13 @@ export async function POST(request: Request) {
   const created = await withStoreContext(() =>
     prisma.apiCredential.create({
       data: {
-        storeId,
+        billingStoreId: parsed.data.billingStoreId,
         label: parsed.data.label,
         apiKey,
         apiSecretHash,
         createdByUserId: session.user.id,
-        multiStoreEnabled: parsed.data.multiStoreEnabled,
         splitOrdersEnabled: parsed.data.splitOrdersEnabled,
-        fulfilmentStores: {
-          connect: parsed.data.fulfilmentStoreIds.map((id) => ({ id })),
-        },
+        stores: { connect: parsed.data.storeIds.map((id) => ({ id })) },
       },
     }),
   );

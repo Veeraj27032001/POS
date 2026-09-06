@@ -3,12 +3,12 @@ import { verifySecret } from "@/lib/security/hash";
 
 export interface EcommerceAuthContext {
   credentialId: string;
-  /** The credential's own store — the default/preferred one for fulfilment. */
-  storeId: string;
+  /** The store an order bills to by default — the caller may still name a
+   * different eligible store explicitly. */
+  billingStoreId: string;
   createdByUserId: string;
-  multiStoreEnabled: boolean;
   splitOrdersEnabled: boolean;
-  /** Every store this integration may sell from, preferred store first. */
+  /** Every store this credential may sell from and bill to. */
   storeIds: string[];
 }
 
@@ -26,7 +26,7 @@ export async function authenticateApiCredential(
   const db = unscoped();
   const credential = await db.apiCredential.findUnique({
     where: { apiKey },
-    include: { fulfilmentStores: { select: { id: true, isActive: true, isDeleted: true } } },
+    include: { stores: { select: { id: true, isActive: true, isDeleted: true } } },
   });
   if (!credential || !credential.isActive || credential.isDeleted || credential.revokedAt) {
     return null;
@@ -40,18 +40,14 @@ export async function authenticateApiCredential(
     data: { lastUsedAt: new Date() },
   });
 
-  const extraStoreIds = credential.multiStoreEnabled
-    ? credential.fulfilmentStores
-        .filter((s) => s.isActive && !s.isDeleted && s.id !== credential.storeId)
-        .map((s) => s.id)
-    : [];
+  const storeIds = credential.stores.filter((s) => s.isActive && !s.isDeleted).map((s) => s.id);
+  if (!storeIds.includes(credential.billingStoreId)) storeIds.unshift(credential.billingStoreId);
 
   return {
     credentialId: credential.id,
-    storeId: credential.storeId,
+    billingStoreId: credential.billingStoreId,
     createdByUserId: credential.createdByUserId,
-    multiStoreEnabled: credential.multiStoreEnabled,
     splitOrdersEnabled: credential.splitOrdersEnabled,
-    storeIds: [credential.storeId, ...extraStoreIds],
+    storeIds,
   };
 }

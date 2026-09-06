@@ -4,7 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { DataTable } from "@/components/data-table/data-table";
-import { StoreCardFilter } from "@/components/store-card-filter";
+import { SearchableSelect } from "@/components/searchable-select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -18,22 +18,10 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { SearchableSelectOption } from "@/components/searchable-select";
 import { formatTimestamp } from "@/lib/datetime/format";
-import { buildIntegrationGuideHtml } from "@/lib/ecommerce/integrationGuideHtml";
+import { downloadIntegrationGuidePdf } from "@/lib/ecommerce/integrationGuidePdf";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 import { useInvalidateResource } from "@/lib/pagination/useList";
-
-function openAndPrintHtml(html: string): void {
-  const win = window.open("", "_blank", "width=800,height=900");
-  if (!win) {
-    toast.error("The setup guide window was blocked by the browser's popup blocker.");
-    return;
-  }
-  win.document.write(html);
-  win.document.write("<script>window.onload = () => window.print();<\/script>");
-  win.document.close();
-}
 
 interface ApiCredentialRow {
   id: string;
@@ -43,8 +31,8 @@ interface ApiCredentialRow {
   createdAt: string;
   lastUsedAt: string | null;
   revokedAt: string | null;
-  multiStoreEnabled: boolean;
-  splitOrdersEnabled: boolean;
+  billingStore: { name: string } | null;
+  storeIds: string[];
 }
 
 const API_LIST: { method: string; path: string; description: string }[] = [
@@ -131,32 +119,33 @@ const API_LIST: { method: string; path: string; description: string }[] = [
   },
 ];
 
-function NewCredentialDialog({
-  storeId,
-  storeName,
-  otherStores,
-  onCreated,
-}: {
-  storeId: string;
-  storeName: string;
-  otherStores: SearchableSelectOption[];
-  onCreated: () => void;
-}) {
+function NewCredentialDialog({ onCreated }: { onCreated: () => void }) {
+  const stores = useOptionsList("stores/options", "name");
   const [open, setOpen] = useState(false);
   const [label, setLabel] = useState("");
-  const [multiStoreEnabled, setMultiStoreEnabled] = useState(false);
+  const [billingStoreId, setBillingStoreId] = useState<string | null>(null);
+  const [otherStoreIds, setOtherStoreIds] = useState<string[]>([]);
   const [splitOrdersEnabled, setSplitOrdersEnabled] = useState(false);
-  const [fulfilmentStoreIds, setFulfilmentStoreIds] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
-  const [created, setCreated] = useState<{ apiKey: string; apiSecret: string } | null>(null);
+  const [created, setCreated] = useState<{
+    apiKey: string;
+    apiSecret: string;
+    storeName: string;
+  } | null>(null);
 
-  function toggleFulfilmentStore(id: string, checked: boolean) {
-    setFulfilmentStoreIds((prev) => (checked ? [...prev, id] : prev.filter((s) => s !== id)));
+  const otherStores = stores.filter((s) => s.value !== billingStoreId);
+
+  function toggleOtherStore(id: string, checked: boolean) {
+    setOtherStoreIds((prev) => (checked ? [...prev, id] : prev.filter((s) => s !== id)));
   }
 
   async function submit() {
     if (!label.trim()) {
       toast.error("Give this credential a label.");
+      return;
+    }
+    if (!billingStoreId) {
+      toast.error("Select which store handles billing.");
       return;
     }
     setSubmitting(true);
@@ -166,10 +155,9 @@ function NewCredentialDialog({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           label,
-          storeId,
-          multiStoreEnabled,
-          splitOrdersEnabled: multiStoreEnabled && splitOrdersEnabled,
-          fulfilmentStoreIds: multiStoreEnabled ? fulfilmentStoreIds : [],
+          billingStoreId,
+          storeIds: [billingStoreId, ...otherStoreIds],
+          splitOrdersEnabled: otherStoreIds.length > 0 && splitOrdersEnabled,
         }),
       });
       if (!res.ok) {
@@ -178,7 +166,8 @@ function NewCredentialDialog({
         return;
       }
       const body = await res.json();
-      setCreated({ apiKey: body.apiKey, apiSecret: body.apiSecret });
+      const storeName = stores.find((s) => s.value === billingStoreId)?.label ?? "Store";
+      setCreated({ apiKey: body.apiKey, apiSecret: body.apiSecret, storeName });
       onCreated();
     } finally {
       setSubmitting(false);
@@ -188,9 +177,9 @@ function NewCredentialDialog({
   function close() {
     setOpen(false);
     setLabel("");
-    setMultiStoreEnabled(false);
+    setBillingStoreId(null);
+    setOtherStoreIds([]);
     setSplitOrdersEnabled(false);
-    setFulfilmentStoreIds([]);
     setCreated(null);
   }
 
@@ -219,57 +208,61 @@ function NewCredentialDialog({
               />
             </div>
 
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="multi-store-enabled"
-                checked={multiStoreEnabled}
-                onCheckedChange={(checked) => setMultiStoreEnabled(checked === true)}
+            <div className="space-y-1.5">
+              <Label>Billing store</Label>
+              <SearchableSelect
+                options={stores}
+                value={billingStoreId}
+                onChange={(id) => {
+                  setBillingStoreId(id);
+                  setOtherStoreIds((prev) => prev.filter((s) => s !== id));
+                }}
+                placeholder="Select a store…"
               />
-              <Label htmlFor="multi-store-enabled">
-                Sell from more than one store ({storeName} plus others)
-              </Label>
+              <p className="text-muted-foreground text-xs">
+                Every order is billed here by default, unless the request names a different store
+                below.
+              </p>
             </div>
 
-            {multiStoreEnabled && (
+            {billingStoreId && otherStores.length > 0 && (
               <div className="space-y-3 rounded-lg border p-3">
-                {otherStores.length === 0 ? (
-                  <p className="text-muted-foreground text-sm">
-                    No other stores exist yet — this will only sell from {storeName}.
-                  </p>
-                ) : (
-                  <div className="space-y-1.5">
-                    <Label>Also sell from</Label>
-                    <div className="max-h-32 space-y-1.5 overflow-y-auto">
-                      {otherStores.map((store) => (
-                        <div key={store.value} className="flex items-center gap-2">
-                          <Checkbox
-                            id={`fulfil-${store.value}`}
-                            checked={fulfilmentStoreIds.includes(store.value)}
-                            onCheckedChange={(checked) =>
-                              toggleFulfilmentStore(store.value, checked === true)
-                            }
-                          />
-                          <Label htmlFor={`fulfil-${store.value}`}>{store.label}</Label>
-                        </div>
-                      ))}
-                    </div>
+                <div className="space-y-1.5">
+                  <Label>Also sell from</Label>
+                  <div className="max-h-32 space-y-1.5 overflow-y-auto">
+                    {otherStores.map((store) => (
+                      <div key={store.value} className="flex items-center gap-2">
+                        <Checkbox
+                          id={`store-${store.value}`}
+                          checked={otherStoreIds.includes(store.value)}
+                          onCheckedChange={(checked) =>
+                            toggleOtherStore(store.value, checked === true)
+                          }
+                        />
+                        <Label htmlFor={`store-${store.value}`}>{store.label}</Label>
+                      </div>
+                    ))}
                   </div>
-                )}
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="split-orders-enabled"
-                    checked={splitOrdersEnabled}
-                    onCheckedChange={(checked) => setSplitOrdersEnabled(checked === true)}
-                  />
-                  <Label htmlFor="split-orders-enabled">
-                    Allow one order to split across stores when no single store has enough stock
-                  </Label>
                 </div>
-                <p className="text-muted-foreground text-xs">
-                  {storeName} is tried first. If it can&apos;t cover an order alone, stock moves in
-                  from another eligible store automatically — the order still gets one bill, at{" "}
-                  {storeName}.
-                </p>
+                {otherStoreIds.length > 0 && (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="split-orders-enabled"
+                        checked={splitOrdersEnabled}
+                        onCheckedChange={(checked) => setSplitOrdersEnabled(checked === true)}
+                      />
+                      <Label htmlFor="split-orders-enabled">
+                        Allow one order to split across stores when no single store has enough stock
+                      </Label>
+                    </div>
+                    <p className="text-muted-foreground text-xs">
+                      The billing store is tried first. If it can&apos;t cover an order alone, stock
+                      moves in from another selected store automatically — the order still gets one
+                      bill.
+                    </p>
+                  </>
+                )}
               </div>
             )}
 
@@ -327,15 +320,15 @@ function NewCredentialDialog({
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => {
-                  const html = buildIntegrationGuideHtml({
-                    storeName,
+                onClick={() =>
+                  downloadIntegrationGuidePdf({
+                    storeName: created.storeName,
                     apiKey: created.apiKey,
-                  }).replace("{{API_SECRET}}", created.apiSecret);
-                  openAndPrintHtml(html);
-                }}
+                    apiSecret: created.apiSecret,
+                  })
+                }
               >
-                Download setup guide
+                Download setup guide (PDF)
               </Button>
               <Button type="button" onClick={close}>
                 Done
@@ -350,11 +343,7 @@ function NewCredentialDialog({
 
 export default function EcommerceSettingsPage() {
   const invalidate = useInvalidateResource();
-  const stores = useOptionsList("stores/options", "name");
-  const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const [revokingId, setRevokingId] = useState<string | null>(null);
-  const selectedStoreName = stores.find((s) => s.value === selectedStoreId)?.label ?? "Your store";
-  const otherStores = stores.filter((s) => s.value !== selectedStoreId);
 
   async function revoke(id: string) {
     setRevokingId(id);
@@ -378,109 +367,97 @@ export default function EcommerceSettingsPage() {
         <h1 className="text-2xl font-semibold">E-commerce</h1>
         <p className="text-muted-foreground text-sm">
           Connect your own e-commerce app/website to this POS so stock and orders stay in sync. Each
-          credential below has its own setup guide — no separate download needed.
+          credential below has its own downloadable setup guide.
         </p>
       </div>
 
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold">API credentials</h2>
-        <StoreCardFilter value={selectedStoreId} onChange={setSelectedStoreId} />
-      </div>
-
-      {selectedStoreId && (
-        <div className="space-y-3">
-          <div className="flex justify-end">
-            <NewCredentialDialog
-              storeId={selectedStoreId}
-              storeName={selectedStoreName}
-              otherStores={otherStores}
-              onCreated={() => invalidate("api-credentials")}
-            />
-          </div>
-          <DataTable<ApiCredentialRow>
-            resource="api-credentials"
-            getRowId={(row) => row.id}
-            filters={{ storeId: selectedStoreId }}
-            emptyMessage="No API credentials yet for this store."
-            columns={[
-              { key: "label", header: "Label" },
-              {
-                key: "apiKey",
-                header: "API key",
-                render: (row) => <span className="font-mono text-xs">{row.apiKey}</span>,
-              },
-              {
-                key: "status",
-                header: "Status",
-                render: (row) =>
-                  row.revokedAt ? (
-                    <Badge variant="secondary">Revoked</Badge>
-                  ) : row.isActive ? (
-                    <Badge>Active</Badge>
-                  ) : (
-                    <Badge variant="secondary">Inactive</Badge>
-                  ),
-              },
-              {
-                key: "multiStoreEnabled",
-                header: "Stores",
-                render: (row) =>
-                  row.multiStoreEnabled ? (
-                    <Badge variant="secondary">
-                      Multi-store{row.splitOrdersEnabled ? " + split" : ""}
-                    </Badge>
-                  ) : (
-                    "Single"
-                  ),
-              },
-              {
-                key: "lastUsedAt",
-                header: "Last used",
-                render: (row) => (row.lastUsedAt ? formatTimestamp(row.lastUsedAt) : "Never"),
-              },
-              {
-                key: "createdAt",
-                header: "Created",
-                render: (row) => formatTimestamp(row.createdAt),
-              },
-              {
-                key: "actions",
-                header: "",
-                render: (row) => (
-                  <div className="flex justify-end gap-2">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">API credentials</h2>
+          <NewCredentialDialog onCreated={() => invalidate("api-credentials")} />
+        </div>
+        <DataTable<ApiCredentialRow>
+          resource="api-credentials"
+          getRowId={(row) => row.id}
+          emptyMessage="No API credentials yet."
+          columns={[
+            { key: "label", header: "Label" },
+            {
+              key: "apiKey",
+              header: "API key",
+              render: (row) => <span className="font-mono text-xs">{row.apiKey}</span>,
+            },
+            {
+              key: "billingStore",
+              header: "Billing store",
+              render: (row) => row.billingStore?.name ?? "—",
+            },
+            {
+              key: "storeIds",
+              header: "Stores",
+              render: (row) =>
+                row.storeIds.length > 1 ? (
+                  <Badge variant="secondary">{row.storeIds.length} stores</Badge>
+                ) : (
+                  "1 store"
+                ),
+            },
+            {
+              key: "status",
+              header: "Status",
+              render: (row) =>
+                row.revokedAt ? (
+                  <Badge variant="secondary">Revoked</Badge>
+                ) : row.isActive ? (
+                  <Badge>Active</Badge>
+                ) : (
+                  <Badge variant="secondary">Inactive</Badge>
+                ),
+            },
+            {
+              key: "lastUsedAt",
+              header: "Last used",
+              render: (row) => (row.lastUsedAt ? formatTimestamp(row.lastUsedAt) : "Never"),
+            },
+            {
+              key: "createdAt",
+              header: "Created",
+              render: (row) => formatTimestamp(row.createdAt),
+            },
+            {
+              key: "actions",
+              header: "",
+              render: (row) => (
+                <div className="flex justify-end gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                      downloadIntegrationGuidePdf({
+                        storeName: row.billingStore?.name ?? "Store",
+                        apiKey: row.apiKey,
+                        apiSecret: "(already shown once at creation — not retrievable again)",
+                      })
+                    }
+                  >
+                    Guide
+                  </Button>
+                  {!row.revokedAt && (
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => {
-                        const html = buildIntegrationGuideHtml({
-                          storeName: selectedStoreName,
-                          apiKey: row.apiKey,
-                        }).replace(
-                          "{{API_SECRET}}",
-                          "(already shown once at creation — not retrievable again)",
-                        );
-                        openAndPrintHtml(html);
-                      }}
+                      disabled={revokingId === row.id}
+                      onClick={() => void revoke(row.id)}
                     >
-                      Guide
+                      {revokingId === row.id ? "Revoking…" : "Revoke"}
                     </Button>
-                    {!row.revokedAt && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={revokingId === row.id}
-                        onClick={() => void revoke(row.id)}
-                      >
-                        {revokingId === row.id ? "Revoking…" : "Revoke"}
-                      </Button>
-                    )}
-                  </div>
-                ),
-              },
-            ]}
-          />
-        </div>
-      )}
+                  )}
+                </div>
+              ),
+            },
+          ]}
+        />
+      </div>
 
       <div className="space-y-3">
         <h2 className="text-lg font-semibold">Available APIs</h2>

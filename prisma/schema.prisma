@@ -119,18 +119,18 @@ model Store {
   createdAt             DateTime   @default(now()) @map("created_at")
   updatedAt             DateTime   @updatedAt @map("updated_at")
 
-  users             User[]
-  numberingSeries   NumberingSeries[]
-  auditLogs         AuditLog[]
-  warehouses        Warehouse[]
-  terminals         Terminal[]
-  priceLists        PriceList[]
-  loyaltyRules      LoyaltyRule[]
-  apiCredentials    ApiCredential[]
-  ecommerceFulfils  ApiCredential[]    @relation("ApiCredentialFulfilmentStores")
-  customers         Customer[]
-  suppliers         Supplier[]
-  cashDenominations CashDenomination[]
+  users                User[]
+  numberingSeries      NumberingSeries[]
+  auditLogs            AuditLog[]
+  warehouses           Warehouse[]
+  terminals            Terminal[]
+  priceLists           PriceList[]
+  loyaltyRules         LoyaltyRule[]
+  apiCredentials       ApiCredential[]    @relation("ApiCredentialStores")
+  billedApiCredentials ApiCredential[]    @relation("ApiCredentialBillingStore")
+  customers            Customer[]
+  suppliers            Supplier[]
+  cashDenominations    CashDenomination[]
 
   stockInwardMains             StockInwardMain[]
   stockDamageMains             StockDamageMain[]
@@ -1157,8 +1157,6 @@ model LoyaltyRule {
 
 model ApiCredential {
   id              String    @id @default(uuid())
-  storeId         String    @map("store_id")
-  store           Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
   label           String
   apiKey          String    @unique @map("api_key")
   apiSecretHash   String    @map("api_secret_hash")
@@ -1170,16 +1168,18 @@ model ApiCredential {
   lastUsedAt      DateTime? @map("last_used_at")
   revokedAt       DateTime? @map("revoked_at")
 
-  // step7 multi-store: an online shop isn't tied to one store. When enabled,
-  // this integration can sell from every store in `fulfilmentStores` — the
-  // catalog aggregates their stock, and an order is fulfilled by whichever
-  // store(s) actually have it. Each fulfilling store gets its own Bill, so
-  // it only ever appears in that store's billing.
-  multiStoreEnabled  Boolean @default(false) @map("multi_store_enabled")
-  // Allows one order to be split across several stores when no single store
-  // has enough. Off means an order that can't be filled by one store fails.
+  // The one store that bills for this credential by default (an order can
+  // still name a different eligible store explicitly). step7 multi-store:
+  // `stores` is the flat set of every store this credential may sell from —
+  // billingStore is always a member of it. No separate "primary vs
+  // fulfilment" category — just pick the set, then pick which one bills.
+  billingStoreId     String  @map("billing_store_id")
+  billingStore       Store   @relation("ApiCredentialBillingStore", fields: [billingStoreId], references: [id])
+  stores             Store[] @relation("ApiCredentialStores")
+  // Allows one order to be split across several of its stores when no single
+  // one has enough. Off means an order that can't be filled by one store
+  // (the billing one, or any other in the set) fails outright.
   splitOrdersEnabled Boolean @default(false) @map("split_orders_enabled")
-  fulfilmentStores   Store[] @relation("ApiCredentialFulfilmentStores")
 
   @@map("api_credentials")
 }

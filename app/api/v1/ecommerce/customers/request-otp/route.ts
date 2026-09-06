@@ -24,7 +24,7 @@ export async function POST(request: Request) {
   if ("response" in parsed) return parsed.response;
 
   try {
-    await requestOtp({ ...parsed.data, storeId: auth.storeId });
+    await requestOtp({ ...parsed.data, storeId: auth.billingStoreId });
   } catch {
     return apiErrorResponse("internal_error", "Failed to send the verification code.", 500);
   }

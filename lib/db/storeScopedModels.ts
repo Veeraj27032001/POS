@@ -3,7 +3,6 @@ export const STORE_SCOPED_MODELS = new Set<string>([
   "User",
   "AuditLog",
   "Terminal",
-  "ApiCredential",
   "CashDenomination",
   "StockInwardMain",
   "StockDamageMain",

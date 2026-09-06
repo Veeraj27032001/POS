@@ -52,7 +52,7 @@ export async function POST(request: Request) {
   // The one store the order is billed from. Defaults to the credential's own
   // store — the caller can name a different one only from the set this
   // integration is allowed to sell from.
-  const billingStoreId = data.storeId ?? auth.storeId;
+  const billingStoreId = data.storeId ?? auth.billingStoreId;
 
   const [store, terminal, billingWarehouseId] = await Promise.all([
     db.store.findUnique({ where: { id: billingStoreId }, include: { taxEngine: true } }),

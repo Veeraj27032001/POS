@@ -269,24 +269,45 @@ export const loyaltyRuleResource = defineResource({
   getDelegate: delegateOf("loyaltyRule"),
 });
 
-function withFulfilmentStoreIds(data: Record<string, unknown>): Record<string, unknown> {
-  const { fulfilmentStoreIds, ...rest } = data;
-  if (!Array.isArray(fulfilmentStoreIds)) return rest;
+// ApiCredential isn't store-scoped at all now — it has a flat `stores` set
+// (project it the same way delegateWithStores does for Customer/Supplier)
+// plus a `billingStore` name for display.
+function delegateForApiCredential(client: unknown): ResourceDelegate {
+  const raw = (client as Record<string, Record<string, (args: Record<string, unknown>) => unknown>>)
+    .apiCredential;
+  const include = {
+    stores: { select: { id: true, name: true } },
+    billingStore: { select: { name: true } },
+  };
   return {
-    ...rest,
-    fulfilmentStores: { set: fulfilmentStoreIds.map((id) => ({ id: String(id) })) },
+    count: (args) => raw.count(args) as ReturnType<ResourceDelegate["count"]>,
+    findMany: async (args) => {
+      const rows = (await raw.findMany({ ...args, include })) as Record<string, unknown>[];
+      return rows.map((row) => projectStoreIds(row));
+    },
+    findUnique: async (args) => {
+      const row = (await raw.findUnique({ ...args, include })) as Record<string, unknown> | null;
+      return projectStoreIds(row);
+    },
+    create: async (args) => {
+      const row = (await raw.create({ ...args, include })) as Record<string, unknown>;
+      return projectStoreIds(row);
+    },
+    update: async (args) => {
+      const row = (await raw.update({ ...args, include })) as Record<string, unknown>;
+      return projectStoreIds(row);
+    },
   };
 }
 
 export const apiCredentialResource = defineResource({
   name: "api_credential",
   module: "ecommerce",
-  scoping: "required",
-  explicitStoreId: true,
+  scoping: "none",
   createSchema: schemas.apiCredentialCreateSchema,
   updateSchema: schemas.apiCredentialUpdateSchema,
-  getDelegate: delegateOf("apiCredential"),
-  beforeUpdate: (data) => withFulfilmentStoreIds(data),
+  getDelegate: delegateForApiCredential,
+  beforeUpdate: (data) => withStoreIds(data, "update"),
 });
 
 export const storeResource = defineResource({
