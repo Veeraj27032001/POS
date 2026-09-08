@@ -1,8 +1,6 @@
-import { transferStockForFulfilment } from "@/lib/ecommerce/transferForFulfilment";
 import { runWithStoreContext, unscoped } from "@/lib/db";
 import { dateOnlyToUtcMidnight, toDateOnly, todayAsDateOnly } from "@/lib/datetime/dateOnly";
 import { authenticateApiCredential } from "@/lib/ecommerce/authenticateApiCredential";
-import { getDefaultWarehouseId } from "@/lib/ecommerce/defaultWarehouse";
 import { resolveFinancialYearForDate } from "@/lib/ecommerce/resolveFinancialYear";
 import { resolveFulfilment, type FulfilmentAllocation } from "@/lib/ecommerce/resolveFulfilment";
 import { ecommerceOrderCreateSchema } from "@/lib/ecommerce/schemas";
@@ -14,10 +12,10 @@ class EcommerceOrderError extends Error {}
 
 // step7 (extended) — POST /v1/ecommerce/orders: records a paid-on-the-
 // storefront-side order as a PENDING order awaiting staff acceptance — it
-// never directly creates a Bill/invoice. Stock is fully reserved (a real,
-// non-expiring stock lock) by the time this returns, whether the caller
-// pre-locked each line or not, so a rejected order never touches the books
-// and an accepted one is guaranteed the stock it was promised.
+// never directly creates a Bill/invoice. Every line's stock is locked
+// wherever it actually is (possibly split across more than one store, if
+// fulfilling it that way is enabled) — nothing is physically moved yet.
+// Staff decide the real sourcing at Generate Bill time.
 export async function POST(request: Request) {
   const auth = await authenticateApiCredential(request);
   if (!auth) {
@@ -47,10 +45,7 @@ export async function POST(request: Request) {
   }
   const billingStoreId = data.storeId ?? auth.billingStoreId;
 
-  const [store, billingWarehouseId] = await Promise.all([
-    db.store.findUnique({ where: { id: billingStoreId } }),
-    getDefaultWarehouseId(billingStoreId),
-  ]);
+  const store = await db.store.findUnique({ where: { id: billingStoreId } });
   if (!store) return apiErrorResponse("not_found", "Store not found.", 404);
 
   let customer = await db.customer.findFirst({ where: { phone: data.customer.phone } });
@@ -76,10 +71,7 @@ export async function POST(request: Request) {
   }
 
   const productIds = [...new Set(data.lines.map((line) => line.productId))];
-  const products = await db.product.findMany({
-    where: { id: { in: productIds } },
-    include: { hsnCode: { select: { hsnCode: true } } },
-  });
+  const products = await db.product.findMany({ where: { id: { in: productIds } } });
   const productById = new Map(products.map((p) => [p.id, p]));
 
   for (const line of data.lines) {
@@ -93,10 +85,13 @@ export async function POST(request: Request) {
     }
   }
 
-  // Same pinned-vs-fresh split bills used to do: a line naming a stock lock
-  // is already reserved somewhere; everything else gets resolved fresh,
-  // preferring the billing store before reaching into any other eligible one.
-  const pinned: (FulfilmentAllocation & { stockLockItemId: string })[] = [];
+  // A line naming a stock lock is already reserved somewhere; everything
+  // else gets resolved fresh, preferring the billing store before reaching
+  // into any other eligible one — same as before. The difference now is
+  // what happens with the result: no consolidation, no transfer, each
+  // allocation just becomes its own lock at wherever it actually is.
+  type OwnAllocation = FulfilmentAllocation & { stockBlockMainId?: string };
+  const pinned: OwnAllocation[] = [];
   const toAllocate: { productId: string; quantity: number }[] = [];
 
   try {
@@ -132,7 +127,7 @@ export async function POST(request: Request) {
         warehouseId: lockMain.warehouseId,
         productId: line.productId,
         quantity: line.quantity,
-        stockLockItemId: lockItem.id,
+        stockBlockMainId: lockMain.id,
       });
     }
   } catch (error) {
@@ -142,7 +137,7 @@ export async function POST(request: Request) {
     throw error;
   }
 
-  let freshAllocations: FulfilmentAllocation[] = [];
+  let freshAllocations: OwnAllocation[] = [];
   if (toAllocate.length > 0) {
     const fulfilment = await resolveFulfilment({
       storeIds: auth.storeIds,
@@ -156,38 +151,19 @@ export async function POST(request: Request) {
     freshAllocations = fulfilment.allocations;
   }
 
-  if (
-    freshAllocations.some((a) => a.storeId !== billingStoreId) ||
-    pinned.some((p) => p.storeId !== billingStoreId)
-  ) {
-    if (!billingWarehouseId) {
-      return apiErrorResponse(
-        "bad_request",
-        `Store "${store.name}" has no active warehouse to receive transferred stock.`,
-        400,
-      );
-    }
+  const reasonCode = await db.reasonCode.findFirst({
+    where: { category: "stock_block", label: "Reserved — online order" },
+  });
+  if (!reasonCode) {
+    return apiErrorResponse(
+      "bad_request",
+      "Missing the 'Reserved — online order' reason code — contact a Super Admin.",
+      400,
+    );
   }
 
   const now = new Date();
   const result = await db.$transaction(async (tx) => {
-    // Bring in anything sourced from another store first — after this, it's
-    // physically at the billing store's own warehouse, whether it started
-    // there or not.
-    await transferStockForFulfilment(tx, {
-      allocations: [...pinned, ...freshAllocations],
-      billingStoreId,
-      destinationWarehouseId: billingWarehouseId ?? "",
-      financialYearId: financialYear.id,
-      userId: auth.createdByUserId,
-      products: new Map(
-        products.map((p) => [
-          p.id,
-          { name: p.name, systemBarcode: p.systemBarcode, price: p.price, hsnCode: p.hsnCode },
-        ]),
-      ),
-    });
-
     const { documentNumber } = await allocateDocumentNumber(tx, {
       seriesType: "ecommerce_order",
       storeId: billingStoreId,
@@ -198,6 +174,7 @@ export async function POST(request: Request) {
       data: {
         documentNumber,
         financialYearId: financialYear.id,
+        apiCredentialId: auth.credentialId,
         storeId: billingStoreId,
         customerId: customer!.id,
         customerName: data.customer.name,
@@ -226,54 +203,8 @@ export async function POST(request: Request) {
 
     for (const line of data.lines) {
       const product = productById.get(line.productId)!;
-      let stockLockId: string | null = null;
 
-      if (product.stockTracked) {
-        // Every unit is now physically at the billing store's warehouse
-        // (transferred in just above, if it wasn't already there) — a fresh,
-        // non-expiring lock consolidates the whole line's reservation there,
-        // regardless of how many source stores contributed to it.
-        const ownAllocations = [...pinned, ...freshAllocations].filter(
-          (a) => a.productId === line.productId,
-        );
-        const consolidated = await tx.stockBlockMain.create({
-          data: {
-            documentNumber: `${documentNumber}-${line.productId.slice(0, 8)}`,
-            financialYearId: financialYear.id,
-            storeId: billingStoreId,
-            warehouseId: billingWarehouseId ?? ownAllocations[0]?.warehouseId,
-            sourceType: "ecommerce_order",
-            sourceId: order.id,
-            expiresAt: null,
-            blockedByUserId: auth.createdByUserId,
-            blockedAt: now,
-          },
-        });
-        await tx.stockBlockItem.create({
-          data: {
-            stockBlockMainId: consolidated.id,
-            productId: line.productId,
-            productName: product.name,
-            productBarcode: product.systemBarcode,
-            productPrice: product.price,
-            quantityBlocked: line.quantity,
-            reasonCodeId: (await tx.reasonCode.findFirst({
-              where: { category: "stock_block", label: "Reserved — online order" },
-            }))!.id,
-          },
-        });
-        stockLockId = consolidated.id;
-
-        for (const allocation of pinned) {
-          if (allocation.productId !== line.productId) continue;
-          await tx.stockBlockItem.update({
-            where: { id: allocation.stockLockItemId },
-            data: { status: "released", releasedByUserId: auth.createdByUserId, releasedAt: now },
-          });
-        }
-      }
-
-      await tx.ecommerceOrderItem.create({
+      const item = await tx.ecommerceOrderItem.create({
         data: {
           ecommerceOrderId: order.id,
           productId: line.productId,
@@ -281,9 +212,61 @@ export async function POST(request: Request) {
           productBarcode: product.systemBarcode,
           quantity: line.quantity,
           unitPrice: product.price,
-          stockLockId,
         },
       });
+
+      if (!product.stockTracked) continue;
+
+      const ownAllocations = [...pinned, ...freshAllocations].filter(
+        (a) => a.productId === line.productId,
+      );
+
+      for (const allocation of ownAllocations) {
+        let stockLockId = allocation.stockBlockMainId;
+
+        if (!stockLockId) {
+          const { documentNumber: lockDocNumber } = await allocateDocumentNumber(tx, {
+            seriesType: "stock_block",
+            storeId: allocation.storeId,
+            financialYearId: financialYear.id,
+          });
+          const lockMain = await tx.stockBlockMain.create({
+            data: {
+              documentNumber: lockDocNumber,
+              financialYearId: financialYear.id,
+              storeId: allocation.storeId,
+              warehouseId: allocation.warehouseId,
+              sourceType: "ecommerce_order",
+              sourceId: order.id,
+              expiresAt: null,
+              blockedByUserId: auth.createdByUserId,
+              blockedAt: now,
+            },
+          });
+          await tx.stockBlockItem.create({
+            data: {
+              stockBlockMainId: lockMain.id,
+              productId: line.productId,
+              productName: product.name,
+              productBarcode: product.systemBarcode,
+              productPrice: product.price,
+              quantityBlocked: allocation.quantity,
+              reasonCodeId: reasonCode.id,
+            },
+          });
+          stockLockId = lockMain.id;
+        }
+
+        await tx.ecommerceOrderItemLock.create({
+          data: {
+            ecommerceOrderItemId: item.id,
+            storeId: allocation.storeId,
+            warehouseId: allocation.warehouseId,
+            stockLockId,
+            quantity: allocation.quantity,
+          },
+        });
+      }
     }
 
     return order;
@@ -299,6 +282,9 @@ export async function POST(request: Request) {
     }),
   );
 
-  const items = await db.ecommerceOrderItem.findMany({ where: { ecommerceOrderId: result.id } });
+  const items = await db.ecommerceOrderItem.findMany({
+    where: { ecommerceOrderId: result.id },
+    include: { locks: true },
+  });
   return Response.json({ ...result, items }, { status: 201 });
 }

@@ -7,7 +7,7 @@ import { replaceBillLineAllocations } from "@/lib/billing/allocateBillLineStock"
 import { recomputeBillTotals } from "@/lib/billing/recomputeBillTotals";
 import { resolveTax } from "@/lib/billing/resolveTax";
 import { unscoped } from "@/lib/db";
-import { getDefaultWarehouseId } from "@/lib/ecommerce/defaultWarehouse";
+import { getOnlineOrderTerminal } from "@/lib/ecommerce/getOnlineOrderTerminal";
 import { getStockLevels } from "@/lib/stock/getStockLevels";
 import { allocateDocumentNumber } from "@/lib/numbering/allocateDocumentNumber";
 import { opaqueIdSchema, positiveInt } from "@/lib/validation/common";
@@ -17,21 +17,41 @@ import { withStoreContext } from "@/middleware/scope";
 
 class AcceptOrderError extends Error {}
 
-const acceptSchema = z.object({
-  storeId: opaqueIdSchema.optional(),
-  lines: z
-    .array(z.object({ productId: opaqueIdSchema, quantity: positiveInt }))
-    .min(1, "At least one line is required.")
-    .optional(),
+const acceptLineAllocationSchema = z.object({
+  warehouseId: opaqueIdSchema,
+  quantity: positiveInt,
 });
 
+const acceptLineSchema = z.object({
+  productId: opaqueIdSchema,
+  quantity: positiveInt,
+  // Which (possibly cross-store) warehouse(s) this line's quantity comes
+  // from — ignored for a non-stock-tracked product. Omit entirely (leave
+  // `lines` off the request) to keep every line exactly where it's
+  // currently locked.
+  allocations: z.array(acceptLineAllocationSchema).default([]),
+});
+
+const acceptSchema = z.object({
+  storeId: opaqueIdSchema.optional(),
+  lines: z.array(acceptLineSchema).min(1, "At least one line is required.").optional(),
+});
+
+interface ResolvedLine {
+  productId: string;
+  quantity: number;
+  allocations: { warehouseId: string; quantity: number }[];
+}
+
 // Staff accepts a pending online order from the dedicated Generate Bill
-// review page — they can switch which store actually bills it and adjust
-// quantities (or drop a line) before the real invoice is created. Whatever
-// stock the order arrived holding is released and re-checked fresh against
-// whatever was actually chosen, so this is never trusting a stale
-// reservation — it's a real availability check at bill time, same as any
-// other bill.
+// review page — they can switch which store issues the invoice, and for
+// each line, choose which store/warehouse the stock actually comes from
+// (a line can split across more than one, same as regular billing's
+// warehouse split picker). No stock transfer document is ever created: the
+// bill's own line allocations point directly at whichever warehouse the
+// stock sits in, even when that's a different store than the one billing
+// it — the reservation made at order time is simply released and replaced
+// by the bill's own (possibly identical) allocation record.
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = asAppSession(await auth());
   if (!session?.user) {
@@ -47,7 +67,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   return withStoreContext(async () => {
     const db = unscoped();
-    const order = await db.ecommerceOrder.findUnique({ where: { id }, include: { items: true } });
+    const order = await db.ecommerceOrder.findUnique({
+      where: { id },
+      include: { items: { include: { locks: true } } },
+    });
     if (!order) return apiErrorResponse("not_found", "Online order not found.", 404);
     if (session.user.storeId && order.storeId !== session.user.storeId) {
       return apiErrorResponse("not_found", "Online order not found.", 404);
@@ -58,52 +81,123 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     const targetStoreId = parsed.data.storeId ?? order.storeId;
     const itemByProduct = new Map(order.items.map((i) => [i.productId, i]));
-    const targetLines =
-      parsed.data.lines ??
-      order.items.map((i) => ({ productId: i.productId, quantity: i.quantity }));
-    for (const line of targetLines) {
-      if (!itemByProduct.has(line.productId)) {
-        return apiErrorResponse("bad_request", "That product isn't part of this order.", 400);
+
+    const targetLines: ResolvedLine[] = [];
+    if (parsed.data.lines) {
+      for (const line of parsed.data.lines) {
+        if (!itemByProduct.has(line.productId)) {
+          return apiErrorResponse("bad_request", "That product isn't part of this order.", 400);
+        }
+        targetLines.push(line);
+      }
+    } else {
+      for (const item of order.items) {
+        targetLines.push({
+          productId: item.productId,
+          quantity: item.quantity,
+          allocations: item.locks.map((l) => ({
+            warehouseId: l.warehouseId,
+            quantity: l.quantity,
+          })),
+        });
       }
     }
 
-    const [store, terminal, financialYear, warehouseId] = await Promise.all([
+    const [store, terminal, financialYear] = await Promise.all([
       db.store.findUnique({ where: { id: targetStoreId }, include: { taxEngine: true } }),
-      db.terminal.findFirst({
-        where: { storeId: targetStoreId, isActive: true, isDeleted: false },
-        orderBy: { name: "asc" },
-      }),
+      getOnlineOrderTerminal(targetStoreId),
       db.financialYear.findUnique({ where: { id: order.financialYearId } }),
-      getDefaultWarehouseId(targetStoreId),
     ]);
     if (!store || !financialYear) {
       return apiErrorResponse("bad_request", "Store or financial year no longer exists.", 400);
     }
-    if (!terminal) {
-      return apiErrorResponse(
-        "bad_request",
-        `No active terminal configured for "${store.name}" — contact a Super Admin.`,
-        400,
-      );
+
+    // A warehouse's owning store is always resolved server-side from the
+    // warehouse record itself — never trusted from the request.
+    const warehouseIds = [
+      ...new Set(targetLines.flatMap((l) => l.allocations.map((a) => a.warehouseId))),
+    ];
+    const warehouses = await db.warehouse.findMany({
+      where: { id: { in: warehouseIds } },
+      select: { id: true, name: true, isActive: true, isDeleted: true, storeId: true },
+    });
+    const warehouseById = new Map(warehouses.map((w) => [w.id, w]));
+    for (const warehouseId of warehouseIds) {
+      const w = warehouseById.get(warehouseId);
+      if (!w || !w.isActive || w.isDeleted || !w.storeId) {
+        return apiErrorResponse(
+          "bad_request",
+          "One of the chosen warehouses is no longer available.",
+          400,
+        );
+      }
     }
-    if (!warehouseId) {
-      return apiErrorResponse("bad_request", `"${store.name}" has no active warehouse.`, 400);
+
+    const productIds = [...new Set(targetLines.map((l) => l.productId))];
+    const products = await db.product.findMany({ where: { id: { in: productIds } } });
+    const productById = new Map(products.map((p) => [p.id, p]));
+
+    try {
+      for (const line of targetLines) {
+        const item = itemByProduct.get(line.productId)!;
+        const product = productById.get(line.productId);
+        if (!product) throw new AcceptOrderError(`${item.productName}: product no longer exists.`);
+        if (!product.stockTracked) continue;
+
+        const allocatedTotal = line.allocations.reduce((sum, a) => sum + a.quantity, 0);
+        if (allocatedTotal !== line.quantity) {
+          throw new AcceptOrderError(
+            `${item.productName}: chosen sources add up to ${allocatedTotal}, not ${line.quantity}.`,
+          );
+        }
+
+        for (const allocation of line.allocations) {
+          // This order's own lock already secured some (or all) of this
+          // exact warehouse's stock for this exact product — only the
+          // amount beyond that needs a fresh availability check. Without
+          // this, accepting with the unchanged default split could
+          // spuriously fail against a store that's otherwise fully sold
+          // out, purely because our own reservation still counts as
+          // "blocked" until the transaction below releases it.
+          const alreadyLockedHere = item.locks
+            .filter((l) => l.warehouseId === allocation.warehouseId)
+            .reduce((sum, l) => sum + l.quantity, 0);
+          const extraNeeded = Math.max(0, allocation.quantity - alreadyLockedHere);
+          if (extraNeeded === 0) continue;
+
+          const levels = await getStockLevels({
+            productId: line.productId,
+            warehouseId: allocation.warehouseId,
+          });
+          if (levels.available < extraNeeded) {
+            const warehouseName = warehouseById.get(allocation.warehouseId)!.name;
+            throw new AcceptOrderError(
+              `${item.productName}: only ${levels.available} more available at ${warehouseName}.`,
+            );
+          }
+        }
+      }
+    } catch (error) {
+      if (error instanceof AcceptOrderError) {
+        return apiErrorResponse("bad_request", error.message, 400);
+      }
+      throw error;
     }
 
     const now = new Date();
     let result;
     try {
       result = await db.$transaction(async (tx) => {
-        // Release everything the order arrived holding — whatever gets billed
-        // below gets a fresh allocation, whether or not the store/quantities
-        // actually changed. Simpler and just as correct as trying to detect
-        // "did this line change" case by case.
+        // Release everything the order arrived holding — whatever gets
+        // billed below gets its own fresh allocation record, whether or
+        // not the split actually changed.
         for (const item of order.items) {
-          if (!item.stockLockId) continue;
-          await tx.stockBlockItem.updateMany({
-            where: { stockBlockMainId: item.stockLockId, status: "active" },
-            data: { status: "released", releasedByUserId: session.user.id, releasedAt: now },
-          });
+          for (const lock of item.locks) {
+            await tx.stockBlockItem.updateMany({
+              where: { stockBlockMainId: lock.stockLockId, status: "active" },
+              data: { status: "released", releasedByUserId: session.user.id, releasedAt: now },
+            });
+          }
         }
 
         const { documentNumber } = await allocateDocumentNumber(tx, {
@@ -141,13 +235,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         for (const line of targetLines) {
           const item = itemByProduct.get(line.productId)!;
 
-          const levels = await getStockLevels({ productId: line.productId, warehouseId });
-          if (levels.available < line.quantity) {
-            throw new AcceptOrderError(
-              `${item.productName}: only ${levels.available} available at ${store.name}.`,
-            );
-          }
-
           const lineSubtotal = Number(item.unitPrice) * line.quantity;
           const tax = await resolveTax({
             productId: line.productId,
@@ -171,10 +258,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             },
           });
 
-          await replaceBillLineAllocations(tx, {
-            billLineId: billLine.id,
-            allocations: [{ warehouseId, quantity: line.quantity }],
-          });
+          if (line.allocations.length > 0) {
+            await replaceBillLineAllocations(tx, {
+              billLineId: billLine.id,
+              allocations: line.allocations.map((a) => ({
+                warehouseId: a.warehouseId,
+                quantity: a.quantity,
+              })),
+            });
+          }
         }
 
         await recomputeBillTotals(tx, bill.id);

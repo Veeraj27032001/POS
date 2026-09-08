@@ -30,7 +30,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   return withStoreContext(async () => {
     const db = unscoped();
-    const order = await db.ecommerceOrder.findUnique({ where: { id }, include: { items: true } });
+    const order = await db.ecommerceOrder.findUnique({
+      where: { id },
+      include: { items: { include: { locks: true } } },
+    });
     if (!order) return apiErrorResponse("not_found", "Online order not found.", 404);
     if (session.user.storeId && order.storeId !== session.user.storeId) {
       return apiErrorResponse("not_found", "Online order not found.", 404);
@@ -42,11 +45,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const now = new Date();
     const result = await db.$transaction(async (tx) => {
       for (const item of order.items) {
-        if (!item.stockLockId) continue;
-        await tx.stockBlockItem.updateMany({
-          where: { stockBlockMainId: item.stockLockId, status: "active" },
-          data: { status: "released", releasedByUserId: session.user.id, releasedAt: now },
-        });
+        for (const lock of item.locks) {
+          await tx.stockBlockItem.updateMany({
+            where: { stockBlockMainId: lock.stockLockId, status: "active" },
+            data: { status: "released", releasedByUserId: session.user.id, releasedAt: now },
+          });
+        }
       }
 
       return tx.ecommerceOrder.update({

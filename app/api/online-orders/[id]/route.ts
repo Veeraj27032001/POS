@@ -20,7 +20,16 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const order = await db.ecommerceOrder.findUnique({
       where: { id },
       include: {
-        items: true,
+        items: {
+          include: {
+            locks: {
+              include: {
+                store: { select: { name: true } },
+                warehouse: { select: { name: true } },
+              },
+            },
+          },
+        },
         payments: true,
         bill: { select: { id: true, documentNumber: true, grandTotal: true } },
         respondedByUser: { select: { name: true } },

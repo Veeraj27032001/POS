@@ -32,7 +32,13 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
           orderBy: { createdAt: "asc" },
           include: {
             product: { select: { stockTracked: true } },
-            allocations: { include: { warehouse: { select: { id: true, name: true } } } },
+            allocations: {
+              include: {
+                warehouse: {
+                  select: { id: true, name: true, store: { select: { id: true, name: true } } },
+                },
+              },
+            },
           },
         },
         payments: { include: { paymentMethod: { select: { name: true, type: true } } } },

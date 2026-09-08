@@ -34,6 +34,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+interface BillLineAllocationRow {
+  id: string;
+  quantity: number;
+  warehouse: { id: string; name: string; store: { id: string; name: string } | null };
+}
+
 interface BillLineRow {
   id: string;
   productName: string;
@@ -43,6 +49,7 @@ interface BillLineRow {
   discountApplied: string | null;
   lineTotal: string;
   status: string;
+  allocations: BillLineAllocationRow[];
 }
 
 interface BillPaymentRow {
@@ -67,6 +74,7 @@ interface BillDetail {
   billType: string;
   status: string;
   billDate: string;
+  storeId: string;
   customer: { name: string; phone: string; email: string | null } | null;
   terminal: { name: string };
   cashierUser: { name: string };
@@ -98,6 +106,38 @@ const BILL_TYPE_LABELS: Record<string, string> = {
   credit_bill: "Credit Bill",
   online_bill: "Online Bill",
 };
+
+// Every line always names the warehouse it actually drew stock from. Most
+// bills only ever touch their own store's warehouses, so this stays quiet
+// (just the warehouse name) — it only calls out the store by name, in an
+// amber badge, for an allocation sourced from somewhere else. That's the
+// only on-bill trace of a cross-store online-order line, since no transfer
+// document is ever created for it.
+function LineSource({ bill, line }: { bill: BillDetail; line: BillLineRow }) {
+  if (line.allocations.length === 0) {
+    return <span className="text-muted-foreground">—</span>;
+  }
+  return (
+    <div className="flex flex-wrap gap-1">
+      {line.allocations.map((a) => {
+        const foreign = a.warehouse.store && a.warehouse.store.id !== bill.storeId;
+        return (
+          <span
+            key={a.id}
+            className={
+              foreign
+                ? "bg-warning/15 text-warning rounded px-1.5 py-0.5 text-xs"
+                : "text-muted-foreground text-xs"
+            }
+            title={`${a.quantity} unit(s)`}
+          >
+            {foreign ? `${a.warehouse.store!.name} — ${a.warehouse.name}` : a.warehouse.name}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
 
 function RecordPaymentDialog({
   billId,
@@ -282,6 +322,7 @@ export default function BillViewPage() {
                   <TableHead>Unit price</TableHead>
                   <TableHead>Discount</TableHead>
                   <TableHead>Total</TableHead>
+                  <TableHead>Source</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
@@ -305,6 +346,9 @@ export default function BillViewPage() {
                     <TableCell>
                       {currencySymbol}
                       {money(line.lineTotal)}
+                    </TableCell>
+                    <TableCell>
+                      <LineSource bill={bill} line={line} />
                     </TableCell>
                     <TableCell className="capitalize">{line.status}</TableCell>
                   </TableRow>

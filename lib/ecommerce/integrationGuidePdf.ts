@@ -66,11 +66,11 @@ function buildBlocks(params: { storeName: string; apiKey: string; apiSecret: str
     },
     {
       kind: "p",
-      text: "Whichever store results — named or default — is the ONLY store that ever bills the order. Stock itself is a separate concern: if that billing store's own stock falls short and splitting is enabled for this credential, the shortfall is transferred in automatically from another store in the admin-configured set, at the moment the order is placed (not deferred to when staff accept it) — so the reservation is already correct and complete during review. The customer still only ever sees one order, and — once accepted — one bill, from the one store that was resolved.",
+      text: "Whichever store results — named or default — is where the pending order lands for staff review, and the store whose invoice is issued by default if accepted as-is. Stock itself is a separate concern and is never physically moved to get there: if that store's own stock falls short and splitting is enabled for this credential, the order simply locks the shortfall at another store in the admin-configured set too, at the moment the order is placed — no transfer, no stock relocation, just a second reservation sitting where the stock already was. The customer still only ever sees one order. Staff reviewing it can see exactly which store(s) each line is reserved at, and — when they accept — can keep that as-is or choose different sourcing per line; either way it still becomes exactly one bill.",
     },
     {
       kind: "p",
-      text: "Worked example — Store A (billing) has 50 units, Store B (also eligible, splitting on) has 50 — GET /products shows available: 100 combined, with stockByStore showing 50/50. A customer orders 62: Store A's own 50 are locked first, then the remaining 12 transfer in from Store B automatically (a real, immediately-accepted Stock Transfer — visible in the POS's own Stock Transfers list, not a fake movement) and get locked too. Store A shows 0 available, Store B 38 — both reflecting the reservation immediately, before any staff decision. If accepted, exactly one bill is created at Store A for all 62 units; if rejected, both locks release and stock returns to 50/50.",
+      text: "Worked example — Store A (billing) has 50 units, Store B (also eligible, splitting on) has 50 — GET /products shows available: 100 combined, with stockByStore showing 50/50. A customer orders 62: Store A's own 50 are locked, and the remaining 12 are locked at Store B too — two separate reservations, nothing physically moved. Store A shows 0 available, Store B 38 — both reflecting the reservation immediately, before any staff decision. If accepted with that same split, one bill is created at Store A for all 62 units, drawing 12 of them from Store B's stock (visible on the bill itself); if rejected, both locks release and stock returns to 50/50.",
     },
 
     { kind: "h2", text: "Customer accounts" },
@@ -181,7 +181,7 @@ function buildBlocks(params: { storeName: string; apiKey: string; apiSecret: str
     },
     {
       kind: "p",
-      text: "Accepts it — the real Bill/invoice is created at that moment (this is when a document number is actually allocated), every line's reserved stock is permanently deducted, and the order's status becomes accepted with billDocumentNumber set.",
+      text: "Accepts it — the real Bill/invoice is created at that moment (this is when a document number is actually allocated). Staff may keep each line's stock sourced exactly where this API reserved it, or choose different store(s)/warehouse(s) per line before accepting — either way, the reserved stock is released and the bill's own (possibly identical) allocation takes over, and the order's status becomes accepted with billDocumentNumber set.",
     },
     {
       kind: "p",

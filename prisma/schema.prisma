@@ -144,16 +144,17 @@ model Store {
   productRequestMains          ProductRequestMain[]
   stockEntryCorrections        StockEntryCorrection[]
 
-  bills             Bill[]
-  paymentRequests   PaymentRequest[]
-  refunds           Refund[]
-  billCancellations BillCancellation[]
-  billReturns       BillReturn[]
-  creditNotes       CreditNote[]
-  billPayments      BillPayment[]
-  shifts            Shift[]
-  billFormats       BillFormat[]
-  ecommerceOrders   EcommerceOrder[]
+  bills                   Bill[]
+  paymentRequests         PaymentRequest[]
+  refunds                 Refund[]
+  billCancellations       BillCancellation[]
+  billReturns             BillReturn[]
+  creditNotes             CreditNote[]
+  billPayments            BillPayment[]
+  shifts                  Shift[]
+  billFormats             BillFormat[]
+  ecommerceOrders         EcommerceOrder[]
+  ecommerceOrderItemLocks EcommerceOrderItemLock[]
 
   @@map("stores")
 }
@@ -463,7 +464,8 @@ model StockBlockMain {
   blockedByUser   User                 @relation(fields: [blockedByUserId], references: [id])
   blockedAt       DateTime             @default(now()) @map("blocked_at")
 
-  items StockBlockItem[]
+  items                   StockBlockItem[]
+  ecommerceOrderItemLocks EcommerceOrderItemLock[]
 
   @@map("stock_block_mains")
 }
@@ -998,6 +1000,7 @@ model Warehouse {
 
   billLineWarehouseAllocations BillLineWarehouseAllocation[]
   billReturnLines              BillReturnLine[]
+  ecommerceOrderItemLocks      EcommerceOrderItemLock[]
 
   @@map("warehouses")
 }
@@ -1081,13 +1084,18 @@ model Discount {
 }
 
 model Terminal {
-  id               String  @id @default(uuid())
-  storeId          String  @map("store_id")
-  store            Store   @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  name             String
-  deviceIdentifier String? @map("device_identifier")
-  isActive         Boolean @default(true) @map("is_active")
-  isDeleted        Boolean @default(false) @map("is_deleted")
+  id                String  @id @default(uuid())
+  storeId           String  @map("store_id")
+  store             Store   @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  name              String
+  deviceIdentifier  String? @map("device_identifier")
+  isActive          Boolean @default(true) @map("is_active")
+  isDeleted         Boolean @default(false) @map("is_deleted")
+  // The one hidden terminal a store's online-order bills are recorded
+  // against — never shown in the regular Terminals list/picker, never
+  // used for in-person billing, so it can't collide with a real cashier's
+  // shift/session.
+  isSystemGenerated Boolean @default(false) @map("is_system_generated")
 
   bills  Bill[]
   shifts Shift[]
@@ -1180,13 +1188,14 @@ model ApiCredential {
   // `stores` is the flat set of every store this credential may sell from —
   // billingStore is always a member of it. No separate "primary vs
   // fulfilment" category — just pick the set, then pick which one bills.
-  billingStoreId     String  @map("billing_store_id")
-  billingStore       Store   @relation("ApiCredentialBillingStore", fields: [billingStoreId], references: [id])
-  stores             Store[] @relation("ApiCredentialStores")
+  billingStoreId     String           @map("billing_store_id")
+  billingStore       Store            @relation("ApiCredentialBillingStore", fields: [billingStoreId], references: [id])
+  stores             Store[]          @relation("ApiCredentialStores")
   // Allows one order to be split across several of its stores when no single
   // one has enough. Off means an order that can't be filled by one store
   // (the billing one, or any other in the set) fails outright.
-  splitOrdersEnabled Boolean @default(false) @map("split_orders_enabled")
+  splitOrdersEnabled Boolean          @default(false) @map("split_orders_enabled")
+  ecommerceOrders    EcommerceOrder[]
 
   @@map("api_credentials")
 }
@@ -1207,6 +1216,11 @@ model EcommerceOrder {
   documentNumber      String               @map("document_number")
   financialYearId     String               @map("financial_year_id")
   financialYear       FinancialYear        @relation(fields: [financialYearId], references: [id])
+  // Which integration placed this order — kept for traceability. The
+  // Generate Bill review page's source picker is NOT limited to this
+  // credential's configured stores; staff can source stock from anywhere.
+  apiCredentialId     String               @map("api_credential_id")
+  apiCredential       ApiCredential        @relation(fields: [apiCredentialId], references: [id])
   storeId             String               @map("store_id")
   store               Store                @relation(fields: [storeId], references: [id])
   customerId          String               @map("customer_id")
@@ -1245,13 +1259,34 @@ model EcommerceOrderItem {
   productBarcode   String         @map("product_barcode")
   quantity         Int
   unitPrice        Decimal        @map("unit_price") @db.Decimal(12, 2)
-  // The lock this item's stock is held under while the order is pending —
-  // required (unlike bills' now-retired optional stockLockId) since a
-  // pending order has to have guaranteed stock behind it.
-  // Null only for a non-stock-tracked product, which never gets locked.
-  stockLockId      String?        @map("stock_lock_id")
+
+  // Where this line's stock is actually reserved — no transfer happens at
+  // order time, so a line whose quantity spans more than one store (the
+  // fulfilment resolver split it) holds one lock per source store here,
+  // not one consolidated lock. Empty for a non-stock-tracked product.
+  locks EcommerceOrderItemLock[]
 
   @@map("ecommerce_order_items")
+}
+
+// One row per (line, source store) — the Generate Bill review page shows
+// these as the source picker's starting point (same idea as the regular
+// billing screen's per-warehouse allocation, just spanning stores too).
+// Staff can change the split; whatever's left active here when the bill is
+// generated gets released, and the staff-chosen sources take over instead.
+model EcommerceOrderItemLock {
+  id                   String             @id @default(uuid())
+  ecommerceOrderItemId String             @map("ecommerce_order_item_id")
+  ecommerceOrderItem   EcommerceOrderItem @relation(fields: [ecommerceOrderItemId], references: [id], onDelete: Cascade)
+  storeId              String             @map("store_id")
+  store                Store              @relation(fields: [storeId], references: [id])
+  warehouseId          String             @map("warehouse_id")
+  warehouse            Warehouse          @relation(fields: [warehouseId], references: [id])
+  stockLockId          String             @map("stock_lock_id")
+  stockLock            StockBlockMain     @relation(fields: [stockLockId], references: [id])
+  quantity             Int
+
+  @@map("ecommerce_order_item_locks")
 }
 
 // What the storefront told us about how the customer paid — for staff to

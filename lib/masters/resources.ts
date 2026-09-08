@@ -4,6 +4,7 @@ import { ROLE_RANK, roleRank, SUPER_ADMIN_ROLE_NAME } from "@/lib/auth/rbac";
 import type { AppSession } from "@/lib/auth/types";
 import { unscoped } from "@/lib/db";
 import { dateOnlyToUtcMidnight, toDateOnly } from "@/lib/datetime/dateOnly";
+import { getOnlineOrderTerminal } from "@/lib/ecommerce/getOnlineOrderTerminal";
 import { defineResource, isResourceHookRejection } from "@/lib/resource";
 import type { ResourceDelegate, ResourceHookResult } from "@/lib/resource";
 import { hashSecret } from "@/lib/security/hash";
@@ -184,6 +185,9 @@ export const terminalResource = defineResource({
   updateSchema: schemas.terminalUpdateSchema,
   searchFields: ["name"],
   getDelegate: delegateOf("terminal"),
+  // The hidden per-store online-order terminal is never shown here — it's
+  // not something staff pick or manage, just an FK target for online bills.
+  extraWhere: () => ({ isSystemGenerated: false }),
 });
 
 export const paymentMethodResource = defineResource({
@@ -339,6 +343,7 @@ export const storeResource = defineResource({
       await createDefaultNumberingSeries(newStoreId);
     }
     await createDefaultBillFormats(newStoreId);
+    await getOnlineOrderTerminal(newStoreId);
   },
 });
 
