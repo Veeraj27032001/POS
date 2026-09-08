@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useSubmitGuard } from "@/lib/forms/useSubmitGuard";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 import { cn } from "@/lib/utils";
 
@@ -95,6 +96,7 @@ function DynamicSelectField<T extends FieldValues>({
         render={({ field: f }) =>
           field.type === "multi-select" ? (
             <MultiSearchableSelect
+              data-kbd-item=""
               options={options}
               value={(f.value as string[]) ?? []}
               onChange={f.onChange}
@@ -102,6 +104,7 @@ function DynamicSelectField<T extends FieldValues>({
             />
           ) : (
             <SearchableSelect
+              data-kbd-item=""
               options={options}
               value={(f.value as string) ?? null}
               onChange={f.onChange}
@@ -146,9 +149,15 @@ export function ResourceForm<T extends FieldValues>({
 
   const guardedSubmit = useSubmitGuard(onSubmit);
   const fullWidthTypes = new Set(["textarea", "file", "boolean", "multi-select"]);
+  // No onBoundaryLeft here — this renders inside a portaled dialog, so
+  // ArrowLeft at the first field should stay put (Escape already backs out
+  // of the dialog natively); ejecting to the sidebar from inside a modal
+  // would be wrong.
+  const kbdRef = useArrowKeyNav<HTMLFormElement>({ selector: "[data-kbd-item]" });
 
   return (
     <form
+      ref={kbdRef}
       onSubmit={handleSubmit(guardedSubmit)}
       className="flex min-h-0 flex-1 flex-col overflow-hidden"
     >
@@ -192,6 +201,7 @@ export function ResourceForm<T extends FieldValues>({
                     <div className="flex items-center gap-2">
                       <Checkbox
                         id={field.name}
+                        data-kbd-item=""
                         checked={Boolean(f.value)}
                         onCheckedChange={(checked) => f.onChange(checked)}
                       />
@@ -204,6 +214,7 @@ export function ResourceForm<T extends FieldValues>({
               {field.type === "textarea" && (
                 <Textarea
                   id={field.name}
+                  data-kbd-item=""
                   placeholder={field.placeholder}
                   {...register(field.name as never)}
                 />
@@ -219,7 +230,7 @@ export function ResourceForm<T extends FieldValues>({
                       onValueChange={f.onChange}
                       items={field.options}
                     >
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger className="w-full" data-kbd-item="">
                         <SelectValue placeholder={field.placeholder} />
                       </SelectTrigger>
                       <SelectContent>
@@ -239,7 +250,11 @@ export function ResourceForm<T extends FieldValues>({
                   name={field.name as never}
                   control={control}
                   render={({ field: f }) => (
-                    <FileUploadField value={(f.value as string) ?? null} onChange={f.onChange} />
+                    <FileUploadField
+                      data-kbd-item=""
+                      value={(f.value as string) ?? null}
+                      onChange={f.onChange}
+                    />
                   )}
                 />
               )}
@@ -247,6 +262,7 @@ export function ResourceForm<T extends FieldValues>({
               {(field.type === "text" || field.type === "number" || field.type === "date") && (
                 <Input
                   id={field.name}
+                  data-kbd-item=""
                   type={
                     field.type === "number" ? "number" : field.type === "date" ? "date" : "text"
                   }
@@ -272,7 +288,7 @@ export function ResourceForm<T extends FieldValues>({
       </DialogFormBody>
 
       <DialogFormActions>
-        <Button type="submit" disabled={isSubmitting}>
+        <Button type="submit" data-kbd-item="" disabled={isSubmitting}>
           {isSubmitting ? "Saving…" : submitLabel}
         </Button>
       </DialogFormActions>

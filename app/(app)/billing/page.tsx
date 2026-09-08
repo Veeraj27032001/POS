@@ -19,6 +19,8 @@ import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 import { useStoreCurrencySymbol } from "@/lib/hooks/useStoreCurrencySymbol";
 import { useStoreDefaultExcludeTax } from "@/lib/hooks/useStoreDefaultExcludeTax";
 import { useStorePaymentGatewayAvailable } from "@/lib/hooks/useStorePaymentGatewayAvailable";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { RequiredMark } from "@/components/required-mark";
 import { SearchableSelect } from "@/components/searchable-select";
 import { asAppSession } from "@/lib/auth/types";
@@ -954,6 +956,60 @@ export default function BillingPage() {
     ? (customers.find((c) => c.value === selectedCustomerId)?.label ?? null)
     : customerDraft.name || null;
 
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
+
+  // Ctrl+S/Ctrl+N need to stay live across every render (cartLines,
+  // handlePrimaryAction, etc. are plain values redefined each render) without
+  // re-subscribing the listener constantly — a ref holds the latest values,
+  // one effect with an empty dep array registers the listener exactly once.
+  const shortcutStateRef = useRef({
+    started,
+    resuming,
+    completedBill,
+    heldDocumentNumber,
+    cartLines,
+    discardCart,
+    handlePrimaryAction,
+  });
+  shortcutStateRef.current = {
+    started,
+    resuming,
+    completedBill,
+    heldDocumentNumber,
+    cartLines,
+    discardCart,
+    handlePrimaryAction,
+  };
+
+  useEffect(() => {
+    function handleShortcut(event: KeyboardEvent) {
+      const s = shortcutStateRef.current;
+      const onMainScreen = s.started && !s.resuming && !s.completedBill && !s.heldDocumentNumber;
+
+      if (event.ctrlKey && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        if (onMainScreen) void s.handlePrimaryAction();
+        return;
+      }
+      if (event.ctrlKey && event.key.toLowerCase() === "n") {
+        event.preventDefault();
+        if (!onMainScreen) return;
+        if (
+          s.cartLines.length > 0 &&
+          !window.confirm("Discard the current bill and start a new one?")
+        ) {
+          return;
+        }
+        s.discardCart();
+      }
+    }
+    window.addEventListener("keydown", handleShortcut);
+    return () => window.removeEventListener("keydown", handleShortcut);
+  }, []);
+
   if (completedBill) {
     return (
       <div className="space-y-4 p-8">
@@ -1094,7 +1150,7 @@ export default function BillingPage() {
   }
 
   return (
-    <div className="space-y-4 p-8">
+    <div ref={kbdRef} className="space-y-4 p-8">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">{savedDocumentNumber ?? "New bill"}</h1>
@@ -1112,6 +1168,7 @@ export default function BillingPage() {
                 render={
                   <button
                     type="button"
+                    data-kbd-item=""
                     className="text-muted-foreground hover:text-foreground"
                     aria-label="Switch terminal"
                   />
@@ -1139,24 +1196,24 @@ export default function BillingPage() {
         <div className="flex gap-2">
           {billStatus === "held" ? (
             <>
-              <Button variant="outline" onClick={saveDraft} disabled={busy}>
+              <Button variant="outline" data-kbd-item="" onClick={saveDraft} disabled={busy}>
                 {savingDraft ? "Saving…" : "Save"}
               </Button>
-              <Button variant="outline" onClick={makeDraft} disabled={busy}>
+              <Button variant="outline" data-kbd-item="" onClick={makeDraft} disabled={busy}>
                 {makingDraft ? "Making draft…" : "Make draft"}
               </Button>
             </>
           ) : (
             <>
               {cartLines.length === 0 && (
-                <Button variant="outline" onClick={discardCart} disabled={busy}>
+                <Button variant="outline" data-kbd-item="" onClick={discardCart} disabled={busy}>
                   {discarding ? "Discarding…" : "Discard"}
                 </Button>
               )}
-              <Button variant="outline" onClick={saveDraft} disabled={busy}>
+              <Button variant="outline" data-kbd-item="" onClick={saveDraft} disabled={busy}>
                 {savingDraft ? "Saving…" : "Save draft"}
               </Button>
-              <Button variant="outline" onClick={holdBill} disabled={busy}>
+              <Button variant="outline" data-kbd-item="" onClick={holdBill} disabled={busy}>
                 {holding ? "Holding…" : "Hold"}
               </Button>
             </>
@@ -1178,6 +1235,7 @@ export default function BillingPage() {
               <Button
                 type="button"
                 size="sm"
+                data-kbd-item=""
                 variant={billType === "cash_bill" ? "default" : "outline"}
                 disabled={!!savedBillId}
                 onClick={() => setBillType("cash_bill")}
@@ -1187,6 +1245,7 @@ export default function BillingPage() {
               <Button
                 type="button"
                 size="sm"
+                data-kbd-item=""
                 variant={billType === "credit_bill" ? "default" : "outline"}
                 disabled={!!savedBillId}
                 onClick={() => {
@@ -1203,13 +1262,19 @@ export default function BillingPage() {
               Bill date
               <RequiredMark />
             </Label>
-            <Input type="date" value={billDate} onChange={(e) => setBillDate(e.target.value)} />
+            <Input
+              type="date"
+              data-kbd-item=""
+              value={billDate}
+              onChange={(e) => setBillDate(e.target.value)}
+            />
           </div>
           <div className="space-y-1.5">
             <Label>Exclude tax</Label>
             <div className="flex items-center gap-2 pt-1.5">
               <Checkbox
                 id="exclude-tax"
+                data-kbd-item=""
                 checked={excludeTax}
                 disabled={!!savedBillId}
                 onCheckedChange={(checked) => setExcludeTax(checked === true)}
@@ -1242,17 +1307,21 @@ export default function BillingPage() {
           <div className="relative">
             <Input
               ref={scanInputRef}
+              data-kbd-item=""
               value={scanValue}
               onChange={(e) => setScanValue(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "ArrowDown") {
                   e.preventDefault();
+                  e.stopPropagation();
                   setHighlightedMatch((i) => Math.min(i + 1, productMatches.length - 1));
                 } else if (e.key === "ArrowUp") {
                   e.preventDefault();
+                  e.stopPropagation();
                   setHighlightedMatch((i) => Math.max(i - 1, 0));
                 } else if (e.key === "Enter") {
                   e.preventDefault();
+                  e.stopPropagation();
                   if (productMatches.length > 0) {
                     const target = productMatches[highlightedMatch] ?? productMatches[0];
                     addProduct(target);
@@ -1380,6 +1449,7 @@ export default function BillingPage() {
                   <Button
                     variant="destructive"
                     size="sm"
+                    data-kbd-item=""
                     onClick={() => removeLine(line.productId)}
                   >
                     Remove
@@ -1421,6 +1491,7 @@ export default function BillingPage() {
                   <Input
                     type="number"
                     min={0}
+                    data-kbd-item=""
                     value={overallDiscount}
                     onChange={(e) => setOverallDiscount(e.target.value)}
                     placeholder="0.00"
@@ -1435,6 +1506,7 @@ export default function BillingPage() {
                 <div className="space-y-1">
                   <Label className="text-xs">Reason</Label>
                   <SearchableSelect
+                    data-kbd-item=""
                     options={discountReasons}
                     value={overallDiscountReasonCodeId}
                     onChange={setOverallDiscountReasonCodeId}
@@ -1466,6 +1538,7 @@ export default function BillingPage() {
             </CardContent>
             <CardFooter className="justify-end">
               <Button
+                data-kbd-item=""
                 onClick={() => void handlePrimaryAction()}
                 disabled={
                   busy ||
@@ -1494,6 +1567,7 @@ export default function BillingPage() {
                 <div className="flex items-start gap-2">
                   <Checkbox
                     id="use-gateway"
+                    data-kbd-item=""
                     checked={useGateway}
                     onCheckedChange={(checked) => {
                       const next = checked === true;
@@ -1512,6 +1586,7 @@ export default function BillingPage() {
               <div className="space-y-1.5">
                 <Label>Method</Label>
                 <SearchableSelect
+                  data-kbd-item=""
                   options={paymentMethods}
                   value={paymentMethodId}
                   onChange={setPaymentMethodId}

@@ -42,7 +42,7 @@ import {
   XIcon,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import { AppNav, type AppNavGroup } from "@/components/app-nav";
@@ -334,6 +334,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
 
   useEffect(() => {
     try {
@@ -346,6 +347,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setMobileNavOpen(false);
   }, [pathname]);
+
+  // Global "new bill" shortcut. Billing has its own listener for the case
+  // where it's already open (it needs to confirm before discarding an
+  // in-progress cart) — this one only ever acts when landing here from
+  // somewhere else, so the two never race or double-handle the same key.
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (!event.ctrlKey || event.key.toLowerCase() !== "n") return;
+      event.preventDefault();
+      if (pathname !== "/billing") router.push("/billing");
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [pathname, router]);
 
   function toggleCollapsed() {
     setCollapsed((prev) => {

@@ -47,6 +47,7 @@ export function EditableLineValue({
       <input
         type="number"
         min={min}
+        data-kbd-item=""
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}

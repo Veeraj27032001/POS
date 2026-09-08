@@ -10,6 +10,8 @@ import { formatDateOnly, toDateOnly } from "@/lib/datetime/dateOnly";
 import { formatTimestamp } from "@/lib/datetime/format";
 import { useStoreCurrencySymbol } from "@/lib/hooks/useStoreCurrencySymbol";
 import { printBill, printReceipt } from "@/lib/billing/printing";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 
 interface BillRow {
   id: string;
@@ -33,6 +35,10 @@ type PrintAction = { id: string; kind: "receipt" | "bill" } | null;
 export default function BillsPage() {
   const currencySymbol = useStoreCurrencySymbol();
   const [printing, setPrinting] = useState<PrintAction>(null);
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   async function handlePrintReceipt(row: BillRow, e: React.MouseEvent) {
     e.stopPropagation();
@@ -62,10 +68,10 @@ export default function BillsPage() {
   }
 
   return (
-    <div className="space-y-4 p-8">
+    <div ref={kbdRef} className="space-y-4 p-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Bills</h1>
-        <Link href="/billing" className={buttonVariants()}>
+        <Link href="/billing" data-kbd-item="" className={buttonVariants()}>
           New Bill
         </Link>
       </div>
@@ -108,6 +114,7 @@ export default function BillsPage() {
                 <Button
                   variant="outline"
                   size="sm"
+                  data-kbd-item=""
                   disabled={printing?.id === row.id}
                   onClick={(e) => handlePrintReceipt(row, e)}
                 >
@@ -116,6 +123,7 @@ export default function BillsPage() {
                 <Button
                   variant="outline"
                   size="sm"
+                  data-kbd-item=""
                   disabled={printing?.id === row.id}
                   onClick={(e) => handlePrintBill(row, e)}
                 >

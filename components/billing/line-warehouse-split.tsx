@@ -93,7 +93,11 @@ export function LineWarehouseSplit({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <div className="flex items-center gap-1.5 text-xs">
-        <DialogTrigger render={<button type="button" className="text-primary hover:underline" />}>
+        <DialogTrigger
+          render={
+            <button type="button" data-kbd-item="" className="text-primary hover:underline" />
+          }
+        >
           {allocations.length > 0
             ? allocations.map((a) => `${a.warehouseName}: ${a.quantity}`).join(", ")
             : "Choose warehouses"}

@@ -104,6 +104,7 @@ export function DataTable<T>({
     <div className="space-y-3">
       {searchable && (
         <Input
+          data-kbd-item=""
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           placeholder="Search…"
@@ -131,6 +132,7 @@ export function DataTable<T>({
                     {col.sortable ? (
                       <button
                         type="button"
+                        data-kbd-item=""
                         onClick={() => handleSortClick(col)}
                         className="hover:text-foreground -m-1 flex items-center gap-1 p-1"
                       >
@@ -169,7 +171,12 @@ export function DataTable<T>({
               <TableRow>
                 <TableCell colSpan={columns.length} className="py-8 text-center">
                   <p className="text-muted-foreground mb-2">Failed to load this page.</p>
-                  <Button variant="outline" size="sm" onClick={() => listQuery.refetch()}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    data-kbd-item=""
+                    onClick={() => listQuery.refetch()}
+                  >
                     Retry
                   </Button>
                 </TableCell>
@@ -193,6 +200,8 @@ export function DataTable<T>({
                 <TableRow
                   key={getRowId(row)}
                   className={rowHref ? "cursor-pointer" : undefined}
+                  tabIndex={rowHref ? 0 : undefined}
+                  data-kbd-item={rowHref ? "" : undefined}
                   onClick={rowHref ? () => (window.location.href = rowHref(row)) : undefined}
                 >
                   {columns.map((col) => (
@@ -226,7 +235,7 @@ export function DataTable<T>({
               label: `${size} / page`,
             }))}
           >
-            <SelectTrigger className="w-24">
+            <SelectTrigger className="w-24" data-kbd-item="">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -241,6 +250,7 @@ export function DataTable<T>({
           <Button
             variant="outline"
             size="sm"
+            data-kbd-item=""
             disabled={page <= 1}
             onClick={() => setPage((p) => Math.max(1, p - 1))}
           >
@@ -252,6 +262,7 @@ export function DataTable<T>({
               type="number"
               min={1}
               max={totalPages}
+              data-kbd-item=""
               value={pageInput}
               onChange={(e) => setPageInput(e.target.value)}
               onBlur={commitPageInput}
@@ -269,6 +280,7 @@ export function DataTable<T>({
           <Button
             variant="outline"
             size="sm"
+            data-kbd-item=""
             disabled={page >= totalPages}
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
           >

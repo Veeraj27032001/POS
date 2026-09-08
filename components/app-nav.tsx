@@ -4,7 +4,7 @@ import { Loader2Icon } from "lucide-react";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import type { KeyboardEvent, ReactNode } from "react";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -35,6 +35,17 @@ export function AppNav({ groups, collapsed = false }: AppNavProps) {
   const itemRefs = useRef<(HTMLAnchorElement | null)[]>([]);
   const flatItems = groups.flatMap((group) => group.items);
 
+  // Keeps keyboard nav oriented on wherever you actually are. Billing is a
+  // deliberate exception — it keeps its own scan-box autofocus for a
+  // physical barcode scanner, so this effect leaves that page alone rather
+  // than racing it for focus.
+  useEffect(() => {
+    if (pathname === "/billing") return;
+    const idx = flatItems.findIndex((item) => item.href === pathname);
+    if (idx >= 0) itemRefs.current[idx]?.focus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname, groups]);
+
   function handleKeyDown(event: KeyboardEvent<HTMLAnchorElement>, index: number) {
     if (event.key === "ArrowDown") {
       event.preventDefault();
@@ -44,6 +55,14 @@ export function AppNav({ groups, collapsed = false }: AppNavProps) {
       event.preventDefault();
       const prev = Math.max(0, index - 1);
       itemRefs.current[prev]?.focus();
+    } else if (event.key === "ArrowRight") {
+      event.preventDefault();
+      const item = flatItems[index];
+      if (item.href === pathname) {
+        document.querySelector<HTMLElement>("main [data-kbd-item]")?.focus();
+      } else {
+        itemRefs.current[index]?.click();
+      }
     }
   }
 

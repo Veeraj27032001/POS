@@ -9,9 +9,15 @@ export interface FileUploadFieldProps {
   value: string | null;
   onChange: (url: string | null) => void;
   accept?: string;
+  "data-kbd-item"?: string;
 }
 
-export function FileUploadField({ value, onChange, accept }: FileUploadFieldProps) {
+export function FileUploadField({
+  value,
+  onChange,
+  accept,
+  "data-kbd-item": dataKbdItem,
+}: FileUploadFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const { upload, progress, phase, isUploading, error } = useFileUpload();
 
@@ -39,6 +45,7 @@ export function FileUploadField({ value, onChange, accept }: FileUploadFieldProp
       <input
         ref={inputRef}
         type="file"
+        data-kbd-item={dataKbdItem}
         accept={accept}
         disabled={isUploading}
         onChange={handleFileChange}

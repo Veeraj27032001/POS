@@ -55,6 +55,7 @@ export function CustomerDetailsFields({
       <div className="space-y-1.5">
         <Label>Existing customer</Label>
         <SearchableSelect
+          data-kbd-item=""
           options={customers}
           value={selectedCustomerId}
           onChange={(v) => {
@@ -66,23 +67,40 @@ export function CustomerDetailsFields({
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label>Name</Label>
-          <Input value={draft.name} onChange={(e) => set("name", e.target.value)} />
+          <Input
+            data-kbd-item=""
+            value={draft.name}
+            onChange={(e) => set("name", e.target.value)}
+          />
         </div>
         <div className="space-y-1.5">
           <Label>Phone</Label>
-          <Input value={draft.phone} onChange={(e) => set("phone", e.target.value)} />
+          <Input
+            data-kbd-item=""
+            value={draft.phone}
+            onChange={(e) => set("phone", e.target.value)}
+          />
         </div>
         <div className="space-y-1.5">
           <Label>Email</Label>
-          <Input value={draft.email} onChange={(e) => set("email", e.target.value)} />
+          <Input
+            data-kbd-item=""
+            value={draft.email}
+            onChange={(e) => set("email", e.target.value)}
+          />
         </div>
         <div className="space-y-1.5">
           <Label>Address</Label>
-          <Input value={draft.address} onChange={(e) => set("address", e.target.value)} />
+          <Input
+            data-kbd-item=""
+            value={draft.address}
+            onChange={(e) => set("address", e.target.value)}
+          />
         </div>
         <div className="space-y-1.5">
           <Label>Country</Label>
           <SearchableSelect
+            data-kbd-item=""
             options={countries}
             value={draft.countryId}
             onChange={(v) => onChange({ ...draft, countryId: v, stateId: null })}
@@ -92,6 +110,7 @@ export function CustomerDetailsFields({
         <div className="space-y-1.5">
           <Label>State</Label>
           <SearchableSelect
+            data-kbd-item=""
             options={states}
             value={draft.stateId}
             onChange={(v) => set("stateId", v)}
@@ -101,7 +120,11 @@ export function CustomerDetailsFields({
         </div>
         <div className="space-y-1.5">
           <Label>Pincode</Label>
-          <Input value={draft.pincode} onChange={(e) => set("pincode", e.target.value)} />
+          <Input
+            data-kbd-item=""
+            value={draft.pincode}
+            onChange={(e) => set("pincode", e.target.value)}
+          />
         </div>
       </div>
     </div>

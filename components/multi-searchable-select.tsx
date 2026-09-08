@@ -25,6 +25,7 @@ export interface MultiSearchableSelectProps {
   emptyMessage?: string;
   disabled?: boolean;
   className?: string;
+  "data-kbd-item"?: string;
 }
 
 export function MultiSearchableSelect({
@@ -36,6 +37,7 @@ export function MultiSearchableSelect({
   emptyMessage = "No results found.",
   disabled,
   className,
+  "data-kbd-item": dataKbdItem,
 }: MultiSearchableSelectProps) {
   const [open, setOpen] = useState(false);
   const selected = options.filter((o) => value.includes(o.value));
@@ -52,6 +54,7 @@ export function MultiSearchableSelect({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         disabled={disabled}
+        data-kbd-item={dataKbdItem}
         className={cn(
           "border-input bg-background ring-offset-background placeholder:text-muted-foreground flex h-9 w-full items-center justify-between rounded-md border px-3 py-2 text-sm shadow-sm disabled:cursor-not-allowed disabled:opacity-50",
           className,

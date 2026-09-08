@@ -109,7 +109,11 @@ export function ShiftControl({ terminalId, storeId }: { terminalId: string; stor
       <>
         <span>·</span>
         <span>Shift open since {formatTimestamp(shift.openedAt)}</span>
-        <Link href={`/shifts/${shift.id}/close`} className="hover:text-foreground underline">
+        <Link
+          href={`/shifts/${shift.id}/close`}
+          data-kbd-item=""
+          className="hover:text-foreground underline"
+        >
           Close Shift
         </Link>
       </>
@@ -121,7 +125,9 @@ export function ShiftControl({ terminalId, storeId }: { terminalId: string; stor
       <span>·</span>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger
-          render={<button type="button" className="hover:text-foreground underline" />}
+          render={
+            <button type="button" data-kbd-item="" className="hover:text-foreground underline" />
+          }
         >
           Open Shift
         </DialogTrigger>

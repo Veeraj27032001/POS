@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/dialog";
 import { DataTable } from "@/components/data-table/data-table";
 import type { DataTableColumn } from "@/components/data-table/types";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { useInvalidateResource } from "@/lib/pagination/useList";
 
 import { ResourceForm } from "./resource-form";
@@ -82,6 +84,10 @@ export function ResourcePage<
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const invalidate = useInvalidateResource();
   const singular = singularize(title);
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   async function handleCreate(values: TCreate) {
     const res = await fetch(`/api/${resource}`, {
@@ -170,11 +176,12 @@ export function ResourcePage<
         <div className="flex flex-wrap gap-2">
           <Link
             href={`/${resource}/${getRowId(row)}`}
+            data-kbd-item=""
             className={buttonVariants({ variant: "outline", size: "sm" })}
           >
             View
           </Link>
-          <Button variant="outline" size="sm" onClick={() => setEditingRow(row)}>
+          <Button variant="outline" size="sm" data-kbd-item="" onClick={() => setEditingRow(row)}>
             Edit
           </Button>
           {rowActions?.(row)}
@@ -183,6 +190,7 @@ export function ResourcePage<
               <Button
                 variant="outline"
                 size="sm"
+                data-kbd-item=""
                 disabled={togglingId === getRowId(row)}
                 onClick={() => handleToggleActive(row)}
               >
@@ -192,6 +200,7 @@ export function ResourcePage<
               <Button
                 variant="destructive"
                 size="sm"
+                data-kbd-item=""
                 disabled={deletingId === getRowId(row)}
                 onClick={() => handleDelete(row)}
               >
@@ -206,13 +215,13 @@ export function ResourcePage<
   ];
 
   return (
-    <div className="space-y-4 p-8">
+    <div ref={kbdRef} className="space-y-4 p-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">{title}</h1>
         <div className="flex gap-2">
           {headerExtra}
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-            <DialogTrigger render={<Button>New</Button>} />
+            <DialogTrigger render={<Button data-kbd-item="">New</Button>} />
             <DialogContent className={dialogClassName}>
               <DialogHeader>
                 <DialogTitle>New {singular}</DialogTitle>
