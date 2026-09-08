@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 export interface UseArrowKeyNavOptions {
   selector?: string;
@@ -52,15 +52,48 @@ function caretAtEnd(el: HTMLElement): boolean {
   }
 }
 
+function isFocusable(el: HTMLElement): boolean {
+  if (el.hasAttribute("disabled")) return false;
+  if (el.getAttribute("aria-disabled") === "true") return false;
+  return true;
+}
+
+// Walks from `fromIndex` in `step` increments (±1, or ±cols for a grid),
+// skipping any disabled item along the way — e.g. the "State" picker here
+// is disabled until a country's chosen, and landing focus on a disabled
+// element is a silent no-op in every browser, which otherwise looks
+// exactly like navigation being stuck. Returns -1 if nothing focusable is
+// left in that direction.
+function findNextFocusableIndex(items: HTMLElement[], fromIndex: number, step: number): number {
+  let idx = fromIndex + step;
+  while (idx >= 0 && idx < items.length) {
+    if (isFocusable(items[idx])) return idx;
+    idx += step;
+  }
+  return -1;
+}
+
+// Returns a *callback* ref, not a plain ref object — on purpose. Several
+// callers (the Billing screen, ResourcePage, etc.) only render their
+// `ref={...}` container on a later, conditional render (e.g. once a
+// terminal's been picked), not on first mount. A plain useRef's effect only
+// runs when its dependency array changes, which doesn't include "the DOM
+// node the ref points to just appeared" — so the listener would silently
+// never attach. A callback ref re-fires exactly when React attaches (or
+// detaches) the node, so state — and therefore this effect — stays correct
+// regardless of when the container actually shows up. React accepts a
+// callback ref anywhere a ref object works, so callers need no changes.
 export function useArrowKeyNav<T extends HTMLElement>({
   selector = "[data-navcard]",
   cols = 1,
   onBoundaryLeft,
 }: UseArrowKeyNavOptions = {}) {
-  const containerRef = useRef<T>(null);
+  const [container, setContainer] = useState<T | null>(null);
+  const containerRef = useCallback((node: T | null) => {
+    setContainer(node);
+  }, []);
 
   useEffect(() => {
-    const container = containerRef.current;
     if (!container) return;
 
     function getItems(): HTMLElement[] {
@@ -98,26 +131,29 @@ export function useArrowKeyNav<T extends HTMLElement>({
       if (event.key === "ArrowLeft" && textEditable && !caretAtStart(active!)) return;
       if (event.key === "ArrowRight" && textEditable && !caretAtEnd(active!)) return;
 
-      let nextIndex = currentIndex;
+      let nextIndex: number;
       switch (event.key) {
         case "ArrowDown":
-          nextIndex = Math.min(items.length - 1, currentIndex + cols);
+          nextIndex = findNextFocusableIndex(items, currentIndex, cols);
+          if (nextIndex === -1) return;
           break;
         case "ArrowUp":
-          nextIndex = Math.max(0, currentIndex - cols);
+          nextIndex = findNextFocusableIndex(items, currentIndex, -cols);
+          if (nextIndex === -1) return;
           break;
         case "ArrowRight":
-          nextIndex = Math.min(items.length - 1, currentIndex + 1);
+          nextIndex = findNextFocusableIndex(items, currentIndex, 1);
+          if (nextIndex === -1) return;
           break;
         case "ArrowLeft":
-          if (currentIndex === 0) {
+          nextIndex = findNextFocusableIndex(items, currentIndex, -1);
+          if (nextIndex === -1) {
             if (onBoundaryLeft) {
               event.preventDefault();
               onBoundaryLeft();
             }
             return;
           }
-          nextIndex = currentIndex - 1;
           break;
         default:
           return;
@@ -129,7 +165,7 @@ export function useArrowKeyNav<T extends HTMLElement>({
 
     container.addEventListener("keydown", handleKeyDown);
     return () => container.removeEventListener("keydown", handleKeyDown);
-  }, [selector, cols, onBoundaryLeft]);
+  }, [container, selector, cols, onBoundaryLeft]);
 
   return containerRef;
 }
