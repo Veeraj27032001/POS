@@ -33,7 +33,6 @@ const acceptLineSchema = z.object({
 });
 
 const acceptSchema = z.object({
-  storeId: opaqueIdSchema.optional(),
   lines: z.array(acceptLineSchema).min(1, "At least one line is required.").optional(),
 });
 
@@ -44,9 +43,10 @@ interface ResolvedLine {
 }
 
 // Staff accepts a pending online order from the dedicated Generate Bill
-// review page — they can switch which store issues the invoice, and for
-// each line, choose which store/warehouse the stock actually comes from
-// (a line can split across more than one, same as regular billing's
+// review page — the invoice is always issued by the order's own store
+// (wherever the API credential resolved it to at order time), but for each
+// line, staff can choose which store/warehouse the stock actually comes
+// from (a line can split across more than one, same as regular billing's
 // warehouse split picker). No stock transfer document is ever created: the
 // bill's own line allocations point directly at whichever warehouse the
 // stock sits in, even when that's a different store than the one billing
@@ -79,7 +79,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return apiErrorResponse("bad_request", `Can't accept a ${order.status} order.`, 400);
     }
 
-    const targetStoreId = parsed.data.storeId ?? order.storeId;
+    const targetStoreId = order.storeId;
     const itemByProduct = new Map(order.items.map((i) => [i.productId, i]));
 
     const targetLines: ResolvedLine[] = [];

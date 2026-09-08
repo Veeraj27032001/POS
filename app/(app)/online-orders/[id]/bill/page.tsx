@@ -11,9 +11,6 @@ import {
 } from "@/components/billing/line-warehouse-split";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { SearchableSelect } from "@/components/searchable-select";
-import { useOptionsList } from "@/lib/masters/useOptionsList";
 import { useStoreCurrencySymbol } from "@/lib/hooks/useStoreCurrencySymbol";
 
 interface OnlineOrderItemLock {
@@ -82,11 +79,9 @@ export default function GenerateBillPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const currencySymbol = useStoreCurrencySymbol();
-  const stores = useOptionsList("stores/options", "name");
 
   const [order, setOrder] = useState<OnlineOrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [storeId, setStoreId] = useState<string | null>(null);
   const [lines, setLines] = useState<BillLine[]>([]);
   const [availability, setAvailability] = useState<Record<string, CrossStoreAvailability[]>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -103,7 +98,6 @@ export default function GenerateBillPage() {
         if (orderRes.ok) {
           const body = (await orderRes.json()) as OnlineOrderDetail;
           setOrder(body);
-          setStoreId(body.storeId);
           setLines(
             body.items.map((item) => {
               const defaultAllocations = item.locks.map((l) => ({
@@ -197,10 +191,6 @@ export default function GenerateBillPage() {
   const estimatedTotal = activeLines.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0);
 
   async function generate() {
-    if (!storeId) {
-      toast.error("Select which store issues the invoice.");
-      return;
-    }
     if (activeLines.length === 0) {
       toast.error("At least one line is required.");
       return;
@@ -222,7 +212,6 @@ export default function GenerateBillPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          storeId,
           lines: activeLines.map((l) => ({
             productId: l.productId,
             quantity: l.quantity,
@@ -264,8 +253,8 @@ export default function GenerateBillPage() {
       <div>
         <h1 className="text-2xl font-semibold">Generate Bill — {order.documentNumber}</h1>
         <p className="text-muted-foreground text-sm">
-          Review the order, choose which store issues the invoice, and — per line — where the stock
-          actually comes from. Nothing is finalized until you click Generate Bill below.
+          Review the order, and — per line — where the stock actually comes from. Nothing is
+          finalized until you click Generate Bill below.
         </p>
       </div>
 
@@ -279,19 +268,6 @@ export default function GenerateBillPage() {
           <dd>{order.customerPhone}</dd>
         </div>
       </dl>
-
-      <div className="max-w-xs space-y-1.5">
-        <Label>Bill from store</Label>
-        <SearchableSelect
-          options={stores}
-          value={storeId}
-          onChange={setStoreId}
-          placeholder="Select a store…"
-        />
-        <p className="text-muted-foreground text-xs">
-          Only which store issues the invoice — each line below can still draw stock from any store.
-        </p>
-      </div>
 
       <div className="divide-y rounded-lg border">
         {lines.map((line) => {
