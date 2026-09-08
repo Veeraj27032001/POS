@@ -38,13 +38,17 @@ export function AppNav({ groups, collapsed = false }: AppNavProps) {
   // Keeps keyboard nav oriented on wherever you actually are. Billing is a
   // deliberate exception — it keeps its own scan-box autofocus for a
   // physical barcode scanner, so this effect leaves that page alone rather
-  // than racing it for focus.
+  // than racing it for focus. Deliberately keyed on pathname alone, not
+  // groups/flatItems too — those are recomputed fresh every render without
+  // a stable reference, so including them re-fires this on every render
+  // (not just real navigation), which was stealing focus back onto the
+  // just-clicked link mid-transition and silently cancelling the navigation.
   useEffect(() => {
     if (pathname === "/billing") return;
     const idx = flatItems.findIndex((item) => item.href === pathname);
     if (idx >= 0) itemRefs.current[idx]?.focus();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname, groups]);
+  }, [pathname]);
 
   function handleKeyDown(event: KeyboardEvent<HTMLAnchorElement>, index: number) {
     if (event.key === "ArrowDown") {
