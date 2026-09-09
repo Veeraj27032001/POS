@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/table";
 import { asAppSession } from "@/lib/auth/types";
 import { formatDateOnly, toDateOnly } from "@/lib/datetime/dateOnly";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 import { useInvalidateResource } from "@/lib/pagination/useList";
 import { cn } from "@/lib/utils";
@@ -77,6 +79,10 @@ export default function StockTransferViewPage() {
   const invalidate = useInvalidateResource();
   const warehouses = useOptionsList("warehouses", "name");
   const stores = useOptionsList("stock-transfers/destination-stores", "name");
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   function refresh() {
     fetch(`/api/stock-transfers/${id}`)
@@ -132,8 +138,12 @@ export default function StockTransferViewPage() {
   const canDelete = isSource && row?.status !== "accepted";
 
   return (
-    <div className="space-y-4 p-8">
-      <Link href="/stock-transfers" className="text-muted-foreground text-sm hover:underline">
+    <div ref={kbdRef} className="space-y-4 p-8">
+      <Link
+        href="/stock-transfers"
+        data-kbd-item=""
+        className="text-muted-foreground text-sm hover:underline"
+      >
         ← Back to Stock Transfer
       </Link>
 
@@ -158,6 +168,7 @@ export default function StockTransferViewPage() {
               {canEdit && (
                 <Link
                   href={`/stock-transfers/${row.id}/edit`}
+                  data-kbd-item=""
                   className={buttonVariants({ variant: "outline", size: "sm" })}
                 >
                   Edit
@@ -167,6 +178,7 @@ export default function StockTransferViewPage() {
                 <>
                   <Link
                     href={`/stock-transfers/${row.id}/receive`}
+                    data-kbd-item=""
                     className={buttonVariants({ size: "sm" })}
                   >
                     Receive
@@ -174,6 +186,7 @@ export default function StockTransferViewPage() {
                   <Button
                     variant="destructive"
                     size="sm"
+                    data-kbd-item=""
                     disabled={updating}
                     onClick={() => respond("reject")}
                   >
@@ -186,6 +199,7 @@ export default function StockTransferViewPage() {
                 <Button
                   variant="destructive"
                   size="sm"
+                  data-kbd-item=""
                   disabled={updating}
                   onClick={() => respond("cancel")}
                 >
@@ -194,7 +208,13 @@ export default function StockTransferViewPage() {
                 </Button>
               )}
               {canDelete && (
-                <Button variant="destructive" size="sm" disabled={deleting} onClick={handleDelete}>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  data-kbd-item=""
+                  disabled={deleting}
+                  onClick={handleDelete}
+                >
                   {deleting && <Loader2Icon className="size-3.5 animate-spin" />}
                   Delete
                 </Button>

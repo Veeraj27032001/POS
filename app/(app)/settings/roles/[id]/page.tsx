@@ -9,6 +9,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RBAC_ACTIONS, SUPER_ADMIN_ONLY_MODULES } from "@/lib/auth/rbac";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 
 interface Right {
   module: string;
@@ -51,6 +53,10 @@ export default function RoleDetailPage() {
   const [role, setRole] = useState<RoleDetail | null>(null);
   const [grid, setGrid] = useState<Record<string, boolean>>({});
   const [saving, setSaving] = useState(false);
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   function refresh() {
     fetch(`/api/roles/${id}`)
@@ -107,9 +113,13 @@ export default function RoleDetailPage() {
   }
 
   return (
-    <div className="space-y-4 p-8">
+    <div ref={kbdRef} className="space-y-4 p-8">
       <div>
-        <Link href="/settings/roles" className="text-muted-foreground text-sm hover:underline">
+        <Link
+          href="/settings/roles"
+          data-kbd-item=""
+          className="text-muted-foreground text-sm hover:underline"
+        >
           ← Back to Roles
         </Link>
         <h1 className="text-2xl font-semibold">{role.name}</h1>
@@ -136,6 +146,7 @@ export default function RoleDetailPage() {
                   return (
                     <td key={action} className="p-3 text-center">
                       <Checkbox
+                        data-kbd-item=""
                         checked={grid[key] ?? false}
                         onCheckedChange={(checked) =>
                           setGrid((prev) => ({ ...prev, [key]: checked === true }))
@@ -150,7 +161,7 @@ export default function RoleDetailPage() {
         </table>
       </div>
 
-      <Button onClick={handleSave} disabled={saving}>
+      <Button data-kbd-item="" onClick={handleSave} disabled={saving}>
         {saving && <Loader2Icon className="size-3.5 animate-spin" />}
         Save
       </Button>

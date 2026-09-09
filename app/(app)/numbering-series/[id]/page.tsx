@@ -7,6 +7,8 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 import { useInvalidateResource } from "@/lib/pagination/useList";
 import { cn } from "@/lib/utils";
@@ -37,6 +39,10 @@ export default function SeriesViewPage() {
   const invalidate = useInvalidateResource();
   const financialYears = useOptionsList("financial-years-admin", "label");
   const stores = useOptionsList("stores/options", "name");
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   function refresh() {
     fetch(`/api/numbering-series/${id}`)
@@ -94,8 +100,12 @@ export default function SeriesViewPage() {
   }
 
   return (
-    <div className="space-y-4 p-8">
-      <Link href="/numbering-series" className="text-muted-foreground text-sm hover:underline">
+    <div ref={kbdRef} className="space-y-4 p-8">
+      <Link
+        href="/numbering-series"
+        data-kbd-item=""
+        className="text-muted-foreground text-sm hover:underline"
+      >
         ← Back to Numbering Series
       </Link>
 
@@ -121,11 +131,23 @@ export default function SeriesViewPage() {
               currentNumber={row.currentNumber}
               onSaved={refresh}
             />
-            <Button variant="outline" size="sm" disabled={toggling} onClick={handleToggleActive}>
+            <Button
+              variant="outline"
+              size="sm"
+              data-kbd-item=""
+              disabled={toggling}
+              onClick={handleToggleActive}
+            >
               {toggling && <Loader2Icon className="size-3.5 animate-spin" />}
               {row.isActive ? "Deactivate" : "Activate"}
             </Button>
-            <Button variant="destructive" size="sm" disabled={deleting} onClick={handleDelete}>
+            <Button
+              variant="destructive"
+              size="sm"
+              data-kbd-item=""
+              disabled={deleting}
+              onClick={handleDelete}
+            >
               {deleting && <Loader2Icon className="size-3.5 animate-spin" />}
               Delete
             </Button>

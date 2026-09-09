@@ -184,6 +184,7 @@ export function ProductMediaManager({
               <div className="bg-muted/50 flex items-center justify-between gap-0.5 border-t px-1 py-1">
                 <button
                   type="button"
+                  data-kbd-item=""
                   onClick={() => handleMoveImage(index, -1)}
                   disabled={index === 0}
                   className="hover:bg-muted rounded p-1.5 disabled:opacity-30"
@@ -194,6 +195,7 @@ export function ProductMediaManager({
                 </button>
                 <button
                   type="button"
+                  data-kbd-item=""
                   onClick={() => handleMoveImage(index, 1)}
                   disabled={index === images.length - 1}
                   className="hover:bg-muted rounded p-1.5 disabled:opacity-30"
@@ -204,6 +206,7 @@ export function ProductMediaManager({
                 </button>
                 <button
                   type="button"
+                  data-kbd-item=""
                   onClick={() => handleRemoveImage(index)}
                   className="hover:bg-destructive/10 text-destructive rounded p-1.5"
                   title="Remove image"
@@ -214,7 +217,11 @@ export function ProductMediaManager({
               </div>
             </div>
           ))}
-          <label className="text-muted-foreground hover:text-foreground hover:border-foreground/30 flex h-24 w-28 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed p-1 text-center">
+          <label
+            tabIndex={0}
+            data-kbd-item=""
+            className="text-muted-foreground hover:text-foreground hover:border-foreground/30 flex h-24 w-28 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed p-1 text-center"
+          >
             {imageUpload.isUploading ? (
               <Loader2Icon className="size-4 animate-spin" />
             ) : (
@@ -256,6 +263,7 @@ export function ProductMediaManager({
               <div className="bg-muted/50 flex items-center justify-between gap-0.5 border-t px-1 py-1">
                 <button
                   type="button"
+                  data-kbd-item=""
                   onClick={() => handleMoveVideo(index, -1)}
                   disabled={index === 0}
                   className="hover:bg-muted rounded p-1.5 disabled:opacity-30"
@@ -266,6 +274,7 @@ export function ProductMediaManager({
                 </button>
                 <button
                   type="button"
+                  data-kbd-item=""
                   onClick={() => handleMoveVideo(index, 1)}
                   disabled={index === videos.length - 1}
                   className="hover:bg-muted rounded p-1.5 disabled:opacity-30"
@@ -276,6 +285,7 @@ export function ProductMediaManager({
                 </button>
                 <button
                   type="button"
+                  data-kbd-item=""
                   onClick={() => handleRemoveVideo(index)}
                   className="hover:bg-destructive/10 text-destructive rounded p-1.5"
                   title="Remove video"
@@ -286,7 +296,11 @@ export function ProductMediaManager({
               </div>
             </div>
           ))}
-          <label className="text-muted-foreground hover:text-foreground hover:border-foreground/30 flex h-28 w-48 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed p-1 text-center">
+          <label
+            tabIndex={0}
+            data-kbd-item=""
+            className="text-muted-foreground hover:text-foreground hover:border-foreground/30 flex h-28 w-48 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed p-1 text-center"
+          >
             {videoUpload.isUploading ? (
               <Loader2Icon className="size-4 animate-spin" />
             ) : (

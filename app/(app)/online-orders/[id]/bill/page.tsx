@@ -12,6 +12,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useStoreCurrencySymbol } from "@/lib/hooks/useStoreCurrencySymbol";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 
 interface OnlineOrderItemLock {
   warehouseId: string;
@@ -86,6 +88,10 @@ export default function GenerateBillPage() {
   const [availability, setAvailability] = useState<Record<string, CrossStoreAvailability[]>>({});
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   useEffect(() => {
     async function load() {
@@ -235,10 +241,11 @@ export default function GenerateBillPage() {
   if (!order) return <div className="p-8">Online order not found.</div>;
   if (order.status !== "pending") {
     return (
-      <div className="p-8">
+      <div ref={kbdRef} className="p-8">
         <p>This order is already {order.status} — nothing to generate.</p>
         <Button
           variant="outline"
+          data-kbd-item=""
           className="mt-4"
           onClick={() => router.push(`/online-orders/${order.id}`)}
         >
@@ -249,7 +256,7 @@ export default function GenerateBillPage() {
   }
 
   return (
-    <div className="space-y-6 p-8">
+    <div ref={kbdRef} className="space-y-6 p-8">
       <div>
         <h1 className="text-2xl font-semibold">Generate Bill — {order.documentNumber}</h1>
         <p className="text-muted-foreground text-sm">
@@ -276,6 +283,7 @@ export default function GenerateBillPage() {
             <div key={line.productId} className="flex items-center gap-4 p-3 text-sm">
               <input
                 type="checkbox"
+                data-kbd-item=""
                 checked={line.included}
                 onChange={() => toggleIncluded(line.productId)}
                 className="h-4 w-4"
@@ -305,6 +313,7 @@ export default function GenerateBillPage() {
               <Input
                 type="number"
                 min={1}
+                data-kbd-item=""
                 value={line.quantity}
                 disabled={!line.included}
                 onChange={(e) =>
@@ -331,10 +340,14 @@ export default function GenerateBillPage() {
       {message && <p className="text-destructive text-sm">{message}</p>}
 
       <div className="flex gap-2">
-        <Button variant="outline" onClick={() => router.push(`/online-orders/${order.id}`)}>
+        <Button
+          variant="outline"
+          data-kbd-item=""
+          onClick={() => router.push(`/online-orders/${order.id}`)}
+        >
           Cancel
         </Button>
-        <Button onClick={() => void generate()} disabled={submitting}>
+        <Button data-kbd-item="" onClick={() => void generate()} disabled={submitting}>
           {submitting ? "Generating…" : "Generate Bill"}
         </Button>
       </div>

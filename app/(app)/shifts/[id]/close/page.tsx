@@ -17,6 +17,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useStoreCurrencySymbol } from "@/lib/hooks/useStoreCurrencySymbol";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 
 interface ShiftInfo {
   id: string;
@@ -46,6 +48,10 @@ export default function CloseShiftPage() {
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const currencySymbol = useStoreCurrencySymbol();
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   useEffect(() => {
     fetch(`/api/shifts/${id}`)
@@ -106,8 +112,12 @@ export default function CloseShiftPage() {
   }
 
   return (
-    <div className="max-w-2xl space-y-4 p-8">
-      <Link href={`/shifts/${id}`} className="text-muted-foreground text-sm hover:underline">
+    <div ref={kbdRef} className="max-w-2xl space-y-4 p-8">
+      <Link
+        href={`/shifts/${id}`}
+        data-kbd-item=""
+        className="text-muted-foreground text-sm hover:underline"
+      >
         ← Back to shift
       </Link>
 
@@ -134,6 +144,7 @@ export default function CloseShiftPage() {
             <Input
               type="number"
               min={0}
+              data-kbd-item=""
               value={closingCounted}
               onChange={(e) => setClosingCounted(e.target.value)}
             />
@@ -143,6 +154,7 @@ export default function CloseShiftPage() {
             type="button"
             variant="outline"
             size="sm"
+            data-kbd-item=""
             onClick={() => setShowBreakdown((v) => !v)}
           >
             {showBreakdown ? "Hide" : "Add"} denomination breakdown
@@ -170,6 +182,7 @@ export default function CloseShiftPage() {
                         <Input
                           type="number"
                           min={0}
+                          data-kbd-item=""
                           value={counts[d.id] ?? ""}
                           onChange={(e) =>
                             setCounts((prev) => ({ ...prev, [d.id]: e.target.value }))
@@ -188,7 +201,7 @@ export default function CloseShiftPage() {
             </div>
           )}
 
-          <Button onClick={handleSubmit} disabled={submitting}>
+          <Button data-kbd-item="" onClick={handleSubmit} disabled={submitting}>
             {submitting ? "Closing…" : "Close Shift"}
           </Button>
         </>

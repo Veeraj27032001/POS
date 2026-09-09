@@ -9,6 +9,8 @@ import {
   SOURCE_TYPE_CONFIG,
   type SourceItemType,
 } from "@/lib/documents/entryCorrectionSourceTypes";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 
 interface EntryCorrectionRow {
   id: string;
@@ -25,6 +27,10 @@ interface EntryCorrectionRow {
 export default function EntryCorrectionViewPage() {
   const { id } = useParams<{ id: string }>();
   const [row, setRow] = useState<EntryCorrectionRow | null | undefined>(undefined);
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   useEffect(() => {
     fetch(`/api/entry-corrections/${id}`)
@@ -33,8 +39,12 @@ export default function EntryCorrectionViewPage() {
   }, [id]);
 
   return (
-    <div className="space-y-4 p-8">
-      <Link href="/entry-corrections" className="text-muted-foreground text-sm hover:underline">
+    <div ref={kbdRef} className="space-y-4 p-8">
+      <Link
+        href="/entry-corrections"
+        data-kbd-item=""
+        className="text-muted-foreground text-sm hover:underline"
+      >
         ← Back to Entry Correction
       </Link>
 

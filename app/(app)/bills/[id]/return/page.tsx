@@ -17,6 +17,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 
 interface ReturnLineOption {
@@ -55,6 +57,10 @@ export default function BillReturnFormPage() {
   const [reasonCodeId, setReasonCodeId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const reasonCodes = useOptionsList("reason-codes/options", "label", "category=return");
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   useEffect(() => {
     fetch(`/api/bills/${id}/return`)
@@ -146,8 +152,12 @@ export default function BillReturnFormPage() {
   }
 
   return (
-    <div className="space-y-4 p-8">
-      <Link href={`/bills/${id}`} className="text-muted-foreground text-sm hover:underline">
+    <div ref={kbdRef} className="space-y-4 p-8">
+      <Link
+        href={`/bills/${id}`}
+        data-kbd-item=""
+        className="text-muted-foreground text-sm hover:underline"
+      >
         ← Back to bill
       </Link>
 
@@ -186,6 +196,7 @@ export default function BillReturnFormPage() {
                               type="number"
                               min={0}
                               max={line.remaining}
+                              data-kbd-item=""
                               value={row.quantity}
                               onChange={(e) =>
                                 updateRow(line.id, index, { quantity: e.target.value })
@@ -202,7 +213,7 @@ export default function BillReturnFormPage() {
                                 { value: "damaged", label: "Damaged" },
                               ]}
                             >
-                              <SelectTrigger className="w-32">
+                              <SelectTrigger className="w-32" data-kbd-item="">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -211,6 +222,7 @@ export default function BillReturnFormPage() {
                               </SelectContent>
                             </Select>
                             <SearchableSelect
+                              data-kbd-item=""
                               options={form.warehouses.map((w) => ({
                                 value: w.id,
                                 label: w.name,
@@ -225,6 +237,7 @@ export default function BillReturnFormPage() {
                                 type="button"
                                 variant="ghost"
                                 size="sm"
+                                data-kbd-item=""
                                 onClick={() => removeRow(line.id, index)}
                               >
                                 Remove
@@ -238,6 +251,7 @@ export default function BillReturnFormPage() {
                           type="button"
                           variant="outline"
                           size="sm"
+                          data-kbd-item=""
                           onClick={() => addRow(line.id)}
                         >
                           + Split across another warehouse
@@ -255,6 +269,7 @@ export default function BillReturnFormPage() {
               <RequiredMark />
             </Label>
             <SearchableSelect
+              data-kbd-item=""
               options={reasonCodes}
               value={reasonCodeId}
               onChange={setReasonCodeId}
@@ -262,7 +277,7 @@ export default function BillReturnFormPage() {
             />
           </div>
 
-          <Button onClick={handleSubmit} disabled={submitting}>
+          <Button data-kbd-item="" onClick={handleSubmit} disabled={submitting}>
             {submitting ? "Recording…" : "Record Return"}
           </Button>
         </>

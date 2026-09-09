@@ -16,6 +16,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatDateOnly, toDateOnly } from "@/lib/datetime/dateOnly";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 import { useInvalidateResource } from "@/lib/pagination/useList";
 
@@ -54,6 +56,10 @@ export default function StockInwardViewPage() {
   const warehouses = useOptionsList("warehouses", "name");
   const suppliers = useOptionsList("suppliers", "name");
   const purchaseOrders = useOptionsList("product-requests", "documentNumber");
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   useEffect(() => {
     fetch(`/api/stock-inwards/${id}`)
@@ -82,8 +88,12 @@ export default function StockInwardViewPage() {
   const canEdit = row && !row.purchaseOrderId;
 
   return (
-    <div className="space-y-4 p-8">
-      <Link href="/stock-inwards" className="text-muted-foreground text-sm hover:underline">
+    <div ref={kbdRef} className="space-y-4 p-8">
+      <Link
+        href="/stock-inwards"
+        data-kbd-item=""
+        className="text-muted-foreground text-sm hover:underline"
+      >
         ← Back to Stock Inward
       </Link>
 
@@ -98,11 +108,18 @@ export default function StockInwardViewPage() {
               <div className="flex flex-wrap gap-2">
                 <Link
                   href={`/stock-inwards/${row.id}/edit`}
+                  data-kbd-item=""
                   className={buttonVariants({ variant: "outline", size: "sm" })}
                 >
                   Edit
                 </Link>
-                <Button variant="destructive" size="sm" disabled={deleting} onClick={handleDelete}>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  data-kbd-item=""
+                  disabled={deleting}
+                  onClick={handleDelete}
+                >
                   {deleting && <Loader2Icon className="size-3.5 animate-spin" />}
                   Delete
                 </Button>

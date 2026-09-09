@@ -12,6 +12,8 @@ import { useStorePaymentGatewayAvailable } from "@/lib/hooks/useStorePaymentGate
 import { formatDateOnly, toDateOnly } from "@/lib/datetime/dateOnly";
 import { formatTimestamp } from "@/lib/datetime/format";
 import { printBill, printReceipt } from "@/lib/billing/printing";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 import { SearchableSelect } from "@/components/searchable-select";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -153,6 +155,7 @@ function RecordPaymentDialog({
   const [amount, setAmount] = useState(() => money(maxAmount));
   const [submitting, setSubmitting] = useState(false);
   const paymentMethods = useOptionsList("payment-methods/options", "name");
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({ selector: "[data-kbd-item]" });
 
   async function submit() {
     if (!paymentMethodId) {
@@ -181,39 +184,48 @@ function RecordPaymentDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button size="sm" />}>Record payment</DialogTrigger>
+      <DialogTrigger render={<Button size="sm" data-kbd-item="" />}>Record payment</DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Record payment</DialogTitle>
         </DialogHeader>
-        <div className="space-y-1.5">
-          <Label>Method</Label>
-          <SearchableSelect
-            options={paymentMethods}
-            value={paymentMethodId}
-            onChange={setPaymentMethodId}
-            placeholder="Select method…"
-          />
+        <div ref={kbdRef} className="contents">
+          <div className="space-y-1.5">
+            <Label>Method</Label>
+            <SearchableSelect
+              data-kbd-item=""
+              options={paymentMethods}
+              value={paymentMethodId}
+              onChange={setPaymentMethodId}
+              placeholder="Select method…"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Amount</Label>
+            <Input
+              type="number"
+              min={0}
+              max={maxAmount}
+              data-kbd-item=""
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+            />
+            <p className="text-muted-foreground text-xs">Up to {money(maxAmount)}.</p>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" data-kbd-item="" onClick={() => setOpen(false)}>
+              Back
+            </Button>
+            <Button
+              type="button"
+              data-kbd-item=""
+              onClick={() => void submit()}
+              disabled={submitting}
+            >
+              {submitting ? "Recording…" : "Record payment"}
+            </Button>
+          </DialogFooter>
         </div>
-        <div className="space-y-1.5">
-          <Label>Amount</Label>
-          <Input
-            type="number"
-            min={0}
-            max={maxAmount}
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-          />
-          <p className="text-muted-foreground text-xs">Up to {money(maxAmount)}.</p>
-        </div>
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-            Back
-          </Button>
-          <Button type="button" onClick={() => void submit()} disabled={submitting}>
-            {submitting ? "Recording…" : "Record payment"}
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -226,6 +238,10 @@ export default function BillViewPage() {
   const [printingBill, setPrintingBill] = useState(false);
   const currencySymbol = useStoreCurrencySymbol();
   const paymentGatewayAvailable = useStorePaymentGatewayAvailable();
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   async function handlePrintReceipt() {
     if (!bill) return;
@@ -260,8 +276,12 @@ export default function BillViewPage() {
   useEffect(load, [id]);
 
   return (
-    <div className="space-y-4 p-8">
-      <Link href="/bills" className="text-muted-foreground text-sm hover:underline">
+    <div ref={kbdRef} className="space-y-4 p-8">
+      <Link
+        href="/bills"
+        data-kbd-item=""
+        className="text-muted-foreground text-sm hover:underline"
+      >
         ← Back to Bills
       </Link>
 
@@ -277,16 +297,27 @@ export default function BillViewPage() {
               <Button
                 variant="outline"
                 size="sm"
+                data-kbd-item=""
                 onClick={handlePrintReceipt}
                 disabled={printingReceipt}
               >
                 {printingReceipt ? "Printing…" : "Print Receipt"}
               </Button>
-              <Button variant="outline" size="sm" onClick={handlePrintBill} disabled={printingBill}>
+              <Button
+                variant="outline"
+                size="sm"
+                data-kbd-item=""
+                onClick={handlePrintBill}
+                disabled={printingBill}
+              >
                 {printingBill ? "Printing…" : "Print Bill"}
               </Button>
               {bill.status === "completed" && (
-                <Link href={`/bills/${bill.id}/return`} className={buttonVariants({ size: "sm" })}>
+                <Link
+                  href={`/bills/${bill.id}/return`}
+                  data-kbd-item=""
+                  className={buttonVariants({ size: "sm" })}
+                >
                   Return
                 </Link>
               )}
@@ -402,6 +433,7 @@ export default function BillViewPage() {
                   bill.outstandingBalance > 0 && (
                     <Link
                       href={`/billing/${bill.id}/collect`}
+                      data-kbd-item=""
                       className={buttonVariants({ variant: "outline", size: "sm" })}
                     >
                       Pay
@@ -449,6 +481,7 @@ export default function BillViewPage() {
                   <Link
                     key={r.id}
                     href={`/bill-returns/${r.id}`}
+                    data-kbd-item=""
                     className="hover:bg-muted/40 flex items-center justify-between p-3 text-sm"
                   >
                     <div>

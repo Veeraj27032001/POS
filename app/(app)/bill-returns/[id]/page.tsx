@@ -27,6 +27,8 @@ import {
 } from "@/components/ui/table";
 import { useStoreCurrencySymbol } from "@/lib/hooks/useStoreCurrencySymbol";
 import { formatTimestamp } from "@/lib/datetime/format";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 
 interface ReturnDetail {
@@ -78,6 +80,7 @@ function RefundDialog({
   const [amount, setAmount] = useState(() => money(maxAmount));
   const [submitting, setSubmitting] = useState(false);
   const paymentMethods = useOptionsList("payment-methods/options", "name");
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({ selector: "[data-kbd-item]" });
 
   async function submit() {
     if (!refundMethodId) {
@@ -106,39 +109,48 @@ function RefundDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button size="sm" />}>{label}</DialogTrigger>
+      <DialogTrigger render={<Button size="sm" data-kbd-item="" />}>{label}</DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Refund</DialogTitle>
         </DialogHeader>
-        <div className="space-y-1.5">
-          <Label>Refund method</Label>
-          <SearchableSelect
-            options={paymentMethods}
-            value={refundMethodId}
-            onChange={setRefundMethodId}
-            placeholder="Select method…"
-          />
+        <div ref={kbdRef} className="contents">
+          <div className="space-y-1.5">
+            <Label>Refund method</Label>
+            <SearchableSelect
+              data-kbd-item=""
+              options={paymentMethods}
+              value={refundMethodId}
+              onChange={setRefundMethodId}
+              placeholder="Select method…"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Amount</Label>
+            <Input
+              type="number"
+              min={0}
+              max={maxAmount}
+              data-kbd-item=""
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+            />
+            <p className="text-muted-foreground text-xs">Up to {money(maxAmount)}.</p>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" data-kbd-item="" onClick={() => setOpen(false)}>
+              Back
+            </Button>
+            <Button
+              type="button"
+              data-kbd-item=""
+              onClick={() => void submit()}
+              disabled={submitting}
+            >
+              {submitting ? "Processing…" : "Process refund"}
+            </Button>
+          </DialogFooter>
         </div>
-        <div className="space-y-1.5">
-          <Label>Amount</Label>
-          <Input
-            type="number"
-            min={0}
-            max={maxAmount}
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-          />
-          <p className="text-muted-foreground text-xs">Up to {money(maxAmount)}.</p>
-        </div>
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-            Back
-          </Button>
-          <Button type="button" onClick={() => void submit()} disabled={submitting}>
-            {submitting ? "Processing…" : "Process refund"}
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -149,6 +161,10 @@ export default function BillReturnDetailPage() {
   const [detail, setDetail] = useState<ReturnDetail | null | undefined>(undefined);
   const [issuingCreditNote, setIssuingCreditNote] = useState(false);
   const currencySymbol = useStoreCurrencySymbol();
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   function load() {
     fetch(`/api/bill-returns/${id}`)
@@ -175,7 +191,7 @@ export default function BillReturnDetailPage() {
   }
 
   return (
-    <div className="space-y-4 p-8">
+    <div ref={kbdRef} className="space-y-4 p-8">
       {detail === undefined && <p className="text-muted-foreground">Loading…</p>}
       {detail === null && <p className="text-muted-foreground">Return not found.</p>}
 
@@ -183,6 +199,7 @@ export default function BillReturnDetailPage() {
         <>
           <Link
             href={`/bills/${detail.billId}`}
+            data-kbd-item=""
             className="text-muted-foreground text-sm hover:underline"
           >
             ← Back to bill {detail.bill.documentNumber}
@@ -207,6 +224,7 @@ export default function BillReturnDetailPage() {
                         <Button
                           size="sm"
                           variant="outline"
+                          data-kbd-item=""
                           disabled={!detail.bill.customer || issuingCreditNote}
                           onClick={handleCreditNote}
                         >

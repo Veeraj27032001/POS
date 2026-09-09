@@ -20,6 +20,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { toDateOnly } from "@/lib/datetime/dateOnly";
 import { stockDamageEditSchema } from "@/lib/documents/schemas";
 import { useSubmitGuard } from "@/lib/forms/useSubmitGuard";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 import { useInvalidateResource } from "@/lib/pagination/useList";
 
@@ -53,6 +55,10 @@ export default function EditStockDamagePage() {
   });
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
   const warehouseId = useWatch({ control, name: "warehouseId" });
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   useEffect(() => {
     fetch(`/api/stock-damages/${id}`)
@@ -91,8 +97,12 @@ export default function EditStockDamagePage() {
   const guardedSubmit = useSubmitGuard(onSubmit);
 
   return (
-    <div className="space-y-4 p-8">
-      <Link href={`/stock-damages/${id}`} className="text-muted-foreground text-sm hover:underline">
+    <div ref={kbdRef} className="space-y-4 p-8">
+      <Link
+        href={`/stock-damages/${id}`}
+        data-kbd-item=""
+        className="text-muted-foreground text-sm hover:underline"
+      >
         ← Back to Stock Damage
       </Link>
 
@@ -117,6 +127,7 @@ export default function EditStockDamagePage() {
                     control={control}
                     render={({ field }) => (
                       <SearchableSelect
+                        data-kbd-item=""
                         options={warehouses}
                         value={field.value ?? null}
                         onChange={(v) => field.onChange(v ?? "")}
@@ -134,7 +145,7 @@ export default function EditStockDamagePage() {
                     Damage date
                     <RequiredMark />
                   </Label>
-                  <Input id="damageDate" type="date" {...register("damageDate")} />
+                  <Input id="damageDate" type="date" data-kbd-item="" {...register("damageDate")} />
                   {errors.damageDate && (
                     <p className="text-sm text-red-600">{errors.damageDate.message}</p>
                   )}
@@ -142,7 +153,7 @@ export default function EditStockDamagePage() {
 
                 <div className="space-y-1.5 sm:col-span-2">
                   <Label htmlFor="notes">Notes</Label>
-                  <Textarea id="notes" {...register("notes")} />
+                  <Textarea id="notes" data-kbd-item="" {...register("notes")} />
                 </div>
               </div>
 
@@ -156,6 +167,7 @@ export default function EditStockDamagePage() {
                     type="button"
                     variant="outline"
                     size="sm"
+                    data-kbd-item=""
                     onClick={() => append({ productId: "", quantity: 1, reasonCodeId: "" })}
                   >
                     <PlusIcon className="size-3.5" />
@@ -181,6 +193,7 @@ export default function EditStockDamagePage() {
                           control={control}
                           render={({ field: f }) => (
                             <ProductSelectWithStock
+                              data-kbd-item=""
                               value={f.value}
                               onChange={f.onChange}
                               products={products}
@@ -192,6 +205,7 @@ export default function EditStockDamagePage() {
                           type="number"
                           min={0}
                           placeholder="Qty"
+                          data-kbd-item=""
                           {...register(`items.${index}.quantity`, {
                             valueAsNumber: true,
                             min: 0,
@@ -202,6 +216,7 @@ export default function EditStockDamagePage() {
                           control={control}
                           render={({ field: f }) => (
                             <SearchableSelect
+                              data-kbd-item=""
                               options={reasonCodes}
                               value={f.value ?? null}
                               onChange={(v) => f.onChange(v ?? "")}
@@ -213,6 +228,7 @@ export default function EditStockDamagePage() {
                           type="button"
                           variant="destructive"
                           size="icon-sm"
+                          data-kbd-item=""
                           disabled={fields.length === 1}
                           onClick={() => remove(index)}
                         >
@@ -230,11 +246,12 @@ export default function EditStockDamagePage() {
             <CardFooter className="justify-end gap-2">
               <Link
                 href={`/stock-damages/${id}`}
+                data-kbd-item=""
                 className="text-muted-foreground text-sm hover:underline"
               >
                 Cancel
               </Link>
-              <Button type="submit" disabled={isSubmitting}>
+              <Button type="submit" data-kbd-item="" disabled={isSubmitting}>
                 {isSubmitting ? "Saving…" : "Save"}
               </Button>
             </CardFooter>

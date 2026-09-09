@@ -17,6 +17,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 import { useInvalidateResource } from "@/lib/pagination/useList";
 import { cn } from "@/lib/utils";
@@ -61,6 +63,10 @@ export default function ProductRequestViewPage() {
   const [deleting, setDeleting] = useState(false);
   const invalidate = useInvalidateResource();
   const suppliers = useOptionsList("suppliers", "name");
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   function refresh() {
     fetch(`/api/product-requests/${id}`)
@@ -120,8 +126,12 @@ export default function ProductRequestViewPage() {
     row.items.every((item) => item.quantityReceived === 0);
 
   return (
-    <div className="space-y-4 p-8">
-      <Link href="/product-requests" className="text-muted-foreground text-sm hover:underline">
+    <div ref={kbdRef} className="space-y-4 p-8">
+      <Link
+        href="/product-requests"
+        data-kbd-item=""
+        className="text-muted-foreground text-sm hover:underline"
+      >
         ← Back to Product Requests
       </Link>
 
@@ -146,6 +156,7 @@ export default function ProductRequestViewPage() {
               {row.status === "draft" && (
                 <Link
                   href={`/product-requests/${row.id}/edit`}
+                  data-kbd-item=""
                   className={buttonVariants({ variant: "outline", size: "sm" })}
                 >
                   Edit
@@ -155,6 +166,7 @@ export default function ProductRequestViewPage() {
                 <Button
                   variant="outline"
                   size="sm"
+                  data-kbd-item=""
                   disabled={updating}
                   onClick={() => updateStatus("sent")}
                 >
@@ -166,6 +178,7 @@ export default function ProductRequestViewPage() {
                 <Button
                   variant="outline"
                   size="sm"
+                  data-kbd-item=""
                   disabled={updating}
                   onClick={() => updateStatus("draft")}
                 >
@@ -179,6 +192,7 @@ export default function ProductRequestViewPage() {
                 <Button
                   variant="destructive"
                   size="sm"
+                  data-kbd-item=""
                   disabled={updating}
                   onClick={() => updateStatus("cancelled")}
                 >
@@ -187,7 +201,13 @@ export default function ProductRequestViewPage() {
                 </Button>
               )}
               {row.status === "draft" && (
-                <Button variant="destructive" size="sm" disabled={deleting} onClick={handleDelete}>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  data-kbd-item=""
+                  disabled={deleting}
+                  onClick={handleDelete}
+                >
                   {deleting && <Loader2Icon className="size-3.5 animate-spin" />}
                   Delete
                 </Button>

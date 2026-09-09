@@ -23,6 +23,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useSubmitGuard } from "@/lib/forms/useSubmitGuard";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { productUpdateSchema } from "@/lib/masters/schemas";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 import { useTaxPreferences } from "@/lib/masters/useTaxPreferences";
@@ -90,12 +91,13 @@ export function EditProductDialog(props: EditProductDialogProps) {
   }
 
   const guardedSubmit = useSubmitGuard(onSubmit);
+  const kbdRef = useArrowKeyNav<HTMLFormElement>({ selector: "[data-kbd-item]" });
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
         render={
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" data-kbd-item="">
             Edit
           </Button>
         }
@@ -105,6 +107,7 @@ export function EditProductDialog(props: EditProductDialogProps) {
           <DialogTitle>Edit Product</DialogTitle>
         </DialogHeader>
         <form
+          ref={kbdRef}
           onSubmit={handleSubmit(guardedSubmit)}
           className="flex min-h-0 flex-1 flex-col overflow-hidden"
         >
@@ -114,7 +117,7 @@ export function EditProductDialog(props: EditProductDialogProps) {
                 Name
                 <RequiredMark />
               </Label>
-              <Input id="edit-name" {...register("name")} />
+              <Input id="edit-name" data-kbd-item="" {...register("name")} />
               {errors.name && <p className="text-sm text-red-600">{errors.name.message}</p>}
             </div>
 
@@ -125,6 +128,7 @@ export function EditProductDialog(props: EditProductDialogProps) {
                 control={control}
                 render={({ field }) => (
                   <SearchableSelect
+                    data-kbd-item=""
                     options={categories}
                     value={field.value ?? null}
                     onChange={field.onChange}
@@ -145,6 +149,7 @@ export function EditProductDialog(props: EditProductDialogProps) {
                   control={control}
                   render={({ field }) => (
                     <SearchableSelect
+                      data-kbd-item=""
                       options={hsnCodes}
                       value={field.value ?? null}
                       onChange={(v) => field.onChange(v ?? "")}
@@ -170,6 +175,7 @@ export function EditProductDialog(props: EditProductDialogProps) {
                 control={control}
                 render={({ field }) => (
                   <SearchableSelect
+                    data-kbd-item=""
                     options={uoms}
                     value={field.value ?? null}
                     onChange={(v) => field.onChange(v ?? "")}
@@ -189,6 +195,7 @@ export function EditProductDialog(props: EditProductDialogProps) {
                 id="edit-price"
                 type="number"
                 step="0.01"
+                data-kbd-item=""
                 {...register("price", { valueAsNumber: true })}
               />
               {errors.price && <p className="text-sm text-red-600">{errors.price.message}</p>}
@@ -196,7 +203,7 @@ export function EditProductDialog(props: EditProductDialogProps) {
 
             <div className="space-y-1.5">
               <Label htmlFor="edit-skuBarcode">Manufacturer barcode (optional)</Label>
-              <Input id="edit-skuBarcode" {...register("skuBarcode")} />
+              <Input id="edit-skuBarcode" data-kbd-item="" {...register("skuBarcode")} />
             </div>
 
             <div className="space-y-1.5">
@@ -204,6 +211,7 @@ export function EditProductDialog(props: EditProductDialogProps) {
               <Input
                 id="edit-reorderLevel"
                 type="number"
+                data-kbd-item=""
                 {...register("reorderLevel", {
                   setValueAs: (v) => (v === "" || v === null ? undefined : Number(v)),
                 })}
@@ -220,6 +228,7 @@ export function EditProductDialog(props: EditProductDialogProps) {
                 <div className="flex items-center gap-2 sm:col-span-2">
                   <Checkbox
                     id="edit-stockTracked"
+                    data-kbd-item=""
                     checked={Boolean(field.value)}
                     onCheckedChange={(checked) => field.onChange(checked)}
                   />
@@ -230,7 +239,7 @@ export function EditProductDialog(props: EditProductDialogProps) {
           </DialogFormBody>
 
           <DialogFormActions>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" data-kbd-item="" disabled={isSubmitting}>
               {isSubmitting ? "Saving…" : "Save changes"}
             </Button>
           </DialogFormActions>

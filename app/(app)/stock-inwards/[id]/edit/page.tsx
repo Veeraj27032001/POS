@@ -21,6 +21,8 @@ import { formatCurrency } from "@/lib/datetime/currency";
 import { toDateOnly } from "@/lib/datetime/dateOnly";
 import { stockInwardEditSchema } from "@/lib/documents/schemas";
 import { useSubmitGuard } from "@/lib/forms/useSubmitGuard";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 import { useInvalidateResource } from "@/lib/pagination/useList";
 
@@ -66,6 +68,10 @@ export default function EditStockInwardPage() {
   });
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
   const watchedItems = useWatch({ control, name: "items" });
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   useEffect(() => {
     fetch(`/api/stock-inwards/${id}`)
@@ -135,8 +141,12 @@ export default function EditStockInwardPage() {
   }, 0);
 
   return (
-    <div className="space-y-4 p-8">
-      <Link href={`/stock-inwards/${id}`} className="text-muted-foreground text-sm hover:underline">
+    <div ref={kbdRef} className="space-y-4 p-8">
+      <Link
+        href={`/stock-inwards/${id}`}
+        data-kbd-item=""
+        className="text-muted-foreground text-sm hover:underline"
+      >
         ← Back to Stock Inward
       </Link>
 
@@ -173,7 +183,7 @@ export default function EditStockInwardPage() {
                     Inward date
                     <RequiredMark />
                   </Label>
-                  <Input id="inwardDate" type="date" {...register("inwardDate")} />
+                  <Input id="inwardDate" type="date" data-kbd-item="" {...register("inwardDate")} />
                   {errors.inwardDate && (
                     <p className="text-sm text-red-600">{errors.inwardDate.message}</p>
                   )}
@@ -186,6 +196,7 @@ export default function EditStockInwardPage() {
                     control={control}
                     render={({ field }) => (
                       <SearchableSelect
+                        data-kbd-item=""
                         options={suppliers}
                         value={field.value ?? null}
                         onChange={(v) => field.onChange(v ?? null)}
@@ -197,7 +208,7 @@ export default function EditStockInwardPage() {
 
                 <div className="space-y-1.5 sm:col-span-2">
                   <Label htmlFor="notes">Notes</Label>
-                  <Textarea id="notes" {...register("notes")} />
+                  <Textarea id="notes" data-kbd-item="" {...register("notes")} />
                 </div>
               </div>
 
@@ -211,6 +222,7 @@ export default function EditStockInwardPage() {
                     type="button"
                     variant="outline"
                     size="sm"
+                    data-kbd-item=""
                     onClick={() => append({ productId: "", quantityAccepted: 1 })}
                   >
                     <PlusIcon className="size-3.5" />
@@ -241,6 +253,7 @@ export default function EditStockInwardPage() {
                             control={control}
                             render={({ field: f }) => (
                               <ProductSelectWithStock
+                                data-kbd-item=""
                                 value={f.value}
                                 onChange={(v) => {
                                   f.onChange(v);
@@ -255,6 +268,7 @@ export default function EditStockInwardPage() {
                             type="number"
                             min={0}
                             placeholder="Accepted"
+                            data-kbd-item=""
                             {...register(`items.${index}.quantityAccepted`, {
                               valueAsNumber: true,
                               min: 0,
@@ -264,6 +278,7 @@ export default function EditStockInwardPage() {
                             type="number"
                             min={0}
                             placeholder="Rejected"
+                            data-kbd-item=""
                             {...register(`items.${index}.quantityRejected`, {
                               min: 0,
                               setValueAs: (v) => (v === "" || v === null ? undefined : Number(v)),
@@ -274,6 +289,7 @@ export default function EditStockInwardPage() {
                             min={0}
                             step="0.01"
                             placeholder="Cost"
+                            data-kbd-item=""
                             {...register(`items.${index}.unitCost`, {
                               min: 0,
                               setValueAs: (v) => (v === "" || v === null ? undefined : Number(v)),
@@ -286,6 +302,7 @@ export default function EditStockInwardPage() {
                             type="button"
                             variant="destructive"
                             size="icon-sm"
+                            data-kbd-item=""
                             disabled={fields.length === 1}
                             onClick={() => remove(index)}
                           >
@@ -308,11 +325,12 @@ export default function EditStockInwardPage() {
             <CardFooter className="justify-end gap-2">
               <Link
                 href={`/stock-inwards/${id}`}
+                data-kbd-item=""
                 className="text-muted-foreground text-sm hover:underline"
               >
                 Cancel
               </Link>
-              <Button type="submit" disabled={isSubmitting}>
+              <Button type="submit" data-kbd-item="" disabled={isSubmitting}>
                 {isSubmitting ? "Saving…" : "Save"}
               </Button>
             </CardFooter>

@@ -16,6 +16,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { stockTransferReceiveSchema } from "@/lib/documents/schemas";
 import { useSubmitGuard } from "@/lib/forms/useSubmitGuard";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 import { useInvalidateResource } from "@/lib/pagination/useList";
 
@@ -53,6 +55,10 @@ export default function ReceiveStockTransferPage() {
     defaultValues: { items: [] },
   });
   const { fields } = useFieldArray({ control, name: "items" });
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   useEffect(() => {
     fetch(`/api/stock-transfers/${id}`)
@@ -99,9 +105,10 @@ export default function ReceiveStockTransferPage() {
   const guardedSubmit = useSubmitGuard(onSubmit);
 
   return (
-    <div className="space-y-4 p-8">
+    <div ref={kbdRef} className="space-y-4 p-8">
       <Link
         href={`/stock-transfers/${id}`}
+        data-kbd-item=""
         className="text-muted-foreground text-sm hover:underline"
       >
         ← Back to Stock Transfer
@@ -127,7 +134,12 @@ export default function ReceiveStockTransferPage() {
                   Received date
                   <RequiredMark />
                 </Label>
-                <Input id="receivedDate" type="date" {...register("receivedDate")} />
+                <Input
+                  id="receivedDate"
+                  type="date"
+                  data-kbd-item=""
+                  {...register("receivedDate")}
+                />
                 {errors.receivedDate && (
                   <p className="text-sm text-red-600">{errors.receivedDate.message}</p>
                 )}
@@ -155,6 +167,7 @@ export default function ReceiveStockTransferPage() {
                       <Input
                         type="number"
                         min={0}
+                        data-kbd-item=""
                         {...register(`items.${index}.quantityAccepted`, {
                           valueAsNumber: true,
                           min: 0,
@@ -163,6 +176,7 @@ export default function ReceiveStockTransferPage() {
                       <Input
                         type="number"
                         min={0}
+                        data-kbd-item=""
                         {...register(`items.${index}.quantityRejected`, {
                           valueAsNumber: true,
                           min: 0,
@@ -173,6 +187,7 @@ export default function ReceiveStockTransferPage() {
                         control={control}
                         render={({ field: f }) => (
                           <SearchableSelect
+                            data-kbd-item=""
                             options={warehouses}
                             value={f.value ?? null}
                             onChange={(v) => f.onChange(v ?? "")}
@@ -191,11 +206,12 @@ export default function ReceiveStockTransferPage() {
             <CardFooter className="justify-end gap-2">
               <Link
                 href={`/stock-transfers/${id}`}
+                data-kbd-item=""
                 className="text-muted-foreground text-sm hover:underline"
               >
                 Cancel
               </Link>
-              <Button type="submit" disabled={isSubmitting}>
+              <Button type="submit" data-kbd-item="" disabled={isSubmitting}>
                 {isSubmitting ? "Saving…" : "Save"}
               </Button>
             </CardFooter>

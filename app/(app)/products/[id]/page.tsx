@@ -12,6 +12,8 @@ import { ProductPriceHistory } from "@/components/product-price-history";
 import { ProductSupplierPricing } from "@/components/product-supplier-pricing";
 import { Button } from "@/components/ui/button";
 import { getPrintBridge } from "@/lib/adapters/print";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 import { useTaxPreferences } from "@/lib/masters/useTaxPreferences";
 import { useInvalidateResource } from "@/lib/pagination/useList";
@@ -55,6 +57,10 @@ export default function ProductViewPage() {
   const uoms = useOptionsList("uoms", "name");
   const preferences = useTaxPreferences();
   const hsnEnabled = preferences?.hsnTaxDisplayEnabled ?? false;
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   useEffect(() => {
     fetch(`/api/products/${id}`)
@@ -125,8 +131,12 @@ export default function ProductViewPage() {
   }
 
   return (
-    <div className="space-y-4 p-8">
-      <Link href="/products" className="text-muted-foreground text-sm hover:underline">
+    <div ref={kbdRef} className="space-y-4 p-8">
+      <Link
+        href="/products"
+        data-kbd-item=""
+        className="text-muted-foreground text-sm hover:underline"
+      >
         ← Back to Products
       </Link>
 
@@ -146,7 +156,7 @@ export default function ProductViewPage() {
         </div>
         {row && (
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={handlePrintLabel}>
+            <Button variant="outline" size="sm" data-kbd-item="" onClick={handlePrintLabel}>
               Print Label
             </Button>
             <EditProductDialog
@@ -161,11 +171,23 @@ export default function ProductViewPage() {
               stockTracked={row.stockTracked}
               onSaved={(updated) => setRow((prev) => (prev ? { ...prev, ...updated } : prev))}
             />
-            <Button variant="outline" size="sm" disabled={toggling} onClick={handleToggleActive}>
+            <Button
+              variant="outline"
+              size="sm"
+              data-kbd-item=""
+              disabled={toggling}
+              onClick={handleToggleActive}
+            >
               {toggling && <Loader2Icon className="size-3.5 animate-spin" />}
               {row.isActive ? "Deactivate" : "Activate"}
             </Button>
-            <Button variant="destructive" size="sm" disabled={deleting} onClick={handleDelete}>
+            <Button
+              variant="destructive"
+              size="sm"
+              data-kbd-item=""
+              disabled={deleting}
+              onClick={handleDelete}
+            >
               {deleting && <Loader2Icon className="size-3.5 animate-spin" />}
               Delete
             </Button>

@@ -19,6 +19,8 @@ import { toDateOnly } from "@/lib/datetime/dateOnly";
 import { formatCurrency } from "@/lib/datetime/currency";
 import { productRequestEditSchema } from "@/lib/documents/schemas";
 import { useSubmitGuard } from "@/lib/forms/useSubmitGuard";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 import { useInvalidateResource } from "@/lib/pagination/useList";
 
@@ -59,6 +61,10 @@ export default function EditProductRequestPage() {
   });
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
   const watchedItems = useWatch({ control, name: "items" });
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   useEffect(() => {
     fetch(`/api/product-requests/${id}`)
@@ -125,9 +131,10 @@ export default function EditProductRequestPage() {
   }, 0);
 
   return (
-    <div className="space-y-4 p-8">
+    <div ref={kbdRef} className="space-y-4 p-8">
       <Link
         href={`/product-requests/${id}`}
+        data-kbd-item=""
         className="text-muted-foreground text-sm hover:underline"
       >
         ← Back to Product Request
@@ -159,6 +166,7 @@ export default function EditProductRequestPage() {
                     control={control}
                     render={({ field }) => (
                       <SearchableSelect
+                        data-kbd-item=""
                         options={suppliers}
                         value={field.value ?? null}
                         onChange={(v) => field.onChange(v ?? "")}
@@ -176,7 +184,12 @@ export default function EditProductRequestPage() {
                     Request date
                     <RequiredMark />
                   </Label>
-                  <Input id="requestDate" type="date" {...register("requestDate")} />
+                  <Input
+                    id="requestDate"
+                    type="date"
+                    data-kbd-item=""
+                    {...register("requestDate")}
+                  />
                   {errors.requestDate && (
                     <p className="text-sm text-red-600">{errors.requestDate.message}</p>
                   )}
@@ -193,6 +206,7 @@ export default function EditProductRequestPage() {
                     type="button"
                     variant="outline"
                     size="sm"
+                    data-kbd-item=""
                     onClick={() => append({ productId: "", quantityRequested: 1 })}
                   >
                     <PlusIcon className="size-3.5" />
@@ -222,6 +236,7 @@ export default function EditProductRequestPage() {
                             control={control}
                             render={({ field: f }) => (
                               <SearchableSelect
+                                data-kbd-item=""
                                 options={products}
                                 value={f.value ?? null}
                                 onChange={(v) => {
@@ -236,6 +251,7 @@ export default function EditProductRequestPage() {
                             type="number"
                             min={0}
                             placeholder="Qty"
+                            data-kbd-item=""
                             {...register(`items.${index}.quantityRequested`, {
                               valueAsNumber: true,
                               min: 0,
@@ -246,6 +262,7 @@ export default function EditProductRequestPage() {
                             min={0}
                             step="0.01"
                             placeholder="Optional"
+                            data-kbd-item=""
                             {...register(`items.${index}.expectedUnitCost`, {
                               min: 0,
                               setValueAs: (v) => (v === "" || v === null ? undefined : Number(v)),
@@ -258,6 +275,7 @@ export default function EditProductRequestPage() {
                             type="button"
                             variant="destructive"
                             size="icon-sm"
+                            data-kbd-item=""
                             disabled={fields.length === 1}
                             onClick={() => remove(index)}
                           >
@@ -280,11 +298,12 @@ export default function EditProductRequestPage() {
             <CardFooter className="justify-end gap-2">
               <Link
                 href={`/product-requests/${id}`}
+                data-kbd-item=""
                 className="text-muted-foreground text-sm hover:underline"
               >
                 Cancel
               </Link>
-              <Button type="submit" disabled={isSubmitting}>
+              <Button type="submit" data-kbd-item="" disabled={isSubmitting}>
                 {isSubmitting ? "Saving…" : "Save"}
               </Button>
             </CardFooter>

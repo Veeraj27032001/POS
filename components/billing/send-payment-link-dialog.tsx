@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { SendLinkPanel } from "@/components/billing/send-link-panel";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -57,6 +58,7 @@ export function SendPaymentLinkDialog({
   const [paused, setPaused] = useState(false);
   const pollCountRef = useRef(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({ selector: "[data-kbd-item]" });
 
   function stopPolling() {
     if (intervalRef.current) {
@@ -145,7 +147,7 @@ export function SendPaymentLinkDialog({
         else setOpen(true);
       }}
     >
-      <DialogTrigger render={<Button size="sm" variant="outline" />}>
+      <DialogTrigger render={<Button size="sm" variant="outline" data-kbd-item="" />}>
         Send payment link
       </DialogTrigger>
       <DialogContent>
@@ -153,115 +155,139 @@ export function SendPaymentLinkDialog({
           <DialogTitle>Send Payment Link</DialogTitle>
         </DialogHeader>
 
-        {!request && (
-          <>
-            <div className="space-y-1.5">
-              <Label>Amount</Label>
-              <Input
-                type="number"
-                min={0}
-                max={maxAmount}
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-              />
-              <p className="text-muted-foreground text-xs">
-                Up to {currencySymbol}
-                {maxAmount.toFixed(2)}.
-              </p>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Send via</Label>
-              <Select
-                value={deliveryChannel}
-                onValueChange={(v) => v && setDeliveryChannel(v as "email" | "sms")}
-                items={[
-                  { value: "sms", label: "SMS" },
-                  { value: "email", label: "Email" },
-                ]}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="sms">SMS</SelectItem>
-                  <SelectItem value="email">Email</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                Back
-              </Button>
-              <Button type="button" onClick={() => void send()} disabled={sending}>
-                {sending ? "Sending…" : "Send link"}
-              </Button>
-            </DialogFooter>
-          </>
-        )}
-
-        {request && status !== "paid" && (
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <Label>Link</Label>
-              <div className="flex gap-2">
-                <p className="bg-muted flex-1 truncate rounded-md border px-2 py-1.5 text-xs">
-                  {request.presentationValue}
+        <div ref={kbdRef} className="contents">
+          {!request && (
+            <>
+              <div className="space-y-1.5">
+                <Label>Amount</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={maxAmount}
+                  data-kbd-item=""
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                />
+                <p className="text-muted-foreground text-xs">
+                  Up to {currencySymbol}
+                  {maxAmount.toFixed(2)}.
                 </p>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Send via</Label>
+                <Select
+                  value={deliveryChannel}
+                  onValueChange={(v) => v && setDeliveryChannel(v as "email" | "sms")}
+                  items={[
+                    { value: "sms", label: "SMS" },
+                    { value: "email", label: "Email" },
+                  ]}
+                >
+                  <SelectTrigger className="w-full" data-kbd-item="">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="sms">SMS</SelectItem>
+                    <SelectItem value="email">Email</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <DialogFooter>
                 <Button
                   type="button"
                   variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    void navigator.clipboard.writeText(request.presentationValue);
-                    toast.success("Link copied.");
-                  }}
+                  data-kbd-item=""
+                  onClick={() => setOpen(false)}
                 >
-                  Copy
+                  Back
                 </Button>
+                <Button
+                  type="button"
+                  data-kbd-item=""
+                  onClick={() => void send()}
+                  disabled={sending}
+                >
+                  {sending ? "Sending…" : "Send link"}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+
+          {request && status !== "paid" && (
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label>Link</Label>
+                <div className="flex gap-2">
+                  <p className="bg-muted flex-1 truncate rounded-md border px-2 py-1.5 text-xs">
+                    {request.presentationValue}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    data-kbd-item=""
+                    onClick={() => {
+                      void navigator.clipboard.writeText(request.presentationValue);
+                      toast.success("Link copied.");
+                    }}
+                  >
+                    Copy
+                  </Button>
+                </div>
+                {request.deliverySent === false && (
+                  <p className="text-muted-foreground text-xs">
+                    Couldn&apos;t send it automatically — copy and share it manually.
+                  </p>
+                )}
+                {request.deliverySent === true && (
+                  <p className="text-muted-foreground text-xs">Sent to the customer.</p>
+                )}
               </div>
-              {request.deliverySent === false && (
-                <p className="text-muted-foreground text-xs">
-                  Couldn&apos;t send it automatically — copy and share it manually.
+
+              <SendLinkPanel
+                link={request.presentationValue}
+                amount={Number(amount)}
+                currencySymbol={currencySymbol}
+                defaultEmail={customerEmail}
+                defaultPhone={customerPhone}
+              />
+
+              {status === "expired" ? (
+                <p className="text-destructive text-sm">This request expired.</p>
+              ) : (
+                <p className="text-muted-foreground text-sm">
+                  {paused ? "Still waiting — check again, or cancel." : "Waiting for payment…"}
                 </p>
               )}
-              {request.deliverySent === true && (
-                <p className="text-muted-foreground text-xs">Sent to the customer.</p>
-              )}
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  data-kbd-item=""
+                  onClick={() => void cancelAndClose()}
+                >
+                  Cancel
+                </Button>
+                {status === "expired" && (
+                  <Button type="button" variant="outline" data-kbd-item="" onClick={reset}>
+                    Try again
+                  </Button>
+                )}
+                {paused && status === "pending" && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    data-kbd-item=""
+                    onClick={() => startPolling(request.id)}
+                  >
+                    Check now
+                  </Button>
+                )}
+              </DialogFooter>
             </div>
-
-            <SendLinkPanel
-              link={request.presentationValue}
-              amount={Number(amount)}
-              currencySymbol={currencySymbol}
-              defaultEmail={customerEmail}
-              defaultPhone={customerPhone}
-            />
-
-            {status === "expired" ? (
-              <p className="text-destructive text-sm">This request expired.</p>
-            ) : (
-              <p className="text-muted-foreground text-sm">
-                {paused ? "Still waiting — check again, or cancel." : "Waiting for payment…"}
-              </p>
-            )}
-
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => void cancelAndClose()}>
-                Cancel
-              </Button>
-              {status === "expired" && (
-                <Button type="button" variant="outline" onClick={reset}>
-                  Try again
-                </Button>
-              )}
-              {paused && status === "pending" && (
-                <Button type="button" variant="outline" onClick={() => startPolling(request.id)}>
-                  Check now
-                </Button>
-              )}
-            </DialogFooter>
-          </div>
-        )}
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );

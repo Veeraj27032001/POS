@@ -37,6 +37,7 @@ export function SendLinkPanel({
         <Input
           type="email"
           placeholder="Email address"
+          data-kbd-item=""
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           className="flex-1"
@@ -45,6 +46,7 @@ export function SendLinkPanel({
           type="button"
           variant="outline"
           size="sm"
+          data-kbd-item=""
           disabled={!email.trim()}
           onClick={() =>
             window.open(buildMailtoUrl(email.trim(), "Payment link", message), "_blank")
@@ -58,6 +60,7 @@ export function SendLinkPanel({
         <Input
           type="tel"
           placeholder="Phone number"
+          data-kbd-item=""
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
           className="flex-1"
@@ -66,6 +69,7 @@ export function SendLinkPanel({
           type="button"
           variant="outline"
           size="sm"
+          data-kbd-item=""
           disabled={!phone.trim()}
           onClick={() => window.open(buildWhatsAppUrl(phone.trim(), message), "_blank")}
         >

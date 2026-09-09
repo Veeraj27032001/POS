@@ -19,6 +19,8 @@ import { Label } from "@/components/ui/label";
 import { toDateOnly } from "@/lib/datetime/dateOnly";
 import { stockBlockEditSchema } from "@/lib/documents/schemas";
 import { useSubmitGuard } from "@/lib/forms/useSubmitGuard";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 import { useInvalidateResource } from "@/lib/pagination/useList";
 
@@ -55,6 +57,10 @@ export default function EditStockBlockPage() {
   });
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
   const warehouseId = useWatch({ control, name: "warehouseId" });
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   useEffect(() => {
     fetch(`/api/stock-blocks/${id}`)
@@ -101,8 +107,12 @@ export default function EditStockBlockPage() {
   const guardedSubmit = useSubmitGuard(onSubmit);
 
   return (
-    <div className="space-y-4 p-8">
-      <Link href={`/stock-blocks/${id}`} className="text-muted-foreground text-sm hover:underline">
+    <div ref={kbdRef} className="space-y-4 p-8">
+      <Link
+        href={`/stock-blocks/${id}`}
+        data-kbd-item=""
+        className="text-muted-foreground text-sm hover:underline"
+      >
         ← Back to Stock Block
       </Link>
 
@@ -132,6 +142,7 @@ export default function EditStockBlockPage() {
                     control={control}
                     render={({ field }) => (
                       <SearchableSelect
+                        data-kbd-item=""
                         options={warehouses}
                         value={field.value ?? null}
                         onChange={(v) => field.onChange(v ?? "")}
@@ -149,7 +160,12 @@ export default function EditStockBlockPage() {
                     Blocked date
                     <RequiredMark />
                   </Label>
-                  <Input id="blockedDate" type="date" {...register("blockedDate")} />
+                  <Input
+                    id="blockedDate"
+                    type="date"
+                    data-kbd-item=""
+                    {...register("blockedDate")}
+                  />
                   {errors.blockedDate && (
                     <p className="text-sm text-red-600">{errors.blockedDate.message}</p>
                   )}
@@ -160,6 +176,7 @@ export default function EditStockBlockPage() {
                   <Input
                     id="reviewByDate"
                     type="date"
+                    data-kbd-item=""
                     {...register("reviewByDate", {
                       setValueAs: (v) => (v === "" ? undefined : v),
                     })}
@@ -177,6 +194,7 @@ export default function EditStockBlockPage() {
                     type="button"
                     variant="outline"
                     size="sm"
+                    data-kbd-item=""
                     onClick={() => append({ productId: "", quantityBlocked: 1, reasonCodeId: "" })}
                   >
                     <PlusIcon className="size-3.5" />
@@ -202,6 +220,7 @@ export default function EditStockBlockPage() {
                           control={control}
                           render={({ field: f }) => (
                             <ProductSelectWithStock
+                              data-kbd-item=""
                               value={f.value}
                               onChange={f.onChange}
                               products={products}
@@ -213,6 +232,7 @@ export default function EditStockBlockPage() {
                           type="number"
                           min={0}
                           placeholder="Qty"
+                          data-kbd-item=""
                           {...register(`items.${index}.quantityBlocked`, {
                             valueAsNumber: true,
                             min: 0,
@@ -223,6 +243,7 @@ export default function EditStockBlockPage() {
                           control={control}
                           render={({ field: f }) => (
                             <SearchableSelect
+                              data-kbd-item=""
                               options={reasonCodes}
                               value={f.value ?? null}
                               onChange={(v) => f.onChange(v ?? "")}
@@ -234,6 +255,7 @@ export default function EditStockBlockPage() {
                           type="button"
                           variant="destructive"
                           size="icon-sm"
+                          data-kbd-item=""
                           disabled={fields.length === 1}
                           onClick={() => remove(index)}
                         >
@@ -251,11 +273,12 @@ export default function EditStockBlockPage() {
             <CardFooter className="justify-end gap-2">
               <Link
                 href={`/stock-blocks/${id}`}
+                data-kbd-item=""
                 className="text-muted-foreground text-sm hover:underline"
               >
                 Cancel
               </Link>
-              <Button type="submit" disabled={isSubmitting}>
+              <Button type="submit" data-kbd-item="" disabled={isSubmitting}>
                 {isSubmitting ? "Saving…" : "Save"}
               </Button>
             </CardFooter>

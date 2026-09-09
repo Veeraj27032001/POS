@@ -116,7 +116,12 @@ export function useArrowKeyNav<T extends HTMLElement>({
       if (event.key === "Enter" || event.key === " ") {
         if (!active || !items.includes(active)) return;
         const isCheckbox = active.getAttribute("role") === "checkbox";
-        const isDivOrRow = active.tagName === "DIV" || active.tagName === "TR";
+        // LABEL covers a styled upload tile wrapping a visually-hidden
+        // <input type="file"> — a real file input can't be marked directly
+        // since a hidden element is never focusable, so the label is the
+        // focus target instead; native label semantics forward .click() to
+        // the input it wraps, which is what actually opens the file picker.
+        const isDivOrRow = ["DIV", "TR", "LABEL"].includes(active.tagName);
         if (event.key === "Enter" && (isCheckbox || isDivOrRow)) {
           event.preventDefault();
           active.click();

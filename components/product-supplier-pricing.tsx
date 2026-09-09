@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import {
   Table,
   TableBody,
@@ -38,6 +39,7 @@ export function ProductSupplierPricing({ productId }: { productId: string }) {
   const { prices, refresh } = useProductSupplierPrices(productId);
   const suppliers = useOptionsList("suppliers", "name");
   const [open, setOpen] = useState(false);
+  const kbdRef = useArrowKeyNav<HTMLFormElement>({ selector: "[data-kbd-item]" });
 
   const {
     register,
@@ -75,7 +77,7 @@ export function ProductSupplierPricing({ productId }: { productId: string }) {
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger
             render={
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" data-kbd-item="">
                 Add price
               </Button>
             }
@@ -84,7 +86,7 @@ export function ProductSupplierPricing({ productId }: { productId: string }) {
             <DialogHeader>
               <DialogTitle>Add supplier price</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSubmit(onSubmit)}>
+            <form ref={kbdRef} onSubmit={handleSubmit(onSubmit)}>
               <DialogFormBody>
                 <div className="space-y-1.5">
                   <Label>
@@ -97,6 +99,7 @@ export function ProductSupplierPricing({ productId }: { productId: string }) {
                     rules={{ required: true }}
                     render={({ field }) => (
                       <SearchableSelect
+                        data-kbd-item=""
                         options={suppliers}
                         value={field.value ?? null}
                         onChange={(v) => field.onChange(v ?? "")}
@@ -118,6 +121,7 @@ export function ProductSupplierPricing({ productId }: { productId: string }) {
                     type="number"
                     step="0.01"
                     min={0}
+                    data-kbd-item=""
                     {...register("cost", { required: true, valueAsNumber: true, min: 0 })}
                   />
                   {errors.cost && (
@@ -126,7 +130,7 @@ export function ProductSupplierPricing({ productId }: { productId: string }) {
                 </div>
               </DialogFormBody>
               <DialogFormActions>
-                <Button type="submit" disabled={isSubmitting}>
+                <Button type="submit" data-kbd-item="" disabled={isSubmitting}>
                   {isSubmitting ? "Saving…" : "Save"}
                 </Button>
               </DialogFormActions>

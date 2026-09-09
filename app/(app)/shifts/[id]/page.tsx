@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/table";
 import { useStoreCurrencySymbol } from "@/lib/hooks/useStoreCurrencySymbol";
 import { formatTimestamp } from "@/lib/datetime/format";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 
 interface ShiftCashCountRow {
   id: string;
@@ -52,6 +54,10 @@ export default function ShiftDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [shift, setShift] = useState<ShiftDetail | null | undefined>(undefined);
   const currencySymbol = useStoreCurrencySymbol();
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   useEffect(() => {
     fetch(`/api/shifts/${id}`)
@@ -63,8 +69,12 @@ export default function ShiftDetailPage() {
   const closingCounts = shift?.cashCounts.filter((c) => c.countType === "closing") ?? [];
 
   return (
-    <div className="space-y-4 p-8">
-      <Link href="/shifts" className="text-muted-foreground text-sm hover:underline">
+    <div ref={kbdRef} className="space-y-4 p-8">
+      <Link
+        href="/shifts"
+        data-kbd-item=""
+        className="text-muted-foreground text-sm hover:underline"
+      >
         ← Back to Shifts
       </Link>
 
@@ -76,7 +86,11 @@ export default function ShiftDetailPage() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h1 className="text-2xl font-semibold">{shift.documentNumber}</h1>
             {shift.status === "open" && (
-              <Link href={`/shifts/${shift.id}/close`} className={buttonVariants({ size: "sm" })}>
+              <Link
+                href={`/shifts/${shift.id}/close`}
+                data-kbd-item=""
+                className={buttonVariants({ size: "sm" })}
+              >
                 Close Shift
               </Link>
             )}

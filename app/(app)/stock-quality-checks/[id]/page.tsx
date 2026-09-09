@@ -16,6 +16,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 import { useInvalidateResource } from "@/lib/pagination/useList";
 
@@ -50,6 +52,10 @@ export default function StockQualityCheckViewPage() {
   const invalidate = useInvalidateResource();
   const warehouses = useOptionsList("warehouses", "name");
   const reasonCodes = useOptionsList("reason-codes/options", "label", "category=quality_check");
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   useEffect(() => {
     fetch(`/api/stock-quality-checks/${id}`)
@@ -76,8 +82,12 @@ export default function StockQualityCheckViewPage() {
   }
 
   return (
-    <div className="space-y-4 p-8">
-      <Link href="/stock-quality-checks" className="text-muted-foreground text-sm hover:underline">
+    <div ref={kbdRef} className="space-y-4 p-8">
+      <Link
+        href="/stock-quality-checks"
+        data-kbd-item=""
+        className="text-muted-foreground text-sm hover:underline"
+      >
         ← Back to Quality Check
       </Link>
 
@@ -91,11 +101,18 @@ export default function StockQualityCheckViewPage() {
             <div className="flex flex-wrap gap-2">
               <Link
                 href={`/stock-quality-checks/${row.id}/edit`}
+                data-kbd-item=""
                 className={buttonVariants({ variant: "outline", size: "sm" })}
               >
                 Edit
               </Link>
-              <Button variant="destructive" size="sm" disabled={deleting} onClick={handleDelete}>
+              <Button
+                variant="destructive"
+                size="sm"
+                data-kbd-item=""
+                disabled={deleting}
+                onClick={handleDelete}
+              >
                 {deleting && <Loader2Icon className="size-3.5 animate-spin" />}
                 Delete
               </Button>

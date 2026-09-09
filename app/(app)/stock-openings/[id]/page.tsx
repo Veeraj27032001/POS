@@ -16,6 +16,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 import { useInvalidateResource } from "@/lib/pagination/useList";
 
@@ -48,6 +50,10 @@ export default function StockOpeningViewPage() {
   const [deleting, setDeleting] = useState(false);
   const invalidate = useInvalidateResource();
   const warehouses = useOptionsList("warehouses", "name");
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   useEffect(() => {
     fetch(`/api/stock-openings/${id}`)
@@ -74,8 +80,12 @@ export default function StockOpeningViewPage() {
   }
 
   return (
-    <div className="space-y-4 p-8">
-      <Link href="/stock-openings" className="text-muted-foreground text-sm hover:underline">
+    <div ref={kbdRef} className="space-y-4 p-8">
+      <Link
+        href="/stock-openings"
+        data-kbd-item=""
+        className="text-muted-foreground text-sm hover:underline"
+      >
         ← Back to Opening Balance
       </Link>
 
@@ -89,11 +99,18 @@ export default function StockOpeningViewPage() {
             <div className="flex flex-wrap gap-2">
               <Link
                 href={`/stock-openings/${row.id}/edit`}
+                data-kbd-item=""
                 className={buttonVariants({ variant: "outline", size: "sm" })}
               >
                 Edit
               </Link>
-              <Button variant="destructive" size="sm" disabled={deleting} onClick={handleDelete}>
+              <Button
+                variant="destructive"
+                size="sm"
+                data-kbd-item=""
+                disabled={deleting}
+                onClick={handleDelete}
+              >
                 {deleting && <Loader2Icon className="size-3.5 animate-spin" />}
                 Delete
               </Button>

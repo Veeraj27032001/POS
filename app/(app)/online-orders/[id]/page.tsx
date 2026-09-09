@@ -19,6 +19,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { formatTimestamp } from "@/lib/datetime/format";
 import { useStoreCurrencySymbol } from "@/lib/hooks/useStoreCurrencySymbol";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 
 interface OnlineOrderItem {
   id: string;
@@ -68,6 +70,7 @@ function RejectDialog({ orderId, onDone }: { orderId: string; onDone: () => void
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({ selector: "[data-kbd-item]" });
 
   async function submit() {
     if (!reason.trim()) {
@@ -96,36 +99,40 @@ function RejectDialog({ orderId, onDone }: { orderId: string; onDone: () => void
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button variant="outline" />}>Reject</DialogTrigger>
+      <DialogTrigger render={<Button variant="outline" data-kbd-item="" />}>Reject</DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Reject this order</DialogTitle>
         </DialogHeader>
-        <div className="space-y-1.5">
-          <Label htmlFor="reject-reason">Reason</Label>
-          <Textarea
-            id="reject-reason"
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            rows={3}
-          />
-          <p className="text-muted-foreground text-xs">
-            The customer is notified. No invoice is ever created for this order.
-          </p>
+        <div ref={kbdRef} className="contents">
+          <div className="space-y-1.5">
+            <Label htmlFor="reject-reason">Reason</Label>
+            <Textarea
+              id="reject-reason"
+              data-kbd-item=""
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              rows={3}
+            />
+            <p className="text-muted-foreground text-xs">
+              The customer is notified. No invoice is ever created for this order.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" data-kbd-item="" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              data-kbd-item=""
+              onClick={() => void submit()}
+              disabled={submitting}
+            >
+              {submitting ? "Rejecting…" : "Reject order"}
+            </Button>
+          </DialogFooter>
         </div>
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            variant="destructive"
-            onClick={() => void submit()}
-            disabled={submitting}
-          >
-            {submitting ? "Rejecting…" : "Reject order"}
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -137,6 +144,10 @@ export default function OnlineOrderDetailPage() {
   const currencySymbol = useStoreCurrencySymbol();
   const [order, setOrder] = useState<OnlineOrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   async function load() {
     setLoading(true);
@@ -172,7 +183,7 @@ export default function OnlineOrderDetailPage() {
     .join(", ");
 
   return (
-    <div className="space-y-6 p-8">
+    <div ref={kbdRef} className="space-y-6 p-8">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">{order.documentNumber}</h1>
@@ -183,11 +194,17 @@ export default function OnlineOrderDetailPage() {
         {order.status === "pending" && (
           <div className="flex gap-2">
             <RejectDialog orderId={order.id} onDone={load} />
-            <Button onClick={() => router.push(`/online-orders/${order.id}/bill`)}>Accept</Button>
+            <Button data-kbd-item="" onClick={() => router.push(`/online-orders/${order.id}/bill`)}>
+              Accept
+            </Button>
           </div>
         )}
         {order.bill && (
-          <Link href={`/bills/${order.bill.id}`} className="text-primary text-sm underline">
+          <Link
+            href={`/bills/${order.bill.id}`}
+            data-kbd-item=""
+            className="text-primary text-sm underline"
+          >
             View bill {order.bill.documentNumber}
           </Link>
         )}
@@ -275,7 +292,7 @@ export default function OnlineOrderDetailPage() {
         </div>
       )}
 
-      <Button variant="outline" onClick={() => router.push("/online-orders")}>
+      <Button variant="outline" data-kbd-item="" onClick={() => router.push("/online-orders")}>
         Back to Online Orders
       </Button>
     </div>

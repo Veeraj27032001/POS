@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { useStoreCurrencySymbol } from "@/lib/hooks/useStoreCurrencySymbol";
 import { formatTimestamp } from "@/lib/datetime/format";
 import { printCreditNote } from "@/lib/billing/printing";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 
 interface CreditNoteDetail {
   id: string;
@@ -34,6 +36,10 @@ export default function CreditNoteDetailPage() {
   const [detail, setDetail] = useState<CreditNoteDetail | null | undefined>(undefined);
   const [printing, setPrinting] = useState(false);
   const currencySymbol = useStoreCurrencySymbol();
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   useEffect(() => {
     fetch(`/api/credit-notes/${id}`)
@@ -54,19 +60,29 @@ export default function CreditNoteDetailPage() {
   }
 
   return (
-    <div className="space-y-4 p-8">
+    <div ref={kbdRef} className="space-y-4 p-8">
       {detail === undefined && <p className="text-muted-foreground">Loading…</p>}
       {detail === null && <p className="text-muted-foreground">Credit note not found.</p>}
 
       {detail && (
         <>
-          <Link href="/credit-notes" className="text-muted-foreground text-sm hover:underline">
+          <Link
+            href="/credit-notes"
+            data-kbd-item=""
+            className="text-muted-foreground text-sm hover:underline"
+          >
             ← Back to Credit Notes
           </Link>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h1 className="text-2xl font-semibold">{detail.documentNumber}</h1>
-            <Button variant="outline" size="sm" onClick={handlePrint} disabled={printing}>
+            <Button
+              variant="outline"
+              size="sm"
+              data-kbd-item=""
+              onClick={handlePrint}
+              disabled={printing}
+            >
               {printing ? "Printing…" : "Print"}
             </Button>
           </div>
@@ -78,6 +94,7 @@ export default function CreditNoteDetailPage() {
                 <Link
                   key="bill"
                   href={`/bills/${detail.originalBill.id}`}
+                  data-kbd-item=""
                   className="hover:underline"
                 >
                   {detail.originalBill.documentNumber} (
@@ -92,6 +109,7 @@ export default function CreditNoteDetailPage() {
                   <Link
                     key="return"
                     href={`/bill-returns/${detail.billReturn.id}`}
+                    data-kbd-item=""
                     className="hover:underline"
                   >
                     Return {detail.billReturn.documentNumber}
