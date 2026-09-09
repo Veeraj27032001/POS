@@ -1,6 +1,6 @@
 {
   "name": "pos-electron",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "private": true,
   "description": "Desktop shell for the POS terminal — loads the hosted app and bridges receipt printer / cash drawer / card terminal hardware into it.",
   "main": "dist/main/index.js",
