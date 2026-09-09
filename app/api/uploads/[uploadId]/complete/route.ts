@@ -75,10 +75,17 @@ export async function POST(
   const chunkKeys = Array.from({ length: totalChunks }, (_, i) => `_tmp/${uploadId}/${i}`);
   const key = `${session.user.id}/${randomUUID()}${sanitizeExtension(filename)}`;
 
-  async function reassembleAndStore(): Promise<{ url: string } | { tooLarge: true }> {
+  async function reassembleAndStore(): Promise<
+    { url: string } | { tooLarge: true } | { missingChunks: true }
+  > {
     const chunks: Buffer[] = [];
-    for (const chunkKey of chunkKeys) {
-      chunks.push(await storage.get(chunkKey));
+    try {
+      for (const chunkKey of chunkKeys) {
+        chunks.push(await storage.get(chunkKey));
+      }
+    } catch (error) {
+      console.error(`Upload ${uploadId}: a chunk is missing.`, error);
+      return { missingChunks: true };
     }
     const assembled = Buffer.concat(chunks);
 
@@ -90,6 +97,10 @@ export async function POST(
 
     const optimized = await optimizeIfImage(assembled, contentType, key);
 
+    // Deliberately not caught here — a failure storing the final file (e.g.
+    // the storage bucket's own size limit, distinct from maxSizeMB above)
+    // is a different problem than a missing chunk and should surface its
+    // own message, not the generic "retry the missing chunk(s)" one.
     const { url } = await storage.put(optimized);
     await Promise.all(chunkKeys.map((chunkKey) => storage.remove(chunkKey)));
     return { url };
@@ -101,7 +112,8 @@ export async function POST(
     let result: Awaited<ReturnType<typeof reassembleAndStore>>;
     try {
       result = await reassembleAndStore();
-    } catch {
+    } catch (error) {
+      console.error(`Upload ${uploadId}: reassembly failed.`, error);
       return apiErrorResponse(
         "incomplete_upload",
         "Not all chunks were received. Retry the missing chunk(s) before completing.",
