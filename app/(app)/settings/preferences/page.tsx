@@ -10,6 +10,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { TOAST_POSITIONS, useToastPosition, type ToastPosition } from "@/lib/toast/toast-position";
 
 const POSITION_LABELS: Record<ToastPosition, string> = {
@@ -30,8 +32,13 @@ export default function PreferencesSettingsPage() {
     toast.success("Notification position updated.");
   }
 
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
+
   return (
-    <div className="space-y-6 p-8">
+    <div ref={kbdRef} className="space-y-6 p-8">
       <h1 className="text-2xl font-semibold">Preferences</h1>
 
       <div className="max-w-md space-y-1.5">
@@ -41,7 +48,7 @@ export default function PreferencesSettingsPage() {
           onValueChange={handleChange}
           items={TOAST_POSITIONS.map((value) => ({ value, label: POSITION_LABELS[value] }))}
         >
-          <SelectTrigger className="w-full">
+          <SelectTrigger className="w-full" data-kbd-item="">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

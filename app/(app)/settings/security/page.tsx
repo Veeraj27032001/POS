@@ -8,6 +8,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { cn } from "@/lib/utils";
 
 interface MfaDevice {
@@ -47,6 +49,10 @@ export default function SecuritySettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const busy = busyAction !== null;
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   function refreshStatus() {
     fetch("/api/auth/mfa/status")
@@ -208,7 +214,7 @@ export default function SecuritySettingsPage() {
   }
 
   return (
-    <div className="space-y-6 p-8">
+    <div ref={kbdRef} className="space-y-6 p-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Security</h1>
         {mfaMethod !== undefined && (
@@ -235,11 +241,11 @@ export default function SecuritySettingsPage() {
           <div className="space-y-4 rounded-2xl border p-4">
             <p>Two-factor authentication is not enabled on your account.</p>
             <div className="flex gap-2">
-              <Button disabled={busy} onClick={startEnroll}>
+              <Button data-kbd-item="" disabled={busy} onClick={startEnroll}>
                 {busyAction === "start-enroll" && <ButtonSpinner />}
                 Set up authenticator app
               </Button>
-              <Button variant="outline" disabled={busy} onClick={switchToEmailOtp}>
+              <Button variant="outline" data-kbd-item="" disabled={busy} onClick={switchToEmailOtp}>
                 {busyAction === "switch-email" && <ButtonSpinner />}
                 Enable email code
               </Button>
@@ -269,6 +275,7 @@ export default function SecuritySettingsPage() {
                   <Button
                     variant="destructive"
                     size="sm"
+                    data-kbd-item=""
                     disabled={busy}
                     onClick={() => removeDevice(device.id, devices.length === 1)}
                   >
@@ -288,18 +295,25 @@ export default function SecuritySettingsPage() {
                   id="remove-code"
                   inputMode="numeric"
                   maxLength={6}
+                  data-kbd-item=""
                   value={removeCode}
                   onChange={(e) => setRemoveCode(e.target.value)}
                 />
                 {error && <p className="text-sm text-red-600">{error}</p>}
                 <div className="flex gap-2">
-                  <Button size="sm" disabled={busy} onClick={confirmRemoveLastDevice}>
+                  <Button
+                    size="sm"
+                    data-kbd-item=""
+                    disabled={busy}
+                    onClick={confirmRemoveLastDevice}
+                  >
                     {busyAction === "confirm-remove-last" && <ButtonSpinner />}
                     Confirm
                   </Button>
                   <Button
                     size="sm"
                     variant="outline"
+                    data-kbd-item=""
                     disabled={busy}
                     onClick={() => {
                       setRemovingDeviceId(null);
@@ -313,11 +327,23 @@ export default function SecuritySettingsPage() {
             )}
 
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" disabled={busy} onClick={startEnroll}>
+              <Button
+                variant="outline"
+                size="sm"
+                data-kbd-item=""
+                disabled={busy}
+                onClick={startEnroll}
+              >
                 {busyAction === "start-enroll" && <ButtonSpinner />}
                 Add another device
               </Button>
-              <Button variant="outline" size="sm" disabled={busy} onClick={switchToEmailOtp}>
+              <Button
+                variant="outline"
+                size="sm"
+                data-kbd-item=""
+                disabled={busy}
+                onClick={switchToEmailOtp}
+              >
                 {busyAction === "switch-email" && <ButtonSpinner />}
                 Switch to email code
               </Button>
@@ -329,11 +355,18 @@ export default function SecuritySettingsPage() {
                 id="disable-code"
                 inputMode="numeric"
                 maxLength={6}
+                data-kbd-item=""
                 value={disableCode}
                 onChange={(e) => setDisableCode(e.target.value)}
               />
               {error && <p className="text-sm text-red-600">{error}</p>}
-              <Button variant="destructive" size="sm" disabled={busy} onClick={disable}>
+              <Button
+                variant="destructive"
+                size="sm"
+                data-kbd-item=""
+                disabled={busy}
+                onClick={disable}
+              >
                 {busyAction === "disable" && <ButtonSpinner />}
                 Disable two-factor authentication
               </Button>
@@ -345,7 +378,13 @@ export default function SecuritySettingsPage() {
           <div className="space-y-4 rounded-2xl border p-4">
             <p>Email code is enabled on your account.</p>
 
-            <Button variant="outline" size="sm" disabled={busy} onClick={switchToTotp}>
+            <Button
+              variant="outline"
+              size="sm"
+              data-kbd-item=""
+              disabled={busy}
+              onClick={switchToTotp}
+            >
               {(busyAction === "switch-totp" || busyAction === "start-enroll") && <ButtonSpinner />}
               Switch to authenticator app
             </Button>
@@ -355,6 +394,7 @@ export default function SecuritySettingsPage() {
                 <Button
                   variant="outline"
                   size="sm"
+                  data-kbd-item=""
                   disabled={busy}
                   onClick={requestEmailDisableCode}
                 >
@@ -368,11 +408,18 @@ export default function SecuritySettingsPage() {
                     id="disable-code-email"
                     inputMode="numeric"
                     maxLength={6}
+                    data-kbd-item=""
                     value={disableCode}
                     onChange={(e) => setDisableCode(e.target.value)}
                   />
                   {error && <p className="text-sm text-red-600">{error}</p>}
-                  <Button variant="destructive" size="sm" disabled={busy} onClick={disable}>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    data-kbd-item=""
+                    disabled={busy}
+                    onClick={disable}
+                  >
                     {busyAction === "disable" && <ButtonSpinner />}
                     Disable two-factor authentication
                   </Button>
@@ -399,6 +446,7 @@ export default function SecuritySettingsPage() {
               <Input
                 id="device-label"
                 placeholder="e.g. My phone"
+                data-kbd-item=""
                 value={deviceLabel}
                 onChange={(e) => setDeviceLabel(e.target.value)}
               />
@@ -410,6 +458,7 @@ export default function SecuritySettingsPage() {
                 id="verify-code"
                 inputMode="numeric"
                 maxLength={6}
+                data-kbd-item=""
                 value={enrollCode}
                 onChange={(e) => setEnrollCode(e.target.value)}
               />
@@ -418,12 +467,13 @@ export default function SecuritySettingsPage() {
             {error && <p className="text-sm text-red-600">{error}</p>}
 
             <div className="flex gap-2">
-              <Button disabled={busy} onClick={confirmEnroll}>
+              <Button data-kbd-item="" disabled={busy} onClick={confirmEnroll}>
                 {busyAction === "confirm-enroll" && <ButtonSpinner />}
                 Confirm
               </Button>
               <Button
                 variant="outline"
+                data-kbd-item=""
                 disabled={busy}
                 onClick={() => {
                   setEnrollment(null);

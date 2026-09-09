@@ -13,6 +13,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 
 interface StaleBlockItemRow {
@@ -43,9 +45,18 @@ export default function StaleStockBlocksPage() {
       .then((body: { data: StaleBlockItemRow[] } | null) => setRows(body?.data ?? []));
   }, []);
 
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
+
   return (
-    <div className="space-y-4 p-8">
-      <Link href="/stock-blocks" className="text-muted-foreground text-sm hover:underline">
+    <div ref={kbdRef} className="space-y-4 p-8">
+      <Link
+        href="/stock-blocks"
+        data-kbd-item=""
+        className="text-muted-foreground text-sm hover:underline"
+      >
         ← Back to Stock Block
       </Link>
 
@@ -94,6 +105,7 @@ export default function StaleStockBlocksPage() {
                   <TableCell>
                     <Link
                       href={`/stock-blocks/${item.stockBlockMainId}`}
+                      data-kbd-item=""
                       className={buttonVariants({ variant: "outline", size: "sm" })}
                     >
                       View
