@@ -135,6 +135,18 @@ export function useArrowKeyNav<T extends HTMLElement>({
       const currentIndex = active ? items.indexOf(active) : -1;
       if (currentIndex === -1) return;
 
+      // Base UI's Tabs (and other composite widgets sharing its roving-
+      // tabindex logic) attach their own Left/Right handler directly on
+      // the tab list — a closer ancestor than this container, so it runs
+      // first on every bubbled keydown. Racing it by also moving focus
+      // here produces exactly the double-move it looks like: Base UI
+      // switches tabs internally, then this handler immediately overrides
+      // that with its own (now-stale) idea of what should come next.
+      // Deferring here, the same way text fields defer to native caret
+      // movement, leaves Left/Right entirely to the tablist while focus
+      // sits on one of its tabs.
+      if (active!.getAttribute("role") === "tab") return;
+
       const textEditable = isTextEditable(active!);
 
       if ((event.key === "ArrowUp" || event.key === "ArrowDown") && textEditable) {
