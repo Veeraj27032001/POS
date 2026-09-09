@@ -12,6 +12,7 @@ import {
   ClipboardEdit,
   ClipboardList,
   CreditCard,
+  Download,
   Globe,
   Hash,
   Landmark,
@@ -64,6 +65,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { hasPermission } from "@/lib/auth/rbac";
 import { asAppSession } from "@/lib/auth/types";
+import { useLatestDesktopRelease } from "@/lib/hooks/useLatestDesktopRelease";
 import { cn } from "@/lib/utils";
 
 // Items with no entry here (Dashboard, Security, Preferences) are always shown.
@@ -312,6 +314,11 @@ const NAV_GROUPS: AppNavGroup[] = [
         label: "E-commerce",
         icon: <Globe className="h-4 w-4" />,
       },
+      {
+        href: "/desktop-app",
+        label: "Desktop App",
+        icon: <Download className="h-4 w-4" />,
+      },
     ],
   },
 ];
@@ -335,6 +342,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
+  const latestDesktopRelease = useLatestDesktopRelease();
 
   useEffect(() => {
     try {
@@ -469,6 +477,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <HeaderSearch items={flatVisibleItems} />
           <div className="flex-1" />
           <FinancialYearSwitcher />
+          {latestDesktopRelease && (
+            <Button
+              variant="ghost"
+              size="sm"
+              render={<a href={latestDesktopRelease.fileUrl} download />}
+            >
+              <Download className="size-4" />
+              Download desktop app
+            </Button>
+          )}
           <ThemeToggle />
 
           {session?.user && (
