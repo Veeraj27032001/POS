@@ -163,8 +163,29 @@ export function useArrowKeyNav<T extends HTMLElement>({
       items[nextIndex]?.focus();
     }
 
+    // A tracked item can be unmounted while it holds focus — e.g. a
+    // DataTable row disappearing when a debounced search re-renders the
+    // list. Browsers move focus to <body> with no relatedTarget when that
+    // happens (vs. a real relatedTarget for any focus change we caused
+    // ourselves), which otherwise strands keyboard nav with no recovery.
+    function handleFocusOut(event: FocusEvent) {
+      if (event.relatedTarget !== null) return;
+      const target = event.target as HTMLElement | null;
+      if (!target || !container!.contains(target)) return;
+      requestAnimationFrame(() => {
+        if (document.activeElement !== document.body) return;
+        const items = getItems();
+        const fallback = items.find(isFocusable);
+        fallback?.focus();
+      });
+    }
+
     container.addEventListener("keydown", handleKeyDown);
-    return () => container.removeEventListener("keydown", handleKeyDown);
+    container.addEventListener("focusout", handleFocusOut);
+    return () => {
+      container.removeEventListener("keydown", handleKeyDown);
+      container.removeEventListener("focusout", handleFocusOut);
+    };
   }, [container, selector, cols, onBoundaryLeft]);
 
   return containerRef;
