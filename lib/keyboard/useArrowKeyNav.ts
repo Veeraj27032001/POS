@@ -29,14 +29,20 @@ function isTextEditable(el: HTMLElement): boolean {
   return false;
 }
 
-// Selection range isn't supported on every input type (e.g. some browsers
-// throw or return null for type="date"/"email") — failing open (treating it
-// as "at the boundary") means arrow-key navigation still works there instead
-// of getting stuck with no way to tell the caret's real position.
+// Selection range isn't supported on every input type — Chromium returns
+// null (not a throw) for type="number"/"date"/etc. rather than a real
+// offset, so it must be checked explicitly: comparing null against a
+// numeric target (0, or the value's length) is never true, which silently
+// made caretAtEnd unreachable and stuck every such field's ArrowRight with
+// no way out. Some other browsers throw instead for the same types, so
+// that's still caught too. Either way, failing open (treating it as "at
+// the boundary") means arrow-key navigation still works there instead of
+// getting stuck with no way to tell the caret's real position.
 function caretAtStart(el: HTMLElement): boolean {
   try {
     const input = el as HTMLInputElement | HTMLTextAreaElement;
-    return (input.selectionStart ?? 0) === 0 && (input.selectionEnd ?? 0) === 0;
+    if (input.selectionStart === null || input.selectionEnd === null) return true;
+    return input.selectionStart === 0 && input.selectionEnd === 0;
   } catch {
     return true;
   }
@@ -45,6 +51,7 @@ function caretAtStart(el: HTMLElement): boolean {
 function caretAtEnd(el: HTMLElement): boolean {
   try {
     const input = el as HTMLInputElement | HTMLTextAreaElement;
+    if (input.selectionStart === null || input.selectionEnd === null) return true;
     const length = input.value?.length ?? 0;
     return input.selectionStart === length && input.selectionEnd === length;
   } catch {

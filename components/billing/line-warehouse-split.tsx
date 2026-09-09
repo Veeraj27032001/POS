@@ -14,6 +14,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 
 export interface AllocationDisplay {
   warehouseId: string;
@@ -59,6 +60,7 @@ export function LineWarehouseSplit({
 }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<Record<string, string>>({});
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({ selector: "[data-kbd-item]" });
 
   useEffect(() => {
     if (!open) return;
@@ -109,45 +111,49 @@ export function LineWarehouseSplit({
         <DialogHeader>
           <DialogTitle>Warehouse split — {productName}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-1">
-          {warehouseAvailability.map((w) => (
-            <div key={w.warehouseId} className="flex items-center gap-2">
-              <span className="w-32 truncate text-sm">{w.warehouseName}</span>
-              <Input
-                type="number"
-                min={0}
-                max={w.available}
-                className="h-8 w-24"
-                value={draft[w.warehouseId] ?? ""}
-                onChange={(e) => setDraft((d) => ({ ...d, [w.warehouseId]: e.target.value }))}
-              />
-              <span className="text-muted-foreground text-xs">{w.available} available</span>
+        <div ref={kbdRef} className="contents">
+          <div className="space-y-1">
+            {warehouseAvailability.map((w) => (
+              <div key={w.warehouseId} className="flex items-center gap-2">
+                <span className="w-32 truncate text-sm">{w.warehouseName}</span>
+                <Input
+                  type="number"
+                  min={0}
+                  max={w.available}
+                  data-kbd-item=""
+                  className="h-8 w-24"
+                  value={draft[w.warehouseId] ?? ""}
+                  onChange={(e) => setDraft((d) => ({ ...d, [w.warehouseId]: e.target.value }))}
+                />
+                <span className="text-muted-foreground text-xs">{w.available} available</span>
+              </div>
+            ))}
+            <div className="text-muted-foreground text-xs">
+              {draftTotal} / {quantity}
             </div>
-          ))}
-          <div className="text-muted-foreground text-xs">
-            {draftTotal} / {quantity}
           </div>
-        </div>
-        <DialogFooter>
-          {hasManualOverride && (
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => {
-                onClearOverride();
-                setOpen(false);
-              }}
-            >
-              Use automatic
+          <DialogFooter>
+            {hasManualOverride && (
+              <Button
+                type="button"
+                variant="ghost"
+                data-kbd-item=""
+                onClick={() => {
+                  onClearOverride();
+                  setOpen(false);
+                }}
+              >
+                Use automatic
+              </Button>
+            )}
+            <Button type="button" variant="outline" data-kbd-item="" onClick={() => setOpen(false)}>
+              Cancel
             </Button>
-          )}
-          <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-            Cancel
-          </Button>
-          <Button type="button" onClick={save}>
-            Save
-          </Button>
-        </DialogFooter>
+            <Button type="button" data-kbd-item="" onClick={save}>
+              Save
+            </Button>
+          </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
