@@ -1,6 +1,10 @@
 import { ipcMain } from "electron";
 
 import type { loadConfig } from "../config";
+import { createPrinterConnection } from "../hardware/printerConnection";
+import { printReceipt } from "../hardware/receiptPrinter";
+import { printLabels } from "../hardware/labelPrinter";
+import { printHtml } from "../hardware/htmlPrinter";
 
 import type {
   CardChargeContext,
@@ -11,27 +15,44 @@ import type {
 type ElectronConfig = ReturnType<typeof loadConfig>;
 
 // Registered once at startup. hardware:print dispatches by payload.kind —
-// receipt/label build ESC/POS commands, html goes through Chromium's own
-// print pipeline (a store-authored Bill Format has no paper-size field and
-// can't be reinterpreted as thermal text). Real printer wiring lands in a
-// later step; for now every kind shares the same "no hardware configured"
-// path, which is genuinely correct default behavior for PRINTER_TRANSPORT
-// "none", not just a placeholder — it's the only path that would ever
-// fire for anyone who hasn't set up a printer at all.
+// receipt/label build ESC/POS commands over the printer connection; html
+// goes through Chromium's own print pipeline instead (a store-authored
+// Bill Format has no paper-size field and can't be reinterpreted as
+// thermal text) — see hardware/htmlPrinter.ts.
 export function registerHardwareIpc(config: ElectronConfig): void {
+  // Constructed once — a ThermalPrinter instance doesn't open a live
+  // connection until execute()/isPrinterConnected() is actually called, so
+  // there's no persistent-connection lifecycle to manage here.
+  const printer = createPrinterConnection(config);
+
   ipcMain.handle("hardware:print", async (_event, payload: PrintPayload) => {
     logJobPreview(payload);
-    if (config.PRINTER_TRANSPORT === "none") {
+
+    if (payload.kind === "html") {
+      await printHtml(payload.html, config);
+      return;
+    }
+
+    if (!printer) {
       throw new Error("No receipt printer configured for this terminal.");
     }
-    throw new Error(`Printer transport "${config.PRINTER_TRANSPORT}" isn't wired up yet.`);
+    if (payload.kind === "receipt") {
+      await printReceipt(printer, payload);
+    } else {
+      await printLabels(printer, payload);
+    }
   });
 
   ipcMain.handle("hardware:openCashDrawer", async () => {
-    if (config.PRINTER_TRANSPORT === "none") {
+    if (!printer) {
       throw new Error("No receipt printer configured for this terminal.");
     }
-    throw new Error(`Printer transport "${config.PRINTER_TRANSPORT}" isn't wired up yet.`);
+    // The buffer isn't auto-cleared after execute() — without this, a
+    // drawer kick would silently re-send whatever was left over from the
+    // last print job on this same shared printer instance.
+    printer.clear();
+    printer.openCashDrawer();
+    await printer.execute();
   });
 
   ipcMain.handle(
