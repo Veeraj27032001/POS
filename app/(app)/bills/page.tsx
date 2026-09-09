@@ -71,9 +71,25 @@ export default function BillsPage() {
     <div ref={kbdRef} className="space-y-4 p-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Bills</h1>
-        <Link href="/billing" data-kbd-item="" className={buttonVariants()}>
-          New Bill
-        </Link>
+        <div className="flex gap-2">
+          <Link
+            href="/billing/drafts"
+            data-kbd-item=""
+            className={buttonVariants({ variant: "outline" })}
+          >
+            Draft bills
+          </Link>
+          <Link
+            href="/billing/held"
+            data-kbd-item=""
+            className={buttonVariants({ variant: "outline" })}
+          >
+            Held bills
+          </Link>
+          <Link href="/billing" data-kbd-item="" className={buttonVariants()}>
+            New Bill
+          </Link>
+        </div>
       </div>
 
       <DataTable<BillRow>
