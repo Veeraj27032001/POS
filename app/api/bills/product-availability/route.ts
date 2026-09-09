@@ -5,6 +5,8 @@ import { hasPermission } from "@/lib/auth/rbac";
 import { asAppSession } from "@/lib/auth/types";
 import { getStoreWideAvailable } from "@/lib/billing/getStoreWideAvailable";
 import { getSelfBlockedByWarehouse } from "@/lib/billing/getSelfBlockedByWarehouse";
+import { getSelfSoldByWarehouse } from "@/lib/billing/getSelfSoldByWarehouse";
+import { unscoped } from "@/lib/db";
 import { opaqueIdSchema } from "@/lib/validation/common";
 import { apiErrorResponse, parseJsonOrRespond } from "@/lib/validation/response";
 import { withStoreContext } from "@/middleware/scope";
@@ -34,16 +36,22 @@ export async function POST(request: Request) {
   const { billId } = parsed.data;
 
   return withStoreContext(async () => {
+    const billStatus = billId
+      ? (await unscoped().bill.findUnique({ where: { id: billId }, select: { status: true } }))
+          ?.status
+      : null;
+
     const availability = await Promise.all(
       parsed.data.productIds.map(async (productId) => {
         const available = await getStoreWideAvailable(session.user.storeId!, productId);
-        const selfBlocked = billId
-          ? Array.from((await getSelfBlockedByWarehouse(billId, productId)).values()).reduce(
-              (sum, qty) => sum + qty,
-              0,
-            )
-          : 0;
-        return { productId, available: available + selfBlocked };
+        const selfMap =
+          billId && billStatus === "held"
+            ? await getSelfBlockedByWarehouse(billId, productId)
+            : billId && billStatus === "completed"
+              ? await getSelfSoldByWarehouse(billId, productId)
+              : null;
+        const self = selfMap ? Array.from(selfMap.values()).reduce((sum, qty) => sum + qty, 0) : 0;
+        return { productId, available: available + self };
       }),
     );
     return Response.json({ availability });

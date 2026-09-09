@@ -282,11 +282,13 @@ export default function BillingPage() {
     try {
       const billId = await syncCart();
       if (!billId) return;
-      const res = await fetch(`/api/bills/${billId}`);
-      const body = await res.json().catch(() => null);
-      if (body && body.outstandingBalance > 0) {
-        router.push(`/billing/${billId}/collect`);
-        return;
+      if (billType !== "credit_bill") {
+        const res = await fetch(`/api/bills/${billId}`);
+        const body = await res.json().catch(() => null);
+        if (body && body.outstandingBalance > 0) {
+          router.push(`/billing/${billId}/collect`);
+          return;
+        }
       }
       router.push(`/bills/${billId}`);
     } finally {

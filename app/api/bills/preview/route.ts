@@ -5,6 +5,7 @@ import {
   applySelfBlocked,
   getSelfBlockedByWarehouse,
 } from "@/lib/billing/getSelfBlockedByWarehouse";
+import { getSelfSoldByWarehouse } from "@/lib/billing/getSelfSoldByWarehouse";
 import { getWarehouseAvailability } from "@/lib/billing/getWarehouseAvailability";
 import { billPreviewSchema } from "@/lib/billing/schemas";
 import { resolveAllocations } from "@/lib/billing/resolveAllocations";
@@ -48,6 +49,10 @@ export async function POST(request: Request) {
       include: { taxEngine: true },
     });
     if (!store) return apiErrorResponse("not_found", "Store not found.", 404);
+
+    const existingBillStatus = data.billId
+      ? (await db.bill.findUnique({ where: { id: data.billId }, select: { status: true } }))?.status
+      : null;
 
     const products = await db.product.findMany({
       where: { id: { in: data.lines.map((l) => l.productId) } },
@@ -93,8 +98,14 @@ export async function POST(request: Request) {
       let warehouseAvailability: { warehouseId: string; available: number }[] = [];
       if (product.stockTracked) {
         const perWarehouse = await getWarehouseAvailability(session.user.storeId!, product.id);
-        const effectivePerWarehouse = data.billId
-          ? applySelfBlocked(perWarehouse, await getSelfBlockedByWarehouse(data.billId, product.id))
+        const selfContribution =
+          data.billId && existingBillStatus === "held"
+            ? await getSelfBlockedByWarehouse(data.billId, product.id)
+            : data.billId && existingBillStatus === "completed"
+              ? await getSelfSoldByWarehouse(data.billId, product.id)
+              : null;
+        const effectivePerWarehouse = selfContribution
+          ? applySelfBlocked(perWarehouse, selfContribution)
           : perWarehouse;
         warehouseAvailability = effectivePerWarehouse;
         const allocResult = await resolveAllocations({
