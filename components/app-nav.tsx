@@ -71,16 +71,6 @@ export function AppNav({ groups, collapsed = false }: AppNavProps) {
       const prev = Math.max(0, index - 1);
       itemRefs.current[prev]?.focus();
     } else if (event.key === "ArrowRight") {
-      const item = flatItems[index];
-      // Prefix match, not just equality — matches focusCurrentNavLink's own
-      // logic for the reverse direction.
-      const alreadyHere = item.href === pathname || pathname.startsWith(`${item.href}/`);
-      // Right arrow only ever moves focus into the current page's own
-      // content — it never navigates. Navigating to a different page is
-      // Enter's job (native <a> activation), same as every other link on
-      // the page; this is what makes it impossible for an arrow key to
-      // ever trigger an unwanted page reload.
-      if (!alreadyHere) return;
       event.preventDefault();
       document.querySelector<HTMLElement>("main [data-kbd-item]")?.focus();
     }
