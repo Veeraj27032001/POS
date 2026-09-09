@@ -48,6 +48,11 @@ next-env.d.ts
 # prisma generated client
 /generated
 
+# electron shell (separate package, not a workspace)
+electron/node_modules
+electron/dist
+electron/release
+
 # playwright
 /test-results/
 /playwright-report/

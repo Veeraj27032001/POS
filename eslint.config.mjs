@@ -21,6 +21,9 @@ const eslintConfig = [
       "generated/**",
       "playwright-report/**",
       "test-results/**",
+      // Its own separate package (own tsconfig, own `pnpm typecheck`) —
+      // Next.js/React lint rules don't apply to its plain Node main process.
+      "electron/**",
     ],
   },
   {

@@ -1,0 +1,33 @@
+{
+  "name": "pos-electron",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Desktop shell for the POS terminal — loads the hosted app and bridges receipt printer / cash drawer / card terminal hardware into it.",
+  "main": "dist/main/index.js",
+  "scripts": {
+    "postinstall": "node node_modules/electron/install.js",
+    "typecheck": "tsc --noEmit",
+    "build": "node scripts/build.mjs",
+    "dev": "node scripts/build.mjs --watch",
+    "start": "node scripts/launch.mjs",
+    "dist": "node scripts/generate-icon.mjs && npm run build && electron-builder"
+  },
+  "dependencies": {
+    "node-thermal-printer": "^4.6.1",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "dotenv": "^17.4.2",
+    "electron": "^44.3.0",
+    "electron-builder": "^26.15.3",
+    "esbuild": "^0.28.2",
+    "typescript": "^5"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "electron",
+      "electron-winstaller"
+    ]
+  }
+}
