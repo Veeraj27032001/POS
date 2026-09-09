@@ -8,6 +8,7 @@ import { SendLinkPanel } from "@/components/billing/send-link-panel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { getPrintBridge } from "@/lib/adapters/print";
 import { useStoreCurrencySymbol } from "@/lib/hooks/useStoreCurrencySymbol";
 
 type UiMethod = "qr_link" | "card_machine";
@@ -24,6 +25,8 @@ interface BillInfo {
 interface CreateResponse {
   id: string;
   status: string;
+  amount: number;
+  gatewayReference: string | null;
   presentationValue: string;
   qrImageDataUrl?: string;
   deliverySent?: boolean;
@@ -139,6 +142,7 @@ export default function CollectGatewayPaymentPage() {
       setRequest(body);
       setStatus(body.status);
       if (m === "qr_link") startPolling(body.id);
+      else if (m === "card_machine") void tryHardwareCardCharge(body);
     } finally {
       setRequesting(false);
     }
@@ -152,11 +156,15 @@ export default function CollectGatewayPaymentPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clearingStale, bill, uiMethod, request, requesting]);
 
-  async function confirmCardMachine() {
-    if (!request) return;
+  // Accepts an explicit request so the hardware auto-charge path below can
+  // pass the just-created request without waiting on the setRequest state
+  // update to flush — the manual "Mark as paid" button keeps calling this
+  // with no argument, falling back to the current request state as before.
+  async function confirmCardMachine(req: CreateResponse | null = request) {
+    if (!req) return;
     setConfirming(true);
     try {
-      const res = await fetch(`/api/payment-requests/${request.id}/confirm`, { method: "POST" });
+      const res = await fetch(`/api/payment-requests/${req.id}/confirm`, { method: "POST" });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
         toast.error(body?.error?.message ?? "Failed to confirm the payment.");
@@ -166,6 +174,30 @@ export default function CollectGatewayPaymentPage() {
       setPaymentDone(true);
     } finally {
       setConfirming(false);
+    }
+  }
+
+  // Best-effort: only proceeds when a desktop bridge with chargeCard is
+  // present. On "success" it auto-confirms via the same route the manual
+  // "Mark as paid" button calls; anything else (including no bridge at
+  // all, e.g. a plain browser tab) leaves that button as the only path —
+  // no toast here, since this is a silent background attempt, not a
+  // user-initiated action.
+  async function tryHardwareCardCharge(req: CreateResponse) {
+    const chargeCard = getPrintBridge().chargeCard;
+    if (!chargeCard || !req.gatewayReference) return;
+    try {
+      const result = await chargeCard(req.amount, {
+        requestId: req.id,
+        gatewayReference: req.gatewayReference,
+        currency: "INR",
+      });
+      if (result.status === "success") {
+        await confirmCardMachine(req);
+      }
+    } catch {
+      // Hardware charge attempt failed — the cashier confirms manually
+      // once the physical terminal approves.
     }
   }
 
