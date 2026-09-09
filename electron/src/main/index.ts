@@ -1,6 +1,9 @@
+import { join } from "node:path";
+
 import { app, BrowserWindow, Menu, shell } from "electron";
 
 import { loadConfig } from "./config";
+import { registerHardwareIpc } from "./ipc/hardware";
 
 // A cashier double-clicking the desktop icon twice shouldn't end up with two
 // windows independently opening their own printer connections and
@@ -8,6 +11,12 @@ import { loadConfig } from "./config";
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
   app.quit();
+}
+
+// Dev-only CDP access for external inspection/automation (e.g. Playwright's
+// chromium.connectOverCDP), never enabled in a packaged build.
+if (!app.isPackaged) {
+  app.commandLine.appendSwitch("remote-debugging-port", "9223");
 }
 
 let mainWindow: BrowserWindow | null = null;
@@ -26,6 +35,7 @@ function createWindow(): void {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      preload: join(__dirname, "preload.js"),
     },
   });
 
@@ -75,7 +85,10 @@ app.on("second-instance", () => {
   }
 });
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  registerHardwareIpc(loadConfig());
+  createWindow();
+});
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
