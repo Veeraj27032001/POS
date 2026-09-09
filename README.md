@@ -20,6 +20,10 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Desktop app (Electron)
+
+The till/terminal software cashiers actually run is a thin Electron shell in [`electron/`](electron/) that loads this same hosted app and bridges receipt printer, cash drawer, and card-terminal hardware into it. It's a separate package with its own dependencies — see [`electron/README.md`](electron/README.md) for day-to-day run/build/package commands.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
