@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import { DataTable } from "@/components/data-table/data-table";
 import { Button } from "@/components/ui/button";
 import { getPrintBridge } from "@/lib/adapters/print";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 import { useInvalidateResource } from "@/lib/pagination/useList";
 import { cn } from "@/lib/utils";
@@ -45,6 +47,10 @@ export default function ProductsPage() {
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   async function handleToggleActive(row: ProductRow) {
     const activating = !row.isActive;
@@ -90,7 +96,7 @@ export default function ProductsPage() {
   }
 
   return (
-    <div className="space-y-4 p-8">
+    <div ref={kbdRef} className="space-y-4 p-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Products</h1>
         <NewProductDialog />
@@ -99,6 +105,7 @@ export default function ProductsPage() {
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
+          data-kbd-item=""
           onClick={() => setCategoryId(null)}
           className={cn(
             "rounded-full px-4 py-1.5 text-sm font-semibold whitespace-nowrap",
@@ -113,6 +120,7 @@ export default function ProductsPage() {
           <button
             key={category.value}
             type="button"
+            data-kbd-item=""
             onClick={() => setCategoryId(category.value)}
             className={cn(
               "rounded-full px-4 py-1.5 text-sm font-semibold whitespace-nowrap",
@@ -171,12 +179,18 @@ export default function ProductsPage() {
             header: "",
             render: (row) => (
               <div className="flex flex-wrap gap-1.5" onClick={(e) => e.stopPropagation()}>
-                <Button variant="outline" size="sm" onClick={() => printLabel(row)}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  data-kbd-item=""
+                  onClick={() => printLabel(row)}
+                >
                   Print Label
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
+                  data-kbd-item=""
                   disabled={togglingId === row.id}
                   onClick={() => handleToggleActive(row)}
                 >
@@ -186,6 +200,7 @@ export default function ProductsPage() {
                 <Button
                   variant="destructive"
                   size="sm"
+                  data-kbd-item=""
                   disabled={deletingId === row.id}
                   onClick={() => handleDelete(row)}
                 >
