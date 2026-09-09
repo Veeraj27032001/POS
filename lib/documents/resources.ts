@@ -64,8 +64,9 @@ export const stockInwardResource = defineDocumentResource({
     });
     if (!poItem) return null;
     const outstanding = poItem.quantityRequested - poItem.quantityReceived;
-    if (item.quantityAccepted > outstanding) {
-      return `Cannot accept ${item.quantityAccepted} of ${poItem.productName} — only ${outstanding} outstanding on the linked product request.`;
+    const totalProcessed = item.quantityAccepted + (item.quantityRejected ?? 0);
+    if (totalProcessed > outstanding) {
+      return `Accepted + rejected for ${poItem.productName} is ${totalProcessed} — only ${outstanding} outstanding on the linked product request.`;
     }
     return null;
   },

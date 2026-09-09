@@ -135,17 +135,22 @@ export function useArrowKeyNav<T extends HTMLElement>({
       const currentIndex = active ? items.indexOf(active) : -1;
       if (currentIndex === -1) return;
 
-      // Base UI's Tabs (and other composite widgets sharing its roving-
-      // tabindex logic) attach their own Left/Right handler directly on
-      // the tab list — a closer ancestor than this container, so it runs
-      // first on every bubbled keydown. Racing it by also moving focus
-      // here produces exactly the double-move it looks like: Base UI
-      // switches tabs internally, then this handler immediately overrides
-      // that with its own (now-stale) idea of what should come next.
-      // Deferring here, the same way text fields defer to native caret
-      // movement, leaves Left/Right entirely to the tablist while focus
-      // sits on one of its tabs.
-      if (active!.getAttribute("role") === "tab") return;
+      // Base UI's (horizontal) Tabs attaches its own Left/Right handler
+      // directly on the tab list — a closer ancestor than this container,
+      // so it runs first on every bubbled keydown. Racing it by also
+      // moving focus here produces exactly the double-move it looks like:
+      // Base UI switches tabs internally, then this handler immediately
+      // overrides that with its own (now-stale) idea of what should come
+      // next. Deferring here, the same way text fields defer to native
+      // caret movement, leaves Left/Right entirely to the tablist while
+      // focus sits on one of its tabs. Up/Down are NOT handled by a
+      // horizontal tablist at all, so they must keep falling through to
+      // this hook's own logic below — otherwise a tab is a dead end with
+      // no way to reach whatever's tracked below the tab list.
+      const isHorizontalTab =
+        active!.getAttribute("role") === "tab" &&
+        active!.closest('[role="tablist"]')?.getAttribute("aria-orientation") !== "vertical";
+      if (isHorizontalTab && (event.key === "ArrowLeft" || event.key === "ArrowRight")) return;
 
       const textEditable = isTextEditable(active!);
 
@@ -204,17 +209,28 @@ export function useArrowKeyNav<T extends HTMLElement>({
       });
     }
 
+    // Nearest enclosing dialog/popover, or null for the plain page — used
+    // to tell whether an untracked focused element actually belongs to
+    // *this* instance's scope (e.g. a dialog's own Close button, focused
+    // by the dialog library itself before any tracked item exists) versus
+    // some other, unrelated instance's scope (e.g. the page underneath an
+    // open dialog).
+    function scopeRootOf(el: Element | null): Element | null {
+      return el?.closest('[data-slot="dialog-content"], [data-slot="popover-content"]') ?? null;
+    }
+
     function handleDocumentKeyDown(event: KeyboardEvent) {
       if (!["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) return;
-      const activeEl = document.activeElement;
-      if (
-        activeEl !== null &&
-        activeEl !== document.body &&
-        activeEl !== document.documentElement
-      ) {
-        return;
-      }
+      const activeEl = document.activeElement as HTMLElement | null;
       const items = getItems();
+      if (items.length === 0) return;
+      // Already on one of this instance's own items — the container
+      // listener above owns this keystroke, nothing to rescue.
+      if (activeEl && items.includes(activeEl)) return;
+      // Focus is real (not body/html) and sitting in some other scope
+      // (e.g. the page behind an open dialog, or a different dialog) —
+      // leave it alone; that scope's own instance is responsible.
+      if (scopeRootOf(activeEl) !== scopeRootOf(container)) return;
       const fallback = items.find(isFocusable);
       if (!fallback) return;
       event.preventDefault();

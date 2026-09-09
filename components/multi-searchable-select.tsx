@@ -74,7 +74,8 @@ export function MultiSearchableSelect({
               {options.map((option) => (
                 <CommandItem
                   key={option.value}
-                  value={option.label}
+                  value={option.value}
+                  keywords={[option.label]}
                   onSelect={() => toggle(option.value)}
                 >
                   <Check

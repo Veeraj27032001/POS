@@ -75,6 +75,9 @@ export function SearchableSelect({
       .then((results) => {
         if (!cancelled) setSearchResults(results);
       })
+      .catch(() => {
+        if (!cancelled) setSearchResults([]);
+      })
       .finally(() => {
         if (!cancelled) setSearching(false);
       });
@@ -144,7 +147,8 @@ export function SearchableSelect({
               {items.map((option) => (
                 <CommandItem
                   key={option.value}
-                  value={onSearch ? option.value : option.label}
+                  value={option.value}
+                  keywords={[option.label]}
                   onSelect={() => {
                     onChange(option.value === value ? null : option.value);
                     setOpen(false);
