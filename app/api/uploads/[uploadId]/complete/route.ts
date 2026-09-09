@@ -6,6 +6,7 @@ import { auth } from "@/auth";
 import { getStorageAdapter } from "@/lib/adapters/storage";
 import { env } from "@/lib/config/env";
 import { unscoped } from "@/lib/db";
+import { DESKTOP_RELEASE_MAX_UPLOAD_MB } from "@/lib/upload/uploadFile";
 import { completeUploadSchema } from "@/lib/upload/schemas";
 import { apiErrorResponse, parseJsonOrRespond } from "@/lib/validation/response";
 
@@ -64,7 +65,11 @@ export async function POST(
 
   const parsed = await parseJsonOrRespond(request, completeUploadSchema);
   if ("response" in parsed) return parsed.response;
-  const { filename, contentType, totalChunks, attachTo } = parsed.data;
+  const { filename, contentType, totalChunks, attachTo, sizeLimitKind } = parsed.data;
+  const maxSizeMB =
+    sizeLimitKind === "desktop-release"
+      ? DESKTOP_RELEASE_MAX_UPLOAD_MB
+      : env().MAX_UPLOAD_FILE_SIZE_MB;
 
   const storage = getStorageAdapter();
   const chunkKeys = Array.from({ length: totalChunks }, (_, i) => `_tmp/${uploadId}/${i}`);
@@ -77,7 +82,7 @@ export async function POST(
     }
     const assembled = Buffer.concat(chunks);
 
-    const maxBytes = env().MAX_UPLOAD_FILE_SIZE_MB * 1024 * 1024;
+    const maxBytes = maxSizeMB * 1024 * 1024;
     if (assembled.length > maxBytes) {
       await Promise.all(chunkKeys.map((chunkKey) => storage.remove(chunkKey)));
       return { tooLarge: true };
@@ -106,7 +111,7 @@ export async function POST(
     if ("tooLarge" in result) {
       return apiErrorResponse(
         "file_too_large",
-        `File exceeds the ${env().MAX_UPLOAD_FILE_SIZE_MB} MB upload limit.`,
+        `File exceeds the ${maxSizeMB} MB upload limit.`,
         413,
       );
     }
@@ -136,7 +141,7 @@ export async function POST(
       const result = await reassembleAndStore();
       if ("tooLarge" in result) {
         console.error(
-          `Upload ${uploadId}: assembled file exceeds the ${env().MAX_UPLOAD_FILE_SIZE_MB} MB limit; discarded.`,
+          `Upload ${uploadId}: assembled file exceeds the ${maxSizeMB} MB limit; discarded.`,
         );
         return;
       }

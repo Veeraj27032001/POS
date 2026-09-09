@@ -15,12 +15,20 @@ export interface UploadFileOptions {
    * gets updated independently, whether or not the caller is still around.
    */
   attachTo?: { resource: "products"; id: string; field: "images" | "videos" };
+  /**
+   * Raises the size ceiling for one specific, server-recognized upload kind
+   * (an installer is 100+ MB, far past the general MAX_UPLOAD_FILE_SIZE_MB
+   * meant for product media) — a fixed enum, not a client-suppliable number,
+   * so the server stays the actual authority on what each kind allows.
+   */
+  sizeLimitKind?: "desktop-release";
 }
 
 // Vercel Serverless Functions cap request bodies at 4.5 MB; stay safely under
 // that (accounting for HTTP overhead) rather than the 5 MB spec default.
 const DEFAULT_CHUNK_SIZE = 4 * 1024 * 1024;
 export const MAX_UPLOAD_FILE_SIZE_MB = 50;
+export const DESKTOP_RELEASE_MAX_UPLOAD_MB = 300;
 
 // A handful of chunks in flight at once is meaningfully faster than fully
 // sequential, without hitting the server with the whole file's worth of
@@ -110,8 +118,12 @@ export async function uploadFile(
   file: File,
   options: UploadFileOptions = {},
 ): Promise<{ url: string | null }> {
-  if (file.size > MAX_UPLOAD_FILE_SIZE_MB * 1024 * 1024) {
-    throw new Error(`File exceeds the ${MAX_UPLOAD_FILE_SIZE_MB} MB upload limit.`);
+  const maxSizeMB =
+    options.sizeLimitKind === "desktop-release"
+      ? DESKTOP_RELEASE_MAX_UPLOAD_MB
+      : MAX_UPLOAD_FILE_SIZE_MB;
+  if (file.size > maxSizeMB * 1024 * 1024) {
+    throw new Error(`File exceeds the ${maxSizeMB} MB upload limit.`);
   }
 
   const chunkSize = options.chunkSizeBytes ?? DEFAULT_CHUNK_SIZE;
@@ -141,6 +153,7 @@ export async function uploadFile(
       contentType: file.type || "application/octet-stream",
       totalChunks,
       attachTo: options.attachTo,
+      sizeLimitKind: options.sizeLimitKind,
     }),
     signal: options.attachTo ? undefined : options.signal,
   });

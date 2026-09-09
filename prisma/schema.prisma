@@ -287,6 +287,7 @@ model User {
   creditNotes              CreditNote[]
   shiftsAsCashier          Shift[]
   ecommerceOrdersResponded EcommerceOrder[]
+  desktopAppReleases       DesktopAppRelease[]
 
   @@map("users")
 }
@@ -765,6 +766,23 @@ model HsnCode {
   products Product[]
 
   @@map("hsn_codes")
+}
+
+// Built Electron installers, uploaded manually by a Super Admin — global,
+// not store-scoped. Any authenticated user can list/download; only a Super
+// Admin can upload a new one (enforced in app/api/desktop-releases).
+model DesktopAppRelease {
+  id               String   @id @default(uuid())
+  version          String   @unique
+  fileUrl          String   @map("file_url")
+  fileSizeBytes    Int      @map("file_size_bytes")
+  releaseNotes     String?  @map("release_notes")
+  uploadedByUserId String   @map("uploaded_by_user_id")
+  uploadedBy       User     @relation(fields: [uploadedByUserId], references: [id])
+  createdAt        DateTime @default(now()) @map("created_at")
+  isActive         Boolean  @default(true) @map("is_active")
+
+  @@map("desktop_app_releases")
 }
 
 // Singleton — a single row of global, Super-Admin-only tax preferences.

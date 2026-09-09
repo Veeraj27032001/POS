@@ -14,6 +14,7 @@ export const completeUploadSchema = z.object({
       field: z.enum(["images", "videos"]),
     })
     .optional(),
+  sizeLimitKind: z.enum(["desktop-release"]).optional(),
 });
 
 export type CompleteUploadInput = z.infer<typeof completeUploadSchema>;

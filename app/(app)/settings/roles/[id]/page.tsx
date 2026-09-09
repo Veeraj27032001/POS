@@ -45,6 +45,7 @@ const MODULE_LABELS: Record<string, string> = {
   financial_years: "Financial Years",
   bill_formats: "Bill Formats",
   ecommerce: "E-commerce",
+  desktop_releases: "Desktop App Releases",
 };
 
 export default function RoleDetailPage() {

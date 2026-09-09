@@ -34,6 +34,7 @@ export const SUPER_ADMIN_ONLY_MODULES = [
   "financial_years",
   "bill_formats",
   "ecommerce",
+  "desktop_releases",
 ] as const;
 
 // Regular business modules — open to Admin (and Super Admin), denied to
