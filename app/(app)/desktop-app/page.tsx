@@ -89,7 +89,14 @@ export default function DesktopAppPage() {
             <tbody>
               {releases.map((r) => (
                 <tr key={r.id} className="border-t">
-                  <td className="p-3 font-medium">{r.version}</td>
+                  <td className="p-3 font-medium">
+                    {r.version}
+                    {!r.isActive && (
+                      <span className="text-muted-foreground ml-2 text-xs font-normal">
+                        Inactive
+                      </span>
+                    )}
+                  </td>
                   <td className="text-muted-foreground p-3">{formatTimestamp(r.createdAt)}</td>
                   <td className="text-muted-foreground p-3">{r.uploadedBy?.name ?? "—"}</td>
                   <td className="text-muted-foreground p-3">{formatFileSize(r.fileSizeBytes)}</td>
@@ -113,7 +120,7 @@ export default function DesktopAppPage() {
                           data-kbd-item=""
                           onClick={() => void toggleActive(r.id)}
                         >
-                          Deactivate
+                          {r.isActive ? "Deactivate" : "Activate"}
                         </Button>
                       )}
                     </div>

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 export interface LatestDesktopRelease {
   version: string;
   fileUrl: string;
+  isActive: boolean;
 }
 
 // The most recently uploaded active desktop-app release, for the header
@@ -17,8 +18,9 @@ export function useLatestDesktopRelease(): LatestDesktopRelease | null {
     fetch("/api/desktop-releases")
       .then((res) => (res.ok ? res.json() : null))
       .then((body: { data?: LatestDesktopRelease[] } | null) => {
-        const latest = body?.data?.[0];
-        if (!cancelled && latest) setRelease({ version: latest.version, fileUrl: latest.fileUrl });
+        const latest = body?.data?.find((r) => r.isActive);
+        if (!cancelled && latest)
+          setRelease({ version: latest.version, fileUrl: latest.fileUrl, isActive: true });
       })
       .catch(() => {});
     return () => {

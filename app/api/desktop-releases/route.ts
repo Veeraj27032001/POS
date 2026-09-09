@@ -20,8 +20,12 @@ export async function GET() {
 
   return withStoreContext(async () => {
     const db = unscoped();
+    // Every release, active or not — matches this app's convention of
+    // showing deactivated rows with a toggle rather than hiding them
+    // outright (which would leave no way to reactivate one). Consumers
+    // that only want a downloadable version (the header button) filter to
+    // isActive themselves.
     const data = await db.desktopAppRelease.findMany({
-      where: { isActive: true },
       orderBy: { createdAt: "desc" },
       include: { uploadedBy: { select: { name: true } } },
     });
