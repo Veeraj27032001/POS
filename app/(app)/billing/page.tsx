@@ -252,13 +252,8 @@ export default function BillingPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rememberedTerminalId]);
 
-  // The customer field is deliberately the default focus target, not the
-  // scan box — this store's workflow is to select/enter the customer
-  // before scanning items. A physical barcode scanner only matters once
-  // the cashier has actually tabbed/arrowed down into the scan box
-  // themselves, so it doesn't need to hold focus by default here.
   useEffect(() => {
-    if (started) document.getElementById("billing-existing-customer-select")?.focus();
+    if (started) document.getElementById("billing-bill-type-cash")?.focus();
   }, [started]);
 
   // Resuming loads the held bill's real lines into local cart state.
@@ -1261,6 +1256,7 @@ export default function BillingPage() {
             <div className="flex gap-2">
               <Button
                 type="button"
+                id="billing-bill-type-cash"
                 size="sm"
                 data-kbd-item=""
                 variant={billType === "cash_bill" ? "default" : "outline"}
