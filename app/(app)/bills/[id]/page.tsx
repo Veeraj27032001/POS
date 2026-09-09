@@ -318,7 +318,7 @@ export default function BillViewPage() {
               </Button>
               {canEditBill && (
                 <Link
-                  href={`/bills/${bill.id}/edit`}
+                  href={`/billing?billId=${bill.id}`}
                   data-kbd-item=""
                   className={buttonVariants({ variant: "outline", size: "sm" })}
                 >

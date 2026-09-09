@@ -16,6 +16,7 @@ import { EditableLineValue } from "@/components/billing/editable-line-value";
 import { LineWarehouseSplit } from "@/components/billing/line-warehouse-split";
 import { ShiftControl } from "@/components/billing/shift-control";
 import { getPrintBridge } from "@/lib/adapters/print";
+import { isCompletedBillStillEditable } from "@/lib/billing/editableCompletedBillWindow";
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 import { useStoreCurrencySymbol } from "@/lib/hooks/useStoreCurrencySymbol";
 import { useStoreDefaultExcludeTax } from "@/lib/hooks/useStoreDefaultExcludeTax";
@@ -185,7 +186,7 @@ export default function BillingPage() {
   const [savedDocumentNumber, setSavedDocumentNumber] = useState<string | null>(null);
   // null = not saved yet (behaves like draft). "held" shows Save/Make draft;
   // anything else shows Save draft/Hold.
-  const [billStatus, setBillStatus] = useState<"draft" | "held" | null>(null);
+  const [billStatus, setBillStatus] = useState<"draft" | "held" | "completed" | null>(null);
 
   const [cartLines, setCartLines] = useState<CartLine[]>([]);
   // Lines removed after being synced still need voiding server-side.
@@ -274,7 +275,29 @@ export default function BillingPage() {
   const paymentGatewayAvailable = useStorePaymentGatewayAvailable();
   const [useGateway, setUseGateway] = useState(false);
 
+  async function saveCompletedBillEdits() {
+    if (busy) return;
+    setCreating(true);
+    try {
+      const billId = await syncCart();
+      if (!billId) return;
+      const res = await fetch(`/api/bills/${billId}`);
+      const body = await res.json().catch(() => null);
+      if (body && body.outstandingBalance > 0) {
+        router.push(`/billing/${billId}/collect`);
+        return;
+      }
+      router.push(`/bills/${billId}`);
+    } finally {
+      setCreating(false);
+    }
+  }
+
   async function handlePrimaryAction() {
+    if (billStatus === "completed") {
+      await saveCompletedBillEdits();
+      return;
+    }
     if (!useGateway || billType === "credit_bill" || remaining <= 0.01) {
       await createBill();
       return;
@@ -308,9 +331,21 @@ export default function BillingPage() {
       return;
     }
     const b = await res.json();
+    if (b.status === "completed" && !isCompletedBillStillEditable(b.completedAt)) {
+      toast.error("This bill was completed too long ago to edit directly — use Return instead.");
+      setResuming(false);
+      router.push(`/bills/${id}`);
+      return;
+    }
+    if (b.status !== "draft" && b.status !== "held" && b.status !== "completed") {
+      toast.error(`Can't edit a ${b.status} bill.`);
+      setResuming(false);
+      router.push(`/bills/${id}`);
+      return;
+    }
     setBillType(b.billType);
     setTerminalId(b.terminalId);
-    setBillStatus(b.status === "held" ? "held" : "draft");
+    setBillStatus(b.status);
     setSavedBillId(b.id);
     setSavedDocumentNumber(b.documentNumber);
     const loadedBillDate = String(b.billDate).slice(0, 10);
@@ -1225,7 +1260,7 @@ export default function BillingPage() {
                 {makingDraft ? "Making draft…" : "Make draft"}
               </Button>
             </>
-          ) : (
+          ) : billStatus === "completed" ? null : (
             <>
               {cartLines.length === 0 && (
                 <Button variant="outline" data-kbd-item="" onClick={discardCart} disabled={busy}>
@@ -1572,10 +1607,12 @@ export default function BillingPage() {
                 }
               >
                 {creating
-                  ? "Creating…"
-                  : useGateway && remaining > 0.01
-                    ? "Proceed to payment"
-                    : "Create bill"}
+                  ? "Saving…"
+                  : billStatus === "completed"
+                    ? "Save changes"
+                    : useGateway && remaining > 0.01
+                      ? "Proceed to payment"
+                      : "Create bill"}
               </Button>
             </CardFooter>
           </Card>
