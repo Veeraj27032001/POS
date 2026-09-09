@@ -4,6 +4,7 @@ import { app, BrowserWindow, Menu, shell } from "electron";
 
 import { loadConfig } from "./config";
 import { registerHardwareIpc } from "./ipc/hardware";
+import { checkForUpdates } from "./updateCheck";
 
 // A cashier double-clicking the desktop icon twice shouldn't end up with two
 // windows independently opening their own printer connections and
@@ -47,6 +48,7 @@ function createWindow(): void {
   mainWindow.once("ready-to-show", () => {
     if (!config.KIOSK_MODE) mainWindow?.maximize();
     mainWindow?.show();
+    if (app.isPackaged) void checkForUpdates(config);
   });
 
   const serverOrigin = new URL(config.SERVER_URL).origin;
