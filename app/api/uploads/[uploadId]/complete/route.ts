@@ -4,6 +4,7 @@ import { after } from "next/server";
 
 import { auth } from "@/auth";
 import { getStorageAdapter } from "@/lib/adapters/storage";
+import { vercelBlobStorageAdapter } from "@/lib/adapters/storage/vercelBlob";
 import { env } from "@/lib/config/env";
 import { unscoped } from "@/lib/db";
 import { DESKTOP_RELEASE_MAX_UPLOAD_MB } from "@/lib/upload/uploadFile";
@@ -72,6 +73,12 @@ export async function POST(
       : env().MAX_UPLOAD_FILE_SIZE_MB;
 
   const storage = getStorageAdapter();
+  // The desktop-app installer is far past Supabase's free-tier 50 MB
+  // single-object limit — chunks still land on the regular adapter (they're
+  // ~4 MB each, written by the chunk route before this ever runs), but the
+  // final assembled file for this one upload kind goes to Vercel Blob
+  // instead, which has no comparable ceiling.
+  const finalStorage = sizeLimitKind === "desktop-release" ? vercelBlobStorageAdapter : storage;
   const chunkKeys = Array.from({ length: totalChunks }, (_, i) => `_tmp/${uploadId}/${i}`);
   const key = `${session.user.id}/${randomUUID()}${sanitizeExtension(filename)}`;
 
@@ -101,7 +108,7 @@ export async function POST(
     // the storage bucket's own size limit, distinct from maxSizeMB above)
     // is a different problem than a missing chunk and should surface its
     // own message, not the generic "retry the missing chunk(s)" one.
-    const { url } = await storage.put(optimized);
+    const { url } = await finalStorage.put(optimized);
     await Promise.all(chunkKeys.map((chunkKey) => storage.remove(chunkKey)));
     return { url };
   }
@@ -113,7 +120,23 @@ export async function POST(
     try {
       result = await reassembleAndStore();
     } catch (error) {
-      console.error(`Upload ${uploadId}: reassembly failed.`, error);
+      // Every chunk was present (that's checked inside reassembleAndStore
+      // itself now) — this is the final storage.put() failing for some
+      // other reason, most likely the storage bucket's own size limit,
+      // which is separate from and can be smaller than maxSizeMB above.
+      console.error(`Upload ${uploadId}: storing the assembled file failed.`, error);
+      const isEntityTooLarge =
+        error instanceof Error && "Code" in error && error.Code === "EntityTooLarge";
+      return apiErrorResponse(
+        "storage_error",
+        isEntityTooLarge
+          ? "The storage bucket rejected this file as too large. Raise its max file size limit " +
+              `(${finalStorage === vercelBlobStorageAdapter ? "Vercel → Storage" : "Supabase → Storage → bucket settings"}) and try again.`
+          : "Failed to store the uploaded file. Please try again.",
+        isEntityTooLarge ? 413 : 502,
+      );
+    }
+    if ("missingChunks" in result) {
       return apiErrorResponse(
         "incomplete_upload",
         "Not all chunks were received. Retry the missing chunk(s) before completing.",
@@ -151,6 +174,10 @@ export async function POST(
   after(async () => {
     try {
       const result = await reassembleAndStore();
+      if ("missingChunks" in result) {
+        console.error(`Upload ${uploadId}: a chunk is missing; discarded.`);
+        return;
+      }
       if ("tooLarge" in result) {
         console.error(
           `Upload ${uploadId}: assembled file exceeds the ${maxSizeMB} MB limit; discarded.`,

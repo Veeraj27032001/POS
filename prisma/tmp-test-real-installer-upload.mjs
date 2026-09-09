@@ -1,9 +1,8 @@
 import { chromium } from "playwright";
-import path from "node:path";
 
 const EMAIL = "tmp-desktop-superadmin@example.com";
 const PASSWORD = "TmpDesktop123!";
-const INSTALLER_PATH = path.resolve("electron/release/POS Setup 0.1.0.exe");
+const INSTALLER_PATH = "C:\\projects\\POS\\electron\\release\\POS Setup 0.1.0.exe";
 
 async function main() {
   const browser = await chromium.launch();
@@ -20,13 +19,11 @@ async function main() {
   try {
     await page.waitForURL((url) => !url.pathname.includes("/login"), { timeout: 45000 });
   } catch {
-    console.log("Still on /login after 45s wait — checking anyway.");
+    console.log("Still on /login after 45s wait.");
   }
   console.log("After login URL:", page.url());
 
   if (page.url().includes("/select-financial-year")) {
-    // The page auto-selects the first financial year once the list loads —
-    // just wait for Continue to enable, no dropdown interaction needed.
     const continueBtn = page.locator('button:has-text("Continue")').first();
     await continueBtn.waitFor({ state: "visible", timeout: 15000 });
     for (let i = 0; i < 15; i++) {
@@ -41,37 +38,37 @@ async function main() {
     } catch {
       console.log("Still on select-financial-year after continue click.");
     }
-    console.log("After FY select URL:", page.url());
   }
 
   await page.goto("http://localhost:3000/desktop-app");
-  await page.waitForTimeout(2000);
+  await page.waitForTimeout(3000);
   console.log("Desktop app page URL:", page.url());
-
-  const uploadBtnCount = await page.locator('button:has-text("Upload new version")').count();
-  console.log("Upload button visible (should be 1, Super Admin):", uploadBtnCount);
 
   await page.locator('button:has-text("Upload new version")').click();
   await page.waitForTimeout(500);
 
-  await page.fill("#release-version", "0.1.0");
-  await page.fill("#release-notes", "Test upload via Playwright verification.");
+  await page.fill("#release-version", "0.1.0-real-test");
+  await page.fill("#release-notes", "Real 113MB installer end-to-end test via Vercel Blob.");
   await page.setInputFiles("#release-file", INSTALLER_PATH);
 
+  const startTime = Date.now();
   await page.click('button[type="submit"]:has-text("Upload")');
 
-  // Large file upload — poll for completion rather than a fixed wait.
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < 90; i++) {
     await page.waitForTimeout(2000);
     const toastText = await page.locator("[data-sonner-toast]").allTextContents();
     if (toastText.length > 0) {
-      console.log(`[${i * 2}s] Toasts:`, JSON.stringify(toastText));
+      const elapsed = Math.round((Date.now() - startTime) / 1000);
+      console.log(`[${elapsed}s] Toasts:`, JSON.stringify(toastText));
       break;
     }
   }
 
-  await page.waitForTimeout(1500);
-  const tableText = await page.locator("table").innerText().catch(() => "(no table)");
+  await page.waitForTimeout(2000);
+  const tableText = await page
+    .locator("table")
+    .innerText()
+    .catch(() => "(no table)");
   console.log("Table contents:\n", tableText);
 
   await browser.close();

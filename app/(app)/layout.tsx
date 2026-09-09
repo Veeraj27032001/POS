@@ -481,6 +481,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <Button
               variant="ghost"
               size="sm"
+              nativeButton={false}
               render={<a href={latestDesktopRelease.fileUrl} download />}
             >
               <Download className="size-4" />

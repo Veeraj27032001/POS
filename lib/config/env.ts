@@ -14,6 +14,11 @@ const serverEnvSchema = z.object({
   SUPABASE_S3_REGION: z.string().default("us-east-1"),
   SUPABASE_STORAGE_BUCKET: z.string().default("product-media"),
   MAX_UPLOAD_FILE_SIZE_MB: z.coerce.number().int().positive().default(50),
+  // Vercel Blob — only used for the desktop-app installer upload, which is
+  // far past Supabase's free-tier 50 MB single-object limit. Auto-injected
+  // by Vercel when a Blob store is connected to the project; set manually
+  // for local dev (Vercel dashboard → Storage → Blob → .env.local tab).
+  BLOB_READ_WRITE_TOKEN: z.string().optional(),
   PAYMENT_ADAPTER: z.enum(["stub", "razorpay"]).default("stub"),
   DISABLE_PAYMENT_GATEWAY: z
     .string()

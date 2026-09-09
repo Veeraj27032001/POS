@@ -109,6 +109,7 @@ export default function DesktopAppPage() {
                         variant="outline"
                         size="sm"
                         data-kbd-item=""
+                        nativeButton={false}
                         render={<a href={r.fileUrl} download />}
                       >
                         Download
