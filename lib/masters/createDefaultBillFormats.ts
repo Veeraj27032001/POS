@@ -6,7 +6,7 @@ import {
   DEFAULT_REFUND_TEMPLATE_HTML,
 } from "@/lib/billing/defaultBillFormatTemplates";
 
-const BILL_TYPES = ["cash_bill", "credit_bill"] as const;
+const BILL_TYPES = ["cash_bill", "credit_bill", "online_bill"] as const;
 const FORMAT_KINDS = [
   { formatKind: "bill" as const, templateHtml: DEFAULT_BILL_TEMPLATE_HTML },
   { formatKind: "receipt" as const, templateHtml: DEFAULT_RECEIPT_TEMPLATE_HTML },
