@@ -142,6 +142,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       updates.billDate = dateOnlyToUtcMidnight(toDateOnly(data.billDate));
     }
 
+    if (data.taxExcluded !== undefined) {
+      updates.taxExcluded = data.taxExcluded;
+    }
+
     if (data.terminalId !== undefined) {
       const terminal = await db.terminal.findUnique({ where: { id: data.terminalId } });
       if (!terminal || terminal.storeId !== bill.storeId) {

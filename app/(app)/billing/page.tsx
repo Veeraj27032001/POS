@@ -172,6 +172,7 @@ export default function BillingPage() {
   const [billDate, setBillDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [syncedBillDate, setSyncedBillDate] = useState<string | null>(null);
   const [excludeTax, setExcludeTax] = useState(false);
+  const [syncedExcludeTax, setSyncedExcludeTax] = useState(false);
   // True from first render whenever the URL already carries ?billId= — hides
   // the "Start a bill" form during that fetch instead of flashing it first.
   const [resuming, setResuming] = useState(() => !!searchParams.get("billId"));
@@ -352,6 +353,7 @@ export default function BillingPage() {
     setBillDate(loadedBillDate);
     setSyncedBillDate(loadedBillDate);
     setExcludeTax(Boolean(b.taxExcluded));
+    setSyncedExcludeTax(Boolean(b.taxExcluded));
     setCartLines(
       (b.lines as Array<Record<string, unknown>>)
         .filter((l) => l.status === "active")
@@ -592,9 +594,14 @@ export default function BillingPage() {
   }
 
   function onCustomerDraftChange(next: CustomerDraft) {
-    setSelectedCustomerId(null);
     setCustomerDraft(next);
     setCustomerStateId(next.stateId);
+  }
+
+  function clearExistingCustomer() {
+    setSelectedCustomerId(null);
+    setCustomerDraft(emptyCustomerDraft);
+    setCustomerStateId(null);
   }
 
   // Read-only totals preview — nothing here is persisted.
@@ -707,6 +714,21 @@ export default function BillingPage() {
       setSyncedBillDate(billDate);
     }
 
+    const taxExcludedChanged = excludeTax !== syncedExcludeTax;
+    if (billId && taxExcludedChanged) {
+      const res = await fetch(`/api/bills/${billId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taxExcluded: excludeTax }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        toast.error(body?.error?.message ?? "Failed to update tax exclusion.");
+        return null;
+      }
+      setSyncedExcludeTax(excludeTax);
+    }
+
     for (const lineId of removedServerLineIds) {
       const res = await fetch(`/api/bills/${billId}/lines/${lineId}`, { method: "DELETE" });
       if (!res.ok) {
@@ -748,7 +770,11 @@ export default function BillingPage() {
           syncedQuantity: line.quantity,
           syncedAllocations: line.manualAllocations,
         };
-      } else if (line.quantity !== line.syncedQuantity || allocationsChanged) {
+      } else if (
+        line.quantity !== line.syncedQuantity ||
+        allocationsChanged ||
+        taxExcludedChanged
+      ) {
         const res = await fetch(`/api/bills/${billId}/lines/${line.serverId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -1334,7 +1360,7 @@ export default function BillingPage() {
                 id="exclude-tax"
                 data-kbd-item=""
                 checked={excludeTax}
-                disabled={!!savedBillId}
+                disabled={!!savedBillId && billStatus !== "completed"}
                 onCheckedChange={(checked) => setExcludeTax(checked === true)}
               />
               <Label htmlFor="exclude-tax" className="font-normal">
@@ -1355,6 +1381,7 @@ export default function BillingPage() {
             draft={customerDraft}
             customers={customers}
             onSelectExisting={(v) => void selectExistingCustomer(v)}
+            onClearExisting={clearExistingCustomer}
             onChange={onCustomerDraftChange}
           />
         </CardContent>

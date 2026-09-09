@@ -31,12 +31,14 @@ export function CustomerDetailsFields({
   draft,
   customers,
   onSelectExisting,
+  onClearExisting,
   onChange,
 }: {
   selectedCustomerId: string | null;
   draft: CustomerDraft;
   customers: SearchableSelectOption[];
   onSelectExisting: (customerId: string) => void;
+  onClearExisting: () => void;
   onChange: (draft: CustomerDraft) => void;
 }) {
   const countries = useOptionsList("countries", "name");
@@ -61,6 +63,7 @@ export function CustomerDetailsFields({
           value={selectedCustomerId}
           onChange={(v) => {
             if (v) onSelectExisting(v);
+            else onClearExisting();
           }}
           placeholder="Select customer…"
         />

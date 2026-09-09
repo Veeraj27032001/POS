@@ -25,6 +25,7 @@ export const billAttachCustomerSchema = z.object({
   customerId: opaqueIdSchema.optional().nullable(),
   billDate: isoDateOnlySchema.optional(),
   terminalId: opaqueIdSchema.optional(),
+  taxExcluded: z.boolean().optional(),
 });
 
 export const billLineAllocationSchema = z.object({
