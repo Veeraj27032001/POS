@@ -23,14 +23,6 @@ interface PrintableReceiptBill {
   lines: PrintableBillLine[];
 }
 
-function openAndPrintHtml(html: string): void {
-  const win = window.open("", "_blank", "width=380,height=600");
-  if (!win) throw new Error("Print window was blocked by the browser's popup blocker.");
-  win.document.write(html);
-  win.document.write("<script>window.onload = () => window.print();<\/script>");
-  win.document.close();
-}
-
 async function fetchFormattedHtml(
   billId: string,
   type: "receipt" | "bill",
@@ -66,7 +58,7 @@ async function printFallbackReceipt(bill: PrintableReceiptBill): Promise<void> {
 export async function printReceipt(bill: PrintableReceiptBill): Promise<void> {
   const html = await fetchFormattedHtml(bill.id, "receipt");
   if (html) {
-    openAndPrintHtml(html);
+    await getPrintBridge().print({ kind: "html", html });
     return;
   }
   await printFallbackReceipt(bill);
@@ -79,7 +71,7 @@ export async function printBill(billId: string): Promise<void> {
       "No bill format is configured for this store and bill type yet — set one up under Bill Formats.",
     );
   }
-  openAndPrintHtml(html);
+  await getPrintBridge().print({ kind: "html", html });
 }
 
 async function printDocument(url: string, missingFormatMessage: string): Promise<void> {
@@ -91,7 +83,7 @@ async function printDocument(url: string, missingFormatMessage: string): Promise
   if (!html) {
     throw new Error(missingFormatMessage);
   }
-  openAndPrintHtml(html);
+  await getPrintBridge().print({ kind: "html", html });
 }
 
 export async function printCreditNote(creditNoteId: string): Promise<void> {

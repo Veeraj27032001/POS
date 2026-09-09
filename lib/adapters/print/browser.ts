@@ -88,6 +88,14 @@ function renderLabelHtml(p: Extract<PrintPayload, { kind: "label" }>): string {
 
 export const browserPrintBridge: HardwareBridge = {
   async print(payload: PrintPayload) {
+    if (payload.kind === "html") {
+      const win = window.open("", "_blank", "width=380,height=600");
+      if (!win) throw new Error("Print window was blocked by the browser's popup blocker.");
+      win.document.write(payload.html);
+      win.document.write("<script>window.onload = () => window.print();<\/script>");
+      win.document.close();
+      return;
+    }
     const html = payload.kind === "receipt" ? renderReceiptHtml(payload) : renderLabelHtml(payload);
     const win = window.open("", "_blank", "width=380,height=600");
     if (!win) throw new Error("Print window was blocked by the browser's popup blocker.");
