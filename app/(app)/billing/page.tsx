@@ -201,7 +201,6 @@ export default function BillingPage() {
   );
 
   const [completedBill, setCompletedBill] = useState<CompletedBill | null>(null);
-  const [heldDocumentNumber, setHeldDocumentNumber] = useState<string | null>(null);
   const [heldCount, setHeldCount] = useState(0);
   const [draftCount, setDraftCount] = useState(0);
 
@@ -862,7 +861,14 @@ export default function BillingPage() {
     setSavingDraft(true);
     try {
       const billId = await syncCart();
-      if (billId) toast.success(billStatus === "held" ? "Saved." : "Draft saved.");
+      if (!billId) return;
+      if (billStatus === "held") {
+        toast.success("Saved.");
+        router.push("/billing/held");
+        return;
+      }
+      toast.success("Draft saved.");
+      router.push("/billing/drafts");
     } finally {
       setSavingDraft(false);
     }
@@ -903,10 +909,8 @@ export default function BillingPage() {
         toast.error(body?.error?.message ?? "Failed to hold bill.");
         return;
       }
-      const held = (await res.json()) as { documentNumber: string };
       toast.success("Bill held.");
-      setHeldDocumentNumber(held.documentNumber);
-      resetCart();
+      router.push("/billing/held");
     } finally {
       setHolding(false);
     }
@@ -1019,7 +1023,6 @@ export default function BillingPage() {
 
   function startNewBill() {
     setCompletedBill(null);
-    setHeldDocumentNumber(null);
     resetCart();
     setTerminalId(rememberedTerminalId);
   }
@@ -1046,7 +1049,6 @@ export default function BillingPage() {
     started,
     resuming,
     completedBill,
-    heldDocumentNumber,
     cartLines,
     discardCart,
     handlePrimaryAction,
@@ -1055,7 +1057,6 @@ export default function BillingPage() {
     started,
     resuming,
     completedBill,
-    heldDocumentNumber,
     cartLines,
     discardCart,
     handlePrimaryAction,
@@ -1064,7 +1065,7 @@ export default function BillingPage() {
   useEffect(() => {
     function handleShortcut(event: KeyboardEvent) {
       const s = shortcutStateRef.current;
-      const onMainScreen = s.started && !s.resuming && !s.completedBill && !s.heldDocumentNumber;
+      const onMainScreen = s.started && !s.resuming && !s.completedBill;
 
       if (event.ctrlKey && event.key.toLowerCase() === "s") {
         event.preventDefault();
@@ -1111,33 +1112,6 @@ export default function BillingPage() {
               className="text-muted-foreground text-sm hover:underline"
             >
               View bill
-            </Link>
-            <Button onClick={startNewBill}>Start new bill</Button>
-          </CardFooter>
-        </Card>
-      </div>
-    );
-  }
-
-  if (heldDocumentNumber) {
-    return (
-      <div className="space-y-4 p-8">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-xl">Bill held</CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm">
-            <p>
-              <span className="text-muted-foreground">Document number: </span>
-              {heldDocumentNumber}
-            </p>
-            <p className="text-muted-foreground mt-2">
-              Pick it back up any time from Held Bills, or start billing another customer now.
-            </p>
-          </CardContent>
-          <CardFooter className="justify-end gap-2">
-            <Link href="/billing/held" className={buttonVariants({ variant: "outline" })}>
-              Held bills
             </Link>
             <Button onClick={startNewBill}>Start new bill</Button>
           </CardFooter>
