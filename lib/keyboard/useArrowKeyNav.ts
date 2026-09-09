@@ -222,14 +222,12 @@ export function useArrowKeyNav<T extends HTMLElement>({
       });
     }
 
-    // Nearest enclosing dialog/popover, or null for the plain page — used
-    // to tell whether an untracked focused element actually belongs to
-    // *this* instance's scope (e.g. a dialog's own Close button, focused
-    // by the dialog library itself before any tracked item exists) versus
-    // some other, unrelated instance's scope (e.g. the page underneath an
-    // open dialog).
     function scopeRootOf(el: Element | null): Element | null {
-      return el?.closest('[data-slot="dialog-content"], [data-slot="popover-content"]') ?? null;
+      return (
+        el?.closest(
+          '[data-slot="dialog-content"], [data-slot="popover-content"], nav[aria-label="Main navigation"]',
+        ) ?? null
+      );
     }
 
     function handleDocumentKeyDown(event: KeyboardEvent) {
