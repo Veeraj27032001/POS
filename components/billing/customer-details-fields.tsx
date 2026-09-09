@@ -55,6 +55,7 @@ export function CustomerDetailsFields({
       <div className="space-y-1.5">
         <Label>Existing customer</Label>
         <SearchableSelect
+          id="billing-existing-customer-select"
           data-kbd-item=""
           options={customers}
           value={selectedCustomerId}

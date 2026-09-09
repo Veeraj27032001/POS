@@ -41,6 +41,7 @@ export interface SearchableSelectProps {
   emptyMessage?: string;
   disabled?: boolean;
   className?: string;
+  id?: string;
   "data-kbd-item"?: string;
 }
 
@@ -55,6 +56,7 @@ export function SearchableSelect({
   emptyMessage = "No results found.",
   disabled,
   className,
+  id,
   "data-kbd-item": dataKbdItem,
 }: SearchableSelectProps) {
   const [open, setOpen] = useState(false);
@@ -122,6 +124,7 @@ export function SearchableSelect({
       }}
     >
       <PopoverTrigger
+        id={id}
         disabled={disabled}
         data-kbd-item={dataKbdItem}
         className={cn(

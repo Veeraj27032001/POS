@@ -252,8 +252,13 @@ export default function BillingPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rememberedTerminalId]);
 
+  // The customer field is deliberately the default focus target, not the
+  // scan box — this store's workflow is to select/enter the customer
+  // before scanning items. A physical barcode scanner only matters once
+  // the cashier has actually tabbed/arrowed down into the scan box
+  // themselves, so it doesn't need to hold focus by default here.
   useEffect(() => {
-    if (started) scanInputRef.current?.focus();
+    if (started) document.getElementById("billing-existing-customer-select")?.focus();
   }, [started]);
 
   // Resuming loads the held bill's real lines into local cart state.
@@ -1353,7 +1358,6 @@ export default function BillingPage() {
                 }
               }}
               placeholder="Scan or search a product…"
-              autoFocus
             />
             {searching && (
               <Loader2Icon className="text-muted-foreground absolute top-1/2 right-3 size-4 -translate-y-1/2 animate-spin" />

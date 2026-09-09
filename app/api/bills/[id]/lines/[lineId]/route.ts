@@ -10,6 +10,7 @@ import {
   getSelfBlockedByWarehouse,
   applySelfBlocked,
 } from "@/lib/billing/getSelfBlockedByWarehouse";
+import { getSelfSoldByWarehouse } from "@/lib/billing/getSelfSoldByWarehouse";
 import { getStoreWideAvailable } from "@/lib/billing/getStoreWideAvailable";
 import { getWarehouseAvailability } from "@/lib/billing/getWarehouseAvailability";
 import { loadEditableLine } from "@/lib/billing/loadEditableLine";
@@ -54,11 +55,18 @@ export async function PATCH(
     if (!product) return apiErrorResponse("bad_request", "Product not found.", 400);
 
     const isHeld = line.bill.status === "held";
+    const isCompleted = line.bill.status === "completed";
     const isHeldStockTracked = isHeld && product.stockTracked;
+    const isCompletedStockTracked = isCompleted && product.stockTracked;
+    // Draft reserves nothing, so oversell there is only a warning. Held is
+    // a real reservation and completed is a real, already-recorded sale —
+    // both are hard blocks instead.
+    const hardValidated = isHeld || isCompleted;
 
-    const [perWarehouse, selfBlocked, reasonCode] = await Promise.all([
+    const [perWarehouse, selfBlocked, selfSold, reasonCode] = await Promise.all([
       product.stockTracked ? getWarehouseAvailability(line.bill.storeId, line.productId) : [],
       isHeldStockTracked ? getSelfBlockedByWarehouse(id, line.productId) : null,
+      isCompletedStockTracked ? getSelfSoldByWarehouse(id, line.productId) : null,
       isHeldStockTracked
         ? db.reasonCode.findFirst({
             where: { category: "stock_block", label: "Reserved — pending bill" },
@@ -67,14 +75,14 @@ export async function PATCH(
     ]);
 
     // On a held bill, this line's current block already subtracts from
-    // `available` — add it back so editing it isn't checked against its
-    // own reservation.
-    const effectivePerWarehouse = selfBlocked
-      ? applySelfBlocked(perWarehouse, selfBlocked)
+    // `available`; on a completed bill, this line's own sold allocation
+    // does the same — either way, add it back so editing it isn't checked
+    // against its own prior reservation/consumption.
+    const selfContribution = selfBlocked ?? selfSold;
+    const effectivePerWarehouse = selfContribution
+      ? applySelfBlocked(perWarehouse, selfContribution)
       : perWarehouse;
 
-    // Draft reserves nothing, so oversell there is only a warning. Held is
-    // a real reservation, so it's a hard block instead.
     let stockWarning: string | undefined;
     if (product.stockTracked) {
       const storeAvailable = await getStoreWideAvailable(
@@ -85,7 +93,7 @@ export async function PATCH(
       const resultingAvailable = storeAvailable + line.quantity - data.quantity;
       if (resultingAvailable < 0) {
         const message = `Only ${storeAvailable + line.quantity} of ${product.name} available across this store's warehouses.`;
-        if (isHeld) return apiErrorResponse("bad_request", message, 400);
+        if (hardValidated) return apiErrorResponse("bad_request", message, 400);
         stockWarning = message;
       }
     }
@@ -111,7 +119,7 @@ export async function PATCH(
         })
       : { allocations: [] };
     if ("error" in allocResult) {
-      if (isHeld) return apiErrorResponse("bad_request", allocResult.error, 400);
+      if (hardValidated) return apiErrorResponse("bad_request", allocResult.error, 400);
       stockWarning = allocResult.error;
     } else if (allocResult.fellBack) {
       stockWarning =

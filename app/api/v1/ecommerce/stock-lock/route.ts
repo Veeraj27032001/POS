@@ -12,7 +12,7 @@ import { apiErrorResponse, parseJsonOrRespond } from "@/lib/validation/response"
 // forever — getStockLevels stops counting a lock as blocking once this
 // window passes, even though the row itself stays "active" until someone
 // (or the storefront) explicitly releases it.
-const LOCK_TTL_MINUTES = 30;
+const LOCK_TTL_MINUTES = 7;
 
 // step7 §4/§5 — POST /v1/ecommerce/stock-lock: reserves stock for a cart/
 // checkout in progress, reusing the Stock Block mechanism (source_type
