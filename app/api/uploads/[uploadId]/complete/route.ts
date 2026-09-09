@@ -16,6 +16,14 @@ function sanitizeExtension(filename: string): string {
   return match ? `.${match[1].toLowerCase()}` : "";
 }
 
+// Vercel Blob derives the browser's download filename from the storage
+// pathname's basename — a fixed name here (rather than the original
+// uploaded filename, which is a full path with spaces electron-builder
+// chose, e.g. "POS Setup 0.1.0.exe") is what makes every version download
+// as the same simple "POS.exe" and sidesteps spaces getting percent-encoded
+// into the Content-Disposition header.
+const DESKTOP_RELEASE_DOWNLOAD_NAME = "POS.exe";
+
 const MAX_IMAGE_DIMENSION = 1600;
 const WEBP_QUALITY = 80;
 const OPTIMIZABLE_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -80,7 +88,10 @@ export async function POST(
   // instead, which has no comparable ceiling.
   const finalStorage = sizeLimitKind === "desktop-release" ? vercelBlobStorageAdapter : storage;
   const chunkKeys = Array.from({ length: totalChunks }, (_, i) => `_tmp/${uploadId}/${i}`);
-  const key = `${session.user.id}/${randomUUID()}${sanitizeExtension(filename)}`;
+  const key =
+    sizeLimitKind === "desktop-release"
+      ? `desktop-releases/${randomUUID()}/${DESKTOP_RELEASE_DOWNLOAD_NAME}`
+      : `${session.user.id}/${randomUUID()}${sanitizeExtension(filename)}`;
 
   async function reassembleAndStore(): Promise<
     { url: string } | { tooLarge: true } | { missingChunks: true }

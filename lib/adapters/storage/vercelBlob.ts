@@ -24,7 +24,10 @@ export const vercelBlobStorageAdapter: StorageAdapter = {
     const blob = await put(key, body, {
       access: "public",
       contentType,
-      addRandomSuffix: true,
+      // The caller owns uniqueness for its own key (matching every other
+      // StorageAdapter's contract) — this adapter shouldn't also mangle the
+      // filename with its own suffix on top.
+      addRandomSuffix: false,
       multipart: true,
       token: token(),
     });

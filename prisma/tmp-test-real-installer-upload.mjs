@@ -47,8 +47,8 @@ async function main() {
   await page.locator('button:has-text("Upload new version")').click();
   await page.waitForTimeout(500);
 
-  await page.fill("#release-version", "0.1.0-real-test");
-  await page.fill("#release-notes", "Real 113MB installer end-to-end test via Vercel Blob.");
+  await page.fill("#release-version", "0.1.0-filename-test2");
+  await page.fill("#release-notes", "Verifying fixed clean download filename (no spaces).");
   await page.setInputFiles("#release-file", INSTALLER_PATH);
 
   const startTime = Date.now();
