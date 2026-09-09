@@ -1,0 +1,30 @@
+appId: com.vedixsolutions.pos
+productName: POS
+copyright: Copyright © Vedix Solutions
+
+directories:
+  output: release
+  buildResources: build
+
+# .env is git-ignored and only ever holds local-dev overrides (a packaged
+# installer must ship with none, so it falls through to config.ts's
+# production SERVER_URL default) — excluded explicitly since electron-builder
+# packages whatever exists on disk, not just what's tracked by git.
+files:
+  - dist/**/*
+  - package.json
+  - "!.env"
+  - "!.env.example"
+
+win:
+  target: nsis
+  icon: build/icon.ico
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+
+publish: null
