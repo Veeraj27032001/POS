@@ -37,6 +37,8 @@ import { compileBillFormatDesign } from "@/lib/billing/compileBillFormatDesign";
 import { DEFAULT_BILL_FORMAT_DESIGNS } from "@/lib/billing/defaultBillFormatDesigns";
 import { createDefaultBlock } from "@/lib/billing/newDesignBlock";
 import { useBillFormatPreview } from "@/lib/billing/useBillFormatPreview";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 
 interface BillFormatRow {
   id: string;
@@ -85,6 +87,10 @@ export default function BillFormatDesignPage() {
     design: BillFormatDesign | null;
   } | null>(null);
   const { previewHtml, loading: previewLoading, runPreview } = useBillFormatPreview();
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
@@ -130,6 +136,16 @@ export default function BillFormatDesignPage() {
     const block = createDefaultBlock(type, design.formatKind);
     setDesign({ ...design, blocks: [...design.blocks, block] });
     setSelectedBlockId(block.id);
+  }
+
+  // Keyboard-accessible equivalent of dragging a chip to reorder it — the
+  // canvas's drag-and-drop only wires a PointerSensor, so this is the only
+  // way to reorder blocks without a mouse.
+  function moveBlock(index: number, direction: -1 | 1) {
+    if (!design) return;
+    const target = index + direction;
+    if (target < 0 || target >= design.blocks.length) return;
+    setDesign({ ...design, blocks: arrayMove(design.blocks, index, target) });
   }
 
   function handleDragStart(event: DragStartEvent) {
@@ -244,11 +260,12 @@ export default function BillFormatDesignPage() {
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div ref={kbdRef} className="flex h-full flex-col">
       <div className="bg-background flex flex-col gap-2 border-b px-6 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-3">
           <Link
             href={`/bill-formats/${id}`}
+            data-kbd-item=""
             className="text-muted-foreground text-sm hover:underline"
           >
             ← Back
@@ -261,16 +278,19 @@ export default function BillFormatDesignPage() {
         <div className="flex flex-wrap items-center gap-2">
           <Tabs value={mode} onValueChange={handleModeChange}>
             <TabsList>
-              <TabsTrigger value="visual" disabled={!design}>
+              <TabsTrigger value="visual" disabled={!design} data-kbd-item="">
                 Visual
               </TabsTrigger>
-              <TabsTrigger value="html">HTML</TabsTrigger>
+              <TabsTrigger value="html" data-kbd-item="">
+                HTML
+              </TabsTrigger>
             </TabsList>
           </Tabs>
           <Button
             type="button"
             variant="outline"
             size="sm"
+            data-kbd-item=""
             onClick={() =>
               void runPreview(row.formatKind, displayedHtml).then(
                 (html) => html !== null && setPreviewOpen(true),
@@ -280,7 +300,13 @@ export default function BillFormatDesignPage() {
           >
             {previewLoading ? "Rendering…" : "Preview"}
           </Button>
-          <Button type="button" size="sm" onClick={() => void handleSave()} disabled={saving}>
+          <Button
+            type="button"
+            size="sm"
+            data-kbd-item=""
+            onClick={() => void handleSave()}
+            disabled={saving}
+          >
             {saving ? "Saving…" : "Save"}
           </Button>
         </div>
@@ -308,13 +334,17 @@ export default function BillFormatDesignPage() {
                       Drag a block here, or click one in the palette to get started.
                     </p>
                   )}
-                  {design.blocks.map((block) => (
+                  {design.blocks.map((block, index) => (
                     <SortableBlockChip
                       key={block.id}
                       block={block}
                       selected={block.id === selectedBlockId}
                       onSelect={() => setSelectedBlockId(block.id)}
                       onRemove={() => removeBlock(block.id)}
+                      onMoveUp={() => moveBlock(index, -1)}
+                      onMoveDown={() => moveBlock(index, 1)}
+                      canMoveUp={index > 0}
+                      canMoveDown={index < design.blocks.length - 1}
                     />
                   ))}
                 </div>
@@ -353,6 +383,7 @@ export default function BillFormatDesignPage() {
                 type="button"
                 variant="outline"
                 size="sm"
+                data-kbd-item=""
                 className="mt-2"
                 onClick={startVisualDesign}
               >
@@ -367,6 +398,7 @@ export default function BillFormatDesignPage() {
                 type="button"
                 variant="outline"
                 size="sm"
+                data-kbd-item=""
                 onClick={() => {
                   setHtml(displayedHtml);
                   setHtmlUnlocked(true);
@@ -383,6 +415,7 @@ export default function BillFormatDesignPage() {
           )}
           <Textarea
             value={displayedHtml}
+            data-kbd-item=""
             onChange={(e) => handleHtmlTextChange(e.target.value)}
             readOnly={design !== null && !htmlDirty && !htmlUnlocked}
             className="min-h-[32rem] font-mono text-xs"

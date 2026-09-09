@@ -33,6 +33,7 @@ function PaletteCard({
     <button
       ref={setNodeRef}
       type="button"
+      data-kbd-item=""
       onClick={() => onAdd(type)}
       className={cn(
         "bg-card hover:bg-accent hover:text-accent-foreground w-full cursor-grab rounded-md border px-3 py-2 text-left text-sm active:cursor-grabbing",

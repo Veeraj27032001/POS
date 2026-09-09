@@ -46,7 +46,7 @@ function PlainSelect({
 }) {
   return (
     <Select value={value} onValueChange={(v) => v && onChange(v)} items={options}>
-      <SelectTrigger className="w-full">
+      <SelectTrigger className="w-full" data-kbd-item="">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -134,10 +134,10 @@ function StylePanel({
 function ReorderButtons({ onUp, onDown }: { onUp: () => void; onDown: () => void }) {
   return (
     <div className="flex flex-col">
-      <Button type="button" variant="ghost" size="icon-xs" onClick={onUp}>
+      <Button type="button" variant="ghost" size="icon-xs" data-kbd-item="" onClick={onUp}>
         <ChevronUpIcon />
       </Button>
-      <Button type="button" variant="ghost" size="icon-xs" onClick={onDown}>
+      <Button type="button" variant="ghost" size="icon-xs" data-kbd-item="" onClick={onDown}>
         <ChevronDownIcon />
       </Button>
     </div>
@@ -184,6 +184,7 @@ export function PropertyPanel({
           <div key={key} className="flex items-center gap-2">
             <Checkbox
               id={key}
+              data-kbd-item=""
               checked={config[key]}
               onCheckedChange={(checked) =>
                 onChange(
@@ -234,6 +235,7 @@ export function PropertyPanel({
             type="number"
             min={20}
             max={400}
+            data-kbd-item=""
             value={config.maxHeightPx}
             onChange={(e) =>
               onChange(
@@ -259,6 +261,7 @@ export function PropertyPanel({
       <div className="space-y-3">
         <Field label="Text">
           <Input
+            data-kbd-item=""
             value={block.config.text}
             onChange={(e) =>
               onChange(
@@ -309,6 +312,7 @@ export function PropertyPanel({
               <div className="flex items-center gap-1">
                 <Input
                   value={row.label}
+                  data-kbd-item=""
                   onChange={(e) =>
                     updateRows(rows.map((r, j) => (j === i ? { ...r, label: e.target.value } : r)))
                   }
@@ -323,6 +327,7 @@ export function PropertyPanel({
                   type="button"
                   variant="ghost"
                   size="icon-xs"
+                  data-kbd-item=""
                   onClick={() => updateRows(rows.filter((_, j) => j !== i))}
                 >
                   <TrashIcon />
@@ -356,6 +361,7 @@ export function PropertyPanel({
           type="button"
           variant="outline"
           size="sm"
+          data-kbd-item=""
           onClick={() =>
             updateRows([
               ...rows,
@@ -390,6 +396,7 @@ export function PropertyPanel({
               <div className="flex items-center gap-1">
                 <Input
                   value={col.headerLabel}
+                  data-kbd-item=""
                   onChange={(e) =>
                     updateColumns(
                       columns.map((c, j) => (j === i ? { ...c, headerLabel: e.target.value } : c)),
@@ -406,6 +413,7 @@ export function PropertyPanel({
                   type="button"
                   variant="ghost"
                   size="icon-xs"
+                  data-kbd-item=""
                   onClick={() => updateColumns(columns.filter((_, j) => j !== i))}
                 >
                   <TrashIcon />
@@ -458,6 +466,7 @@ export function PropertyPanel({
           type="button"
           variant="outline"
           size="sm"
+          data-kbd-item=""
           onClick={() =>
             updateColumns([
               ...columns,
@@ -493,6 +502,7 @@ export function PropertyPanel({
               <div className="flex items-center gap-1">
                 <Input
                   value={row.label}
+                  data-kbd-item=""
                   onChange={(e) =>
                     updateRows(rows.map((r, j) => (j === i ? { ...r, label: e.target.value } : r)))
                   }
@@ -507,6 +517,7 @@ export function PropertyPanel({
                   type="button"
                   variant="ghost"
                   size="icon-xs"
+                  data-kbd-item=""
                   onClick={() => updateRows(rows.filter((_, j) => j !== i))}
                 >
                   <TrashIcon />
@@ -536,6 +547,7 @@ export function PropertyPanel({
               <div className="flex items-center gap-2">
                 <Checkbox
                   id={`emph-${row.id}`}
+                  data-kbd-item=""
                   checked={row.emphasis}
                   onCheckedChange={(checked) =>
                     updateRows(
@@ -552,6 +564,7 @@ export function PropertyPanel({
           type="button"
           variant="outline"
           size="sm"
+          data-kbd-item=""
           onClick={() =>
             updateRows([
               ...rows,
@@ -579,6 +592,7 @@ export function PropertyPanel({
         <Field label="Content">
           <Textarea
             rows={5}
+            data-kbd-item=""
             value={block.config.content}
             onChange={(e) =>
               onChange(
@@ -640,6 +654,7 @@ export function PropertyPanel({
             type="number"
             min={1}
             max={200}
+            data-kbd-item=""
             value={block.config.heightPx ?? ""}
             onChange={(e) =>
               onChange(
@@ -665,6 +680,7 @@ export function PropertyPanel({
       <div className="space-y-3">
         <Field label="Label">
           <Input
+            data-kbd-item=""
             value={config.label}
             onChange={(e) =>
               onChange(
@@ -680,6 +696,7 @@ export function PropertyPanel({
         <div className="flex items-center gap-2">
           <Checkbox
             id="showForStoreLine"
+            data-kbd-item=""
             checked={config.showForStoreLine}
             onCheckedChange={(checked) =>
               onChange(

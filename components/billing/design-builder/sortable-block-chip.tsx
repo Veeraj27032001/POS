@@ -2,7 +2,7 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVerticalIcon, TrashIcon } from "lucide-react";
+import { ArrowDownIcon, ArrowUpIcon, GripVerticalIcon, TrashIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { BLOCK_TYPE_LABELS, type DesignBlock } from "@/lib/billing/billFormatDesign.types";
@@ -14,11 +14,19 @@ export function SortableBlockChip({
   selected,
   onSelect,
   onRemove,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp,
+  canMoveDown,
 }: {
   block: DesignBlock;
   selected: boolean;
   onSelect: () => void;
   onRemove: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: block.id,
@@ -29,6 +37,8 @@ export function SortableBlockChip({
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
       onClick={onSelect}
+      tabIndex={0}
+      data-kbd-item=""
       className={cn(
         "bg-card flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm",
         selected && "border-primary ring-primary/30 ring-2",
@@ -51,6 +61,39 @@ export function SortableBlockChip({
         variant="ghost"
         size="icon"
         className="size-7"
+        data-kbd-item=""
+        disabled={!canMoveUp}
+        onClick={(e) => {
+          e.stopPropagation();
+          onMoveUp();
+        }}
+        aria-label="Move up"
+        title="Move up"
+      >
+        <ArrowUpIcon className="size-3.5" />
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="size-7"
+        data-kbd-item=""
+        disabled={!canMoveDown}
+        onClick={(e) => {
+          e.stopPropagation();
+          onMoveDown();
+        }}
+        aria-label="Move down"
+        title="Move down"
+      >
+        <ArrowDownIcon className="size-3.5" />
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="size-7"
+        data-kbd-item=""
         onClick={(e) => {
           e.stopPropagation();
           onRemove();
