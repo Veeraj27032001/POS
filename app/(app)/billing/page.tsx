@@ -545,7 +545,7 @@ export default function BillingPage() {
     });
     setScanValue("");
     setProductMatches([]);
-    scanInputRef.current?.focus();
+    scanInputRef.current?.focus({ preventScroll: true });
   }
 
   function removeLine(productId: string) {
