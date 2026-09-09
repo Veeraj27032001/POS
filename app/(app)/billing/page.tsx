@@ -15,6 +15,7 @@ import {
 import { EditableLineValue } from "@/components/billing/editable-line-value";
 import { LineWarehouseSplit } from "@/components/billing/line-warehouse-split";
 import { ShiftControl } from "@/components/billing/shift-control";
+import { getPrintBridge } from "@/lib/adapters/print";
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 import { useStoreCurrencySymbol } from "@/lib/hooks/useStoreCurrencySymbol";
 import { useStoreDefaultExcludeTax } from "@/lib/hooks/useStoreDefaultExcludeTax";
@@ -413,6 +414,19 @@ export default function BillingPage() {
     }
     toast.success("Terminal switched.");
     setTerminalModalOpen(false);
+  }
+
+  async function handleOpenDrawer() {
+    const bridge = getPrintBridge();
+    if (!bridge.openCashDrawer) {
+      toast.error("Cash drawer control is only available in the desktop app.");
+      return;
+    }
+    try {
+      await bridge.openCashDrawer();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to open the cash drawer.");
+    }
   }
 
   async function searchProducts(term: string) {
@@ -1163,6 +1177,14 @@ export default function BillingPage() {
             {terminalId && session?.user.storeId && (
               <ShiftControl terminalId={terminalId} storeId={session.user.storeId} />
             )}
+            <button
+              type="button"
+              data-kbd-item=""
+              className="text-muted-foreground hover:text-foreground"
+              onClick={() => void handleOpenDrawer()}
+            >
+              Open Drawer
+            </button>
             <Dialog open={terminalModalOpen} onOpenChange={setTerminalModalOpen}>
               <DialogTrigger
                 render={
