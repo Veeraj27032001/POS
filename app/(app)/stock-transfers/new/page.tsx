@@ -19,6 +19,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { stockTransferCreateSchema } from "@/lib/documents/schemas";
 import { useSubmitGuard } from "@/lib/forms/useSubmitGuard";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 import { useInvalidateResource } from "@/lib/pagination/useList";
 
@@ -49,6 +51,10 @@ export default function NewStockTransferPage() {
   });
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
   const sourceWarehouseId = watch("sourceWarehouseId");
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   function handleDestinationKindChange(kind: "warehouse" | "store") {
     setDestinationKind(kind);
@@ -77,8 +83,12 @@ export default function NewStockTransferPage() {
   const guardedSubmit = useSubmitGuard(onSubmit);
 
   return (
-    <div className="space-y-4 p-8">
-      <Link href="/stock-transfers" className="text-muted-foreground text-sm hover:underline">
+    <div ref={kbdRef} className="space-y-4 p-8">
+      <Link
+        href="/stock-transfers"
+        data-kbd-item=""
+        className="text-muted-foreground text-sm hover:underline"
+      >
         ← Back to Stock Transfer
       </Link>
 
@@ -103,6 +113,7 @@ export default function NewStockTransferPage() {
                       value={field.value ?? null}
                       onChange={(v) => field.onChange(v ?? "")}
                       placeholder="Select warehouse…"
+                      data-kbd-item=""
                     />
                   )}
                 />
@@ -116,7 +127,12 @@ export default function NewStockTransferPage() {
                   Transfer date
                   <RequiredMark />
                 </Label>
-                <Input id="transferDate" type="date" {...register("transferDate")} />
+                <Input
+                  id="transferDate"
+                  type="date"
+                  data-kbd-item=""
+                  {...register("transferDate")}
+                />
                 {errors.transferDate && (
                   <p className="text-sm text-red-600">{errors.transferDate.message}</p>
                 )}
@@ -131,6 +147,7 @@ export default function NewStockTransferPage() {
                   <label className="flex items-center gap-1.5">
                     <input
                       type="radio"
+                      data-kbd-item=""
                       checked={destinationKind === "warehouse"}
                       onChange={() => handleDestinationKindChange("warehouse")}
                     />
@@ -139,6 +156,7 @@ export default function NewStockTransferPage() {
                   <label className="flex items-center gap-1.5">
                     <input
                       type="radio"
+                      data-kbd-item=""
                       checked={destinationKind === "store"}
                       onChange={() => handleDestinationKindChange("store")}
                     />
@@ -162,6 +180,7 @@ export default function NewStockTransferPage() {
                           ? "Select destination warehouse…"
                           : "Select destination store…"
                       }
+                      data-kbd-item=""
                     />
                   )}
                 />
@@ -178,7 +197,7 @@ export default function NewStockTransferPage() {
 
               <div className="space-y-1.5 sm:col-span-2">
                 <Label htmlFor="notes">Notes</Label>
-                <Textarea id="notes" {...register("notes")} />
+                <Textarea id="notes" data-kbd-item="" {...register("notes")} />
               </div>
             </div>
 
@@ -192,6 +211,7 @@ export default function NewStockTransferPage() {
                   type="button"
                   variant="outline"
                   size="sm"
+                  data-kbd-item=""
                   onClick={() => append({ productId: "", quantity: 1 })}
                 >
                   <PlusIcon className="size-3.5" />
@@ -220,6 +240,7 @@ export default function NewStockTransferPage() {
                             onChange={f.onChange}
                             products={products}
                             warehouseId={sourceWarehouseId}
+                            data-kbd-item=""
                           />
                         )}
                       />
@@ -227,12 +248,14 @@ export default function NewStockTransferPage() {
                         type="number"
                         min={0}
                         placeholder="Qty"
+                        data-kbd-item=""
                         {...register(`items.${index}.quantity`, { valueAsNumber: true, min: 0 })}
                       />
                       <Button
                         type="button"
                         variant="destructive"
                         size="icon-sm"
+                        data-kbd-item=""
                         disabled={fields.length === 1}
                         onClick={() => remove(index)}
                       >
@@ -248,10 +271,14 @@ export default function NewStockTransferPage() {
             </div>
           </CardContent>
           <CardFooter className="justify-end gap-2">
-            <Link href="/stock-transfers" className="text-muted-foreground text-sm hover:underline">
+            <Link
+              href="/stock-transfers"
+              data-kbd-item=""
+              className="text-muted-foreground text-sm hover:underline"
+            >
               Cancel
             </Link>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" data-kbd-item="" disabled={isSubmitting}>
               {isSubmitting ? "Saving…" : "Save"}
             </Button>
           </CardFooter>

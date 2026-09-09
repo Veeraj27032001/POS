@@ -24,6 +24,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatTimestamp } from "@/lib/datetime/format";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 
 interface CurrentShift {
   id: string;
@@ -45,6 +46,7 @@ export function ShiftControl({ terminalId, storeId }: { terminalId: string; stor
   const [counts, setCounts] = useState<Record<string, string>>({});
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({ selector: "[data-kbd-item]" });
 
   function loadCurrent() {
     fetch(`/api/shifts/current?terminalId=${terminalId}`)
@@ -135,60 +137,77 @@ export function ShiftControl({ terminalId, storeId }: { terminalId: string; stor
           <DialogHeader>
             <DialogTitle>Open Shift</DialogTitle>
           </DialogHeader>
-          <div className="space-y-1.5">
-            <Label>Opening float</Label>
-            <Input
-              type="number"
-              min={0}
-              value={openingFloat}
-              onChange={(e) => setOpeningFloat(e.target.value)}
-            />
-          </div>
+          <div ref={kbdRef} className="contents">
+            <div className="space-y-1.5">
+              <Label>Opening float</Label>
+              <Input
+                type="number"
+                min={0}
+                data-kbd-item=""
+                value={openingFloat}
+                onChange={(e) => setOpeningFloat(e.target.value)}
+              />
+            </div>
 
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setShowBreakdown((v) => !v)}
-          >
-            {showBreakdown ? "Hide" : "Add"} denomination breakdown
-          </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              data-kbd-item=""
+              onClick={() => setShowBreakdown((v) => !v)}
+            >
+              {showBreakdown ? "Hide" : "Add"} denomination breakdown
+            </Button>
 
-          {showBreakdown && denominations.length > 0 && (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Denomination</TableHead>
-                  <TableHead>Qty</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {denominations.map((d) => (
-                  <TableRow key={d.id}>
-                    <TableCell>{Number(d.value).toFixed(2)}</TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        min={0}
-                        value={counts[d.id] ?? ""}
-                        onChange={(e) => setCounts((prev) => ({ ...prev, [d.id]: e.target.value }))}
-                        className="w-20"
-                      />
-                    </TableCell>
+            {showBreakdown && denominations.length > 0 && (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Denomination</TableHead>
+                    <TableHead>Qty</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+                </TableHeader>
+                <TableBody>
+                  {denominations.map((d) => (
+                    <TableRow key={d.id}>
+                      <TableCell>{Number(d.value).toFixed(2)}</TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          min={0}
+                          data-kbd-item=""
+                          value={counts[d.id] ?? ""}
+                          onChange={(e) =>
+                            setCounts((prev) => ({ ...prev, [d.id]: e.target.value }))
+                          }
+                          className="w-20"
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Back
-            </Button>
-            <Button type="button" onClick={() => void submitOpen()} disabled={submitting}>
-              {submitting ? "Opening…" : "Open Shift"}
-            </Button>
-          </DialogFooter>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                data-kbd-item=""
+                onClick={() => setOpen(false)}
+              >
+                Back
+              </Button>
+              <Button
+                type="button"
+                data-kbd-item=""
+                onClick={() => void submitOpen()}
+                disabled={submitting}
+              >
+                {submitting ? "Opening…" : "Open Shift"}
+              </Button>
+            </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </>

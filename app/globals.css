@@ -136,7 +136,7 @@
   --sidebar-accent-foreground: #f5f7fb;
   --sidebar-border: rgba(255, 255, 255, 0.11);
   --sidebar-ring: #4ade80;
-  --gradient-primary: linear-gradient(90deg, #5aa9ff, #eaf3ff);
+  --gradient-primary: linear-gradient(90deg, #4a90e2, #7fb8ff);
 }
 
 @layer base {

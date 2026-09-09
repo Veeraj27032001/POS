@@ -17,6 +17,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 import { useInvalidateResource } from "@/lib/pagination/useList";
 import { cn } from "@/lib/utils";
@@ -109,6 +111,10 @@ export function ResourceViewPage<
   const invalidate = useInvalidateResource();
   const router = useRouter();
   const singular = singularize(title);
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   useEffect(() => {
     fetch(`/api/${resource}/${id}`)
@@ -182,8 +188,12 @@ export function ResourceViewPage<
   }
 
   return (
-    <div className="max-w-5xl space-y-4 p-8">
-      <Link href={`/${resource}`} className="text-muted-foreground text-sm hover:underline">
+    <div ref={kbdRef} className="max-w-5xl space-y-4 p-8">
+      <Link
+        href={`/${resource}`}
+        data-kbd-item=""
+        className="text-muted-foreground text-sm hover:underline"
+      >
         ← Back to {title}
       </Link>
 
@@ -209,7 +219,7 @@ export function ResourceViewPage<
             <Dialog open={editOpen} onOpenChange={setEditOpen}>
               <DialogTrigger
                 render={
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" data-kbd-item="">
                     Edit
                   </Button>
                 }
@@ -234,13 +244,20 @@ export function ResourceViewPage<
                 <Button
                   variant="outline"
                   size="sm"
+                  data-kbd-item=""
                   disabled={toggling}
                   onClick={handleToggleActive}
                 >
                   {toggling && <Loader2Icon className="size-3.5 animate-spin" />}
                   {row.isActive === false ? "Activate" : "Deactivate"}
                 </Button>
-                <Button variant="destructive" size="sm" disabled={deleting} onClick={handleDelete}>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  data-kbd-item=""
+                  disabled={deleting}
+                  onClick={handleDelete}
+                >
                   {deleting && <Loader2Icon className="size-3.5 animate-spin" />}
                   Delete
                 </Button>

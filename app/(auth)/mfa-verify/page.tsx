@@ -11,6 +11,7 @@ import { AuthSplitLayout } from "@/components/auth-split-layout";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 
 const codeSchema = z.object({
   code: z
@@ -40,6 +41,7 @@ function MfaVerifyForm() {
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<CodeInput>({ resolver: zodResolver(codeSchema) as never });
+  const kbdRef = useArrowKeyNav<HTMLFormElement>({ selector: "[data-kbd-item]" });
 
   async function onSubmit(values: CodeInput) {
     setFormError(null);
@@ -88,16 +90,22 @@ function MfaVerifyForm() {
           : "Enter the 6-digit code from your authenticator app."}
       </p>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form ref={kbdRef} onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="space-y-1.5">
           <Label htmlFor="code">Verification code</Label>
-          <Input id="code" inputMode="numeric" maxLength={6} {...register("code")} />
+          <Input
+            id="code"
+            inputMode="numeric"
+            maxLength={6}
+            data-kbd-item=""
+            {...register("code")}
+          />
           {errors.code && <p className="text-sm text-red-600">{errors.code.message}</p>}
         </div>
 
         {formError && <p className="text-sm text-red-600">{formError}</p>}
 
-        <Button type="submit" disabled={isSubmitting} className="mt-1 w-full">
+        <Button type="submit" data-kbd-item="" disabled={isSubmitting} className="mt-1 w-full">
           {isSubmitting ? "Verifying…" : "Verify"}
         </Button>
       </form>

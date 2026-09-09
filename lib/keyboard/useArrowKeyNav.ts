@@ -204,11 +204,30 @@ export function useArrowKeyNav<T extends HTMLElement>({
       });
     }
 
+    function handleDocumentKeyDown(event: KeyboardEvent) {
+      if (!["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) return;
+      const activeEl = document.activeElement;
+      if (
+        activeEl !== null &&
+        activeEl !== document.body &&
+        activeEl !== document.documentElement
+      ) {
+        return;
+      }
+      const items = getItems();
+      const fallback = items.find(isFocusable);
+      if (!fallback) return;
+      event.preventDefault();
+      fallback.focus();
+    }
+
     container.addEventListener("keydown", handleKeyDown);
     container.addEventListener("focusout", handleFocusOut);
+    document.addEventListener("keydown", handleDocumentKeyDown);
     return () => {
       container.removeEventListener("keydown", handleKeyDown);
       container.removeEventListener("focusout", handleFocusOut);
+      document.removeEventListener("keydown", handleDocumentKeyDown);
     };
   }, [container, selector, cols, onBoundaryLeft]);
 

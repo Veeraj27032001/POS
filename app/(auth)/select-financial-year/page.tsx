@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { asAppSession } from "@/lib/auth/types";
 import { useSelectedTerminal } from "@/lib/billing/useSelectedTerminal";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 
 interface FinancialYearOption {
@@ -43,6 +44,7 @@ function SelectFinancialYearForm() {
   const [formError, setFormError] = useState<string | null>(null);
   const terminals = useOptionsList("terminals", "name");
   const { terminalId, setTerminalId } = useSelectedTerminal();
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({ selector: "[data-kbd-item]" });
 
   useEffect(() => {
     fetch("/api/financial-years")
@@ -91,7 +93,7 @@ function SelectFinancialYearForm() {
         Choose the financial year for this session. You can switch it later from the header.
       </p>
 
-      <div className="space-y-4">
+      <div ref={kbdRef} className="space-y-4">
         <div className="space-y-1.5">
           <Label>Financial year</Label>
           <Select
@@ -99,7 +101,7 @@ function SelectFinancialYearForm() {
             onValueChange={(v) => setSelected(v ?? "")}
             items={options.map((fy) => ({ value: fy.id, label: fy.label }))}
           >
-            <SelectTrigger className="w-full">
+            <SelectTrigger data-kbd-item="" className="w-full">
               <SelectValue placeholder="Select financial year…" />
             </SelectTrigger>
             <SelectContent>
@@ -123,7 +125,7 @@ function SelectFinancialYearForm() {
               onValueChange={(v) => setTerminalId(v || null)}
               items={terminals}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger data-kbd-item="" className="w-full">
                 <SelectValue placeholder="Select terminal…" />
               </SelectTrigger>
               <SelectContent>
@@ -142,7 +144,12 @@ function SelectFinancialYearForm() {
 
         {formError && <p className="text-sm text-red-600">{formError}</p>}
 
-        <Button className="w-full" disabled={!selected || submitting} onClick={handleContinue}>
+        <Button
+          data-kbd-item=""
+          className="w-full"
+          disabled={!selected || submitting}
+          onClick={handleContinue}
+        >
           {submitting ? "Continuing…" : "Continue"}
         </Button>
       </div>

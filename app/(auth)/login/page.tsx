@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { PasswordLoginInput } from "@/lib/auth/schemas";
 import { passwordLoginSchema } from "@/lib/auth/schemas";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 
 export default function LoginPage() {
   return (
@@ -31,6 +32,7 @@ function LoginForm() {
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<PasswordLoginInput>({ resolver: zodResolver(passwordLoginSchema) as never });
+  const kbdRef = useArrowKeyNav<HTMLFormElement>({ selector: "[data-kbd-item]" });
 
   async function onSubmit(values: PasswordLoginInput) {
     setFormError(null);
@@ -79,10 +81,16 @@ function LoginForm() {
       <h1 className="mb-1.5 text-[26px] font-extrabold">Welcome back</h1>
       <p className="text-muted-foreground mb-8 text-sm">Sign in to your POS account</p>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form ref={kbdRef} onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="space-y-1.5">
           <Label htmlFor="email">Email</Label>
-          <Input id="email" type="email" autoComplete="username" {...register("email")} />
+          <Input
+            id="email"
+            type="email"
+            data-kbd-item=""
+            autoComplete="username"
+            {...register("email")}
+          />
           {errors.email && <p className="text-sm text-red-600">{errors.email.message}</p>}
         </div>
 
@@ -91,6 +99,7 @@ function LoginForm() {
           <Input
             id="password"
             type="password"
+            data-kbd-item=""
             autoComplete="current-password"
             {...register("password")}
           />
@@ -99,7 +108,7 @@ function LoginForm() {
 
         {formError && <p className="text-sm text-red-600">{formError}</p>}
 
-        <Button type="submit" disabled={isSubmitting} className="mt-1 w-full">
+        <Button type="submit" data-kbd-item="" disabled={isSubmitting} className="mt-1 w-full">
           {isSubmitting ? "Signing in…" : "Sign in"}
         </Button>
       </form>

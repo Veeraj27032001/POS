@@ -18,6 +18,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { stockQualityCheckCreateSchema } from "@/lib/documents/schemas";
 import { useSubmitGuard } from "@/lib/forms/useSubmitGuard";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 import { useInvalidateResource } from "@/lib/pagination/useList";
 
@@ -44,6 +46,10 @@ export default function NewStockQualityCheckPage() {
   });
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
   const warehouseId = useWatch({ control, name: "warehouseId" });
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   async function onSubmit(values: StockQualityCheckCreateInput) {
     const res = await fetch("/api/stock-quality-checks", {
@@ -64,8 +70,12 @@ export default function NewStockQualityCheckPage() {
   const guardedSubmit = useSubmitGuard(onSubmit);
 
   return (
-    <div className="space-y-4 p-8">
-      <Link href="/stock-quality-checks" className="text-muted-foreground text-sm hover:underline">
+    <div ref={kbdRef} className="space-y-4 p-8">
+      <Link
+        href="/stock-quality-checks"
+        data-kbd-item=""
+        className="text-muted-foreground text-sm hover:underline"
+      >
         ← Back to Quality Check
       </Link>
 
@@ -90,6 +100,7 @@ export default function NewStockQualityCheckPage() {
                       value={field.value ?? null}
                       onChange={(v) => field.onChange(v ?? "")}
                       placeholder="Select warehouse…"
+                      data-kbd-item=""
                     />
                   )}
                 />
@@ -103,7 +114,7 @@ export default function NewStockQualityCheckPage() {
                   Check date
                   <RequiredMark />
                 </Label>
-                <Input id="checkDate" type="date" {...register("checkDate")} />
+                <Input id="checkDate" type="date" data-kbd-item="" {...register("checkDate")} />
                 {errors.checkDate && (
                   <p className="text-sm text-red-600">{errors.checkDate.message}</p>
                 )}
@@ -111,7 +122,7 @@ export default function NewStockQualityCheckPage() {
 
               <div className="space-y-1.5 sm:col-span-2">
                 <Label htmlFor="notes">Notes</Label>
-                <Textarea id="notes" {...register("notes")} />
+                <Textarea id="notes" data-kbd-item="" {...register("notes")} />
               </div>
             </div>
 
@@ -125,6 +136,7 @@ export default function NewStockQualityCheckPage() {
                   type="button"
                   variant="outline"
                   size="sm"
+                  data-kbd-item=""
                   onClick={() => append({ productId: "", quantity: 1, reasonCodeId: "" })}
                 >
                   <PlusIcon className="size-3.5" />
@@ -154,6 +166,7 @@ export default function NewStockQualityCheckPage() {
                             onChange={f.onChange}
                             products={products}
                             warehouseId={warehouseId}
+                            data-kbd-item=""
                           />
                         )}
                       />
@@ -161,6 +174,7 @@ export default function NewStockQualityCheckPage() {
                         type="number"
                         min={0}
                         placeholder="Qty"
+                        data-kbd-item=""
                         {...register(`items.${index}.quantity`, { valueAsNumber: true, min: 0 })}
                       />
                       <Controller
@@ -172,6 +186,7 @@ export default function NewStockQualityCheckPage() {
                             value={f.value ?? null}
                             onChange={(v) => f.onChange(v ?? "")}
                             placeholder="Select reason…"
+                            data-kbd-item=""
                           />
                         )}
                       />
@@ -179,6 +194,7 @@ export default function NewStockQualityCheckPage() {
                         type="button"
                         variant="destructive"
                         size="icon-sm"
+                        data-kbd-item=""
                         disabled={fields.length === 1}
                         onClick={() => remove(index)}
                       >
@@ -196,11 +212,12 @@ export default function NewStockQualityCheckPage() {
           <CardFooter className="justify-end gap-2">
             <Link
               href="/stock-quality-checks"
+              data-kbd-item=""
               className="text-muted-foreground text-sm hover:underline"
             >
               Cancel
             </Link>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" data-kbd-item="" disabled={isSubmitting}>
               {isSubmitting ? "Saving…" : "Save"}
             </Button>
           </CardFooter>

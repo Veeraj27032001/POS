@@ -21,6 +21,8 @@ import {
 } from "@/lib/documents/entryCorrectionSourceTypes";
 import { stockEntryCorrectionCreateSchema } from "@/lib/documents/schemas";
 import { useSubmitGuard } from "@/lib/forms/useSubmitGuard";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { useInvalidateResource } from "@/lib/pagination/useList";
 
 type EntryCorrectionCreateInput = z.infer<typeof stockEntryCorrectionCreateSchema>;
@@ -77,6 +79,10 @@ export default function NewEntryCorrectionPage() {
   }, [sourceItemType, mainId]);
 
   const selectedItem = items.find((item) => item.value === sourceItemId);
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   async function onSubmit(values: EntryCorrectionCreateInput) {
     const res = await fetch("/api/entry-corrections", {
@@ -97,8 +103,12 @@ export default function NewEntryCorrectionPage() {
   const guardedSubmit = useSubmitGuard(onSubmit);
 
   return (
-    <div className="space-y-4 p-8">
-      <Link href="/entry-corrections" className="text-muted-foreground text-sm hover:underline">
+    <div ref={kbdRef} className="space-y-4 p-8">
+      <Link
+        href="/entry-corrections"
+        data-kbd-item=""
+        className="text-muted-foreground text-sm hover:underline"
+      >
         ← Back to Entry Correction
       </Link>
 
@@ -127,6 +137,7 @@ export default function NewEntryCorrectionPage() {
                       value={field.value ?? null}
                       onChange={(v) => field.onChange(v ?? "")}
                       placeholder="Select a document type…"
+                      data-kbd-item=""
                     />
                   )}
                 />
@@ -148,6 +159,7 @@ export default function NewEntryCorrectionPage() {
                     sourceItemType ? "Select a document…" : "Select a document type first"
                   }
                   disabled={!sourceItemType}
+                  data-kbd-item=""
                 />
               </div>
 
@@ -166,6 +178,7 @@ export default function NewEntryCorrectionPage() {
                       onChange={(v) => field.onChange(v ?? "")}
                       placeholder={mainId ? "Select an item…" : "Select a document first"}
                       disabled={!mainId}
+                      data-kbd-item=""
                     />
                   )}
                 />
@@ -192,6 +205,7 @@ export default function NewEntryCorrectionPage() {
                     id="newValue"
                     type="number"
                     min={0}
+                    data-kbd-item=""
                     {...register("newValue", { valueAsNumber: true, min: 0 })}
                   />
                   {errors.newValue && (
@@ -206,18 +220,19 @@ export default function NewEntryCorrectionPage() {
                 Reason for correction
                 <RequiredMark />
               </Label>
-              <Textarea id="notes" {...register("notes")} />
+              <Textarea id="notes" data-kbd-item="" {...register("notes")} />
               {errors.notes && <p className="text-sm text-red-600">{errors.notes.message}</p>}
             </div>
           </CardContent>
           <CardFooter className="justify-end gap-2">
             <Link
               href="/entry-corrections"
+              data-kbd-item=""
               className="text-muted-foreground text-sm hover:underline"
             >
               Cancel
             </Link>
-            <Button type="submit" disabled={isSubmitting || !selectedItem}>
+            <Button type="submit" data-kbd-item="" disabled={isSubmitting || !selectedItem}>
               {isSubmitting ? "Saving…" : "Apply correction"}
             </Button>
           </CardFooter>

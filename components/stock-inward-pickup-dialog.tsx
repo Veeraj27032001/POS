@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { PRODUCT_REQUEST_STATUS_LABELS } from "@/lib/documents/productRequestStatus";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { cn } from "@/lib/utils";
 
 interface ProductRequestSummary {
@@ -62,6 +63,7 @@ export function StockInwardPickupDialog({
   const [items, setItems] = useState<ProductRequestItemDetail[]>([]);
   const [picks, setPicks] = useState<Record<string, PickState>>({});
   const [loading, setLoading] = useState(false);
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({ selector: "[data-kbd-item]" });
 
   useEffect(() => {
     if (!open) return;
@@ -120,7 +122,9 @@ export function StockInwardPickupDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button type="button" variant="outline" />}>Pickup</DialogTrigger>
+      <DialogTrigger render={<Button type="button" variant="outline" data-kbd-item="" />}>
+        Pickup
+      </DialogTrigger>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>
@@ -130,101 +134,114 @@ export function StockInwardPickupDialog({
           </DialogTitle>
         </DialogHeader>
 
-        {step === 1 && (
-          <div className="max-h-[50vh] space-y-1 overflow-y-auto">
-            {requests.length === 0 && (
-              <p className="text-muted-foreground text-sm">
-                No sent or partially received product requests to pick up from.
-              </p>
-            )}
-            {requests.map((r) => (
-              <button
-                key={r.id}
-                type="button"
-                onClick={() => setSelectedRequest(r)}
-                className={cn(
-                  "flex w-full items-center justify-between rounded-lg border p-3 text-left text-sm transition-colors",
-                  selectedRequest?.id === r.id
-                    ? "border-primary bg-primary/5"
-                    : "hover:bg-muted/50",
-                )}
-              >
-                <span className="font-medium">{r.documentNumber}</span>
-                <span className="text-muted-foreground">
-                  {PRODUCT_REQUEST_STATUS_LABELS[r.status] ?? r.status}
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
-
-        {step === 2 && (
-          <div className="max-h-[50vh] space-y-2 overflow-y-auto">
-            <div className="text-muted-foreground grid grid-cols-[auto_1fr_90px_90px_110px] gap-2 text-xs font-medium">
-              <span />
-              <span>Product</span>
-              <span>Requested</span>
-              <span>Received</span>
-              <span>Pick qty</span>
-            </div>
-            {items.map((item) => {
-              const outstanding = item.quantityRequested - item.quantityReceived;
-              const pick = picks[item.id];
-              return (
-                <div
-                  key={item.id}
-                  className="grid grid-cols-[auto_1fr_90px_90px_110px] items-center gap-2 rounded-lg border p-2 text-sm"
-                >
-                  <input
-                    type="checkbox"
-                    checked={pick?.checked ?? false}
-                    onChange={(e) =>
-                      setPicks((prev) => ({
-                        ...prev,
-                        [item.id]: { ...prev[item.id], checked: e.target.checked },
-                      }))
-                    }
-                  />
-                  <span>{item.productName}</span>
-                  <span>{item.quantityRequested}</span>
-                  <span>{item.quantityReceived}</span>
-                  <Input
-                    type="number"
-                    min={0}
-                    max={outstanding}
-                    disabled={!pick?.checked}
-                    value={pick?.quantity ?? 0}
-                    onChange={(e) => {
-                      const value = Math.max(0, Math.min(outstanding, Number(e.target.value) || 0));
-                      setPicks((prev) => ({
-                        ...prev,
-                        [item.id]: { ...prev[item.id], quantity: value },
-                      }));
-                    }}
-                  />
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        <DialogFooter>
-          {step === 2 && (
-            <Button type="button" variant="outline" onClick={() => setStep(1)}>
-              Back
-            </Button>
-          )}
+        <div ref={kbdRef} className="contents">
           {step === 1 && (
-            <Button type="button" disabled={!selectedRequest || loading} onClick={goToItems}>
-              {loading ? "Loading…" : "Next"}
-            </Button>
+            <div className="max-h-[50vh] space-y-1 overflow-y-auto">
+              {requests.length === 0 && (
+                <p className="text-muted-foreground text-sm">
+                  No sent or partially received product requests to pick up from.
+                </p>
+              )}
+              {requests.map((r) => (
+                <button
+                  key={r.id}
+                  type="button"
+                  data-kbd-item=""
+                  onClick={() => setSelectedRequest(r)}
+                  className={cn(
+                    "flex w-full items-center justify-between rounded-lg border p-3 text-left text-sm transition-colors",
+                    selectedRequest?.id === r.id
+                      ? "border-primary bg-primary/5"
+                      : "hover:bg-muted/50",
+                  )}
+                >
+                  <span className="font-medium">{r.documentNumber}</span>
+                  <span className="text-muted-foreground">
+                    {PRODUCT_REQUEST_STATUS_LABELS[r.status] ?? r.status}
+                  </span>
+                </button>
+              ))}
+            </div>
           )}
+
           {step === 2 && (
-            <Button type="button" onClick={confirm}>
-              Add to inward
-            </Button>
+            <div className="max-h-[50vh] space-y-2 overflow-y-auto">
+              <div className="text-muted-foreground grid grid-cols-[auto_1fr_90px_90px_110px] gap-2 text-xs font-medium">
+                <span />
+                <span>Product</span>
+                <span>Requested</span>
+                <span>Received</span>
+                <span>Pick qty</span>
+              </div>
+              {items.map((item) => {
+                const outstanding = item.quantityRequested - item.quantityReceived;
+                const pick = picks[item.id];
+                return (
+                  <div
+                    key={item.id}
+                    className="grid grid-cols-[auto_1fr_90px_90px_110px] items-center gap-2 rounded-lg border p-2 text-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      data-kbd-item=""
+                      checked={pick?.checked ?? false}
+                      onChange={(e) =>
+                        setPicks((prev) => ({
+                          ...prev,
+                          [item.id]: { ...prev[item.id], checked: e.target.checked },
+                        }))
+                      }
+                    />
+                    <span>{item.productName}</span>
+                    <span>{item.quantityRequested}</span>
+                    <span>{item.quantityReceived}</span>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={outstanding}
+                      data-kbd-item=""
+                      disabled={!pick?.checked}
+                      value={pick?.quantity ?? 0}
+                      onChange={(e) => {
+                        const value = Math.max(
+                          0,
+                          Math.min(outstanding, Number(e.target.value) || 0),
+                        );
+                        setPicks((prev) => ({
+                          ...prev,
+                          [item.id]: { ...prev[item.id], quantity: value },
+                        }));
+                      }}
+                    />
+                  </div>
+                );
+              })}
+            </div>
           )}
-        </DialogFooter>
+
+          <DialogFooter>
+            {step === 2 && (
+              <Button type="button" variant="outline" data-kbd-item="" onClick={() => setStep(1)}>
+                Back
+              </Button>
+            )}
+            {step === 1 && (
+              <Button
+                type="button"
+                data-kbd-item=""
+                disabled={!selectedRequest || loading}
+                onClick={goToItems}
+              >
+                {loading ? "Loading…" : "Next"}
+              </Button>
+            )}
+            {step === 2 && (
+              <Button type="button" data-kbd-item="" onClick={confirm}>
+                Add to inward
+              </Button>
+            )}
+          </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );

@@ -10,6 +10,8 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Label } from "@/components/ui/label";
 import { getPrintBridge } from "@/lib/adapters/print";
 import { useStoreCurrencySymbol } from "@/lib/hooks/useStoreCurrencySymbol";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 
 type UiMethod = "qr_link" | "card_machine";
 
@@ -61,6 +63,10 @@ export default function CollectGatewayPaymentPage() {
   const [clearingStale, setClearingStale] = useState(true);
   const pollCountRef = useRef(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   function loadBill() {
     fetch(`/api/bills/${billId}`)
@@ -240,8 +246,8 @@ export default function CollectGatewayPaymentPage() {
 
   if (paymentDone || remaining <= 0.01) {
     return (
-      <div className="space-y-4 p-8">
-        <Card className="max-w-md">
+      <div ref={kbdRef} className="space-y-4 p-8">
+        <Card>
           <CardHeader>
             <CardTitle className="text-xl">Payment received</CardTitle>
           </CardHeader>
@@ -257,10 +263,16 @@ export default function CollectGatewayPaymentPage() {
             </p>
           </CardContent>
           <CardFooter className="justify-end gap-2">
-            <Button variant="outline" onClick={() => router.push(`/bills/${billId}`)}>
+            <Button
+              data-kbd-item=""
+              variant="outline"
+              onClick={() => router.push(`/bills/${billId}`)}
+            >
               View bill
             </Button>
-            <Button onClick={() => router.push("/billing")}>Start new bill</Button>
+            <Button data-kbd-item="" onClick={() => router.push("/billing")}>
+              Start new bill
+            </Button>
           </CardFooter>
         </Card>
       </div>
@@ -268,16 +280,17 @@ export default function CollectGatewayPaymentPage() {
   }
 
   return (
-    <div className="space-y-4 p-8">
+    <div ref={kbdRef} className="space-y-4 p-8">
       <button
         type="button"
+        data-kbd-item=""
         onClick={() => void cancelAndGoBack()}
         className="text-muted-foreground text-sm hover:underline"
       >
         ← Back to billing
       </button>
 
-      <Card className="max-w-md">
+      <Card>
         <CardHeader>
           <CardTitle className="text-xl">Collect Payment</CardTitle>
         </CardHeader>
@@ -299,6 +312,7 @@ export default function CollectGatewayPaymentPage() {
                   key={m}
                   type="button"
                   size="sm"
+                  data-kbd-item=""
                   variant={uiMethod === m ? "default" : "outline"}
                   onClick={() => void switchMethod(m)}
                 >
@@ -355,6 +369,7 @@ export default function CollectGatewayPaymentPage() {
                         type="button"
                         variant="outline"
                         size="sm"
+                        data-kbd-item=""
                         onClick={() => {
                           void navigator.clipboard.writeText(request.presentationValue);
                           toast.success("Link copied.");
@@ -396,12 +411,18 @@ export default function CollectGatewayPaymentPage() {
         </CardContent>
 
         <CardFooter className="justify-end gap-2">
-          <Button type="button" variant="outline" onClick={() => void cancelAndGoBack()}>
+          <Button
+            type="button"
+            variant="outline"
+            data-kbd-item=""
+            onClick={() => void cancelAndGoBack()}
+          >
             Cancel
           </Button>
           {!request && uiMethod === "card_machine" && (
             <Button
               type="button"
+              data-kbd-item=""
               onClick={() => void requestPayment(uiMethod)}
               disabled={requesting}
             >
@@ -409,17 +430,32 @@ export default function CollectGatewayPaymentPage() {
             </Button>
           )}
           {request && status === "expired" && (
-            <Button type="button" variant="outline" onClick={() => reset(uiMethod)}>
+            <Button
+              type="button"
+              variant="outline"
+              data-kbd-item=""
+              onClick={() => reset(uiMethod)}
+            >
               Try again
             </Button>
           )}
           {request && paused && status === "pending" && uiMethod !== "card_machine" && (
-            <Button type="button" variant="outline" onClick={() => startPolling(request.id)}>
+            <Button
+              type="button"
+              variant="outline"
+              data-kbd-item=""
+              onClick={() => startPolling(request.id)}
+            >
               Check now
             </Button>
           )}
           {request && uiMethod === "card_machine" && status === "pending" && (
-            <Button type="button" onClick={() => void confirmCardMachine()} disabled={confirming}>
+            <Button
+              type="button"
+              data-kbd-item=""
+              onClick={() => void confirmCardMachine()}
+              disabled={confirming}
+            >
               {confirming ? "Confirming…" : "Mark as paid"}
             </Button>
           )}
