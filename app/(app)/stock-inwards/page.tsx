@@ -5,6 +5,8 @@ import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { DataTable } from "@/components/data-table/data-table";
 import { formatDateOnly, toDateOnly } from "@/lib/datetime/dateOnly";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 
 interface StockInwardRow {
@@ -18,12 +20,16 @@ interface StockInwardRow {
 export default function StockInwardsPage() {
   const warehouses = useOptionsList("warehouses", "name");
   const suppliers = useOptionsList("suppliers", "name");
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   return (
-    <div className="space-y-4 p-8">
+    <div ref={kbdRef} className="space-y-4 p-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Stock Inward</h1>
-        <Link href="/stock-inwards/new" className={buttonVariants()}>
+        <Link href="/stock-inwards/new" data-kbd-item="" className={buttonVariants()}>
           New Stock Inward
         </Link>
       </div>
@@ -54,6 +60,7 @@ export default function StockInwardsPage() {
             render: (row) => (
               <Link
                 href={`/stock-inwards/${row.id}`}
+                data-kbd-item=""
                 className={buttonVariants({ variant: "outline", size: "sm" })}
               >
                 View

@@ -8,6 +8,8 @@ import { StoreCardFilter } from "@/components/store-card-filter";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { useStoreCurrencySymbol } from "@/lib/hooks/useStoreCurrencySymbol";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 
 interface InventoryValuationRow {
@@ -35,6 +37,10 @@ export default function InventoryValuationReportPage() {
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [groupByWarehouse, setGroupByWarehouse] = useState(true);
   const [totalValue, setTotalValue] = useState<number | null>(null);
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   const filters = {
     storeId: selectedStoreId ?? undefined,
@@ -70,7 +76,7 @@ export default function InventoryValuationReportPage() {
   }, [selectedStoreId, warehouseId, categoryId, groupByWarehouse]);
 
   return (
-    <div className="space-y-4 p-8">
+    <div ref={kbdRef} className="space-y-4 p-8">
       <div>
         <h1 className="text-2xl font-semibold">Inventory Valuation</h1>
         <p className="text-muted-foreground text-sm">
@@ -85,6 +91,7 @@ export default function InventoryValuationReportPage() {
           <div className="flex flex-wrap items-end gap-3">
             <div className="w-56 space-y-1.5">
               <SearchableSelect
+                data-kbd-item=""
                 options={warehouses}
                 value={warehouseId}
                 onChange={setWarehouseId}
@@ -93,6 +100,7 @@ export default function InventoryValuationReportPage() {
             </div>
             <div className="w-56 space-y-1.5">
               <SearchableSelect
+                data-kbd-item=""
                 options={categories}
                 value={categoryId}
                 onChange={setCategoryId}
@@ -102,6 +110,7 @@ export default function InventoryValuationReportPage() {
             <div className="flex items-center gap-2 pb-2">
               <Checkbox
                 id="group-by-warehouse"
+                data-kbd-item=""
                 checked={groupByWarehouse}
                 onCheckedChange={(checked) => setGroupByWarehouse(Boolean(checked))}
               />

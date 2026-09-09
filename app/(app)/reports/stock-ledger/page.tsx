@@ -13,6 +13,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatDatePart } from "@/lib/datetime/format";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 
 interface FinancialYearOption {
@@ -63,6 +65,10 @@ export default function StockLedgerReportPage() {
   const [result, setResult] = useState<StockLedgerResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   useEffect(() => {
     if (!financialYearId || !warehouseId || !productId) {
@@ -97,7 +103,7 @@ export default function StockLedgerReportPage() {
   }, [financialYearId, warehouseId, productId]);
 
   return (
-    <div className="space-y-4 p-8">
+    <div ref={kbdRef} className="space-y-4 p-8">
       <div>
         <h1 className="text-2xl font-semibold">Stock Ledger</h1>
         <p className="text-muted-foreground text-sm">
@@ -112,6 +118,7 @@ export default function StockLedgerReportPage() {
         <div className="flex flex-wrap items-end gap-3">
           <div className="w-48 space-y-1.5">
             <SearchableSelect
+              data-kbd-item=""
               options={financialYears.map((fy) => ({ value: fy.id, label: fy.label }))}
               value={financialYearId}
               onChange={setFinancialYearId}
@@ -120,6 +127,7 @@ export default function StockLedgerReportPage() {
           </div>
           <div className="w-56 space-y-1.5">
             <SearchableSelect
+              data-kbd-item=""
               options={warehouses}
               value={warehouseId}
               onChange={setWarehouseId}
@@ -128,6 +136,7 @@ export default function StockLedgerReportPage() {
           </div>
           <div className="w-64 space-y-1.5">
             <SearchableSelect
+              data-kbd-item=""
               options={products}
               value={productId}
               onChange={setProductId}

@@ -8,6 +8,8 @@ import { CancelHeldBillDialog } from "@/components/billing/cancel-held-bill-dial
 import { DataTable } from "@/components/data-table/data-table";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { formatTimestamp } from "@/lib/datetime/format";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { useInvalidateResource } from "@/lib/pagination/useList";
 
 interface HeldBillRow {
@@ -22,6 +24,10 @@ interface HeldBillRow {
 export default function HeldBillsPage() {
   const router = useRouter();
   const invalidate = useInvalidateResource();
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   async function resume(id: string) {
     const res = await fetch(`/api/bills/${id}/resume`, { method: "POST" });
@@ -34,10 +40,10 @@ export default function HeldBillsPage() {
   }
 
   return (
-    <div className="space-y-4 p-8">
+    <div ref={kbdRef} className="space-y-4 p-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Held Bills</h1>
-        <Link href="/billing" className={buttonVariants({ variant: "outline" })}>
+        <Link href="/billing" data-kbd-item="" className={buttonVariants({ variant: "outline" })}>
           Back to Billing
         </Link>
       </div>
@@ -69,7 +75,7 @@ export default function HeldBillsPage() {
             header: "",
             render: (row) => (
               <div className="flex justify-end gap-2">
-                <Button size="sm" onClick={() => void resume(row.id)}>
+                <Button size="sm" data-kbd-item="" onClick={() => void resume(row.id)}>
                   Resume
                 </Button>
                 <CancelHeldBillDialog

@@ -8,6 +8,8 @@ import { StoreCardFilter } from "@/components/store-card-filter";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useStoreCurrencySymbol } from "@/lib/hooks/useStoreCurrencySymbol";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 
 interface SalesRegisterRow {
@@ -36,9 +38,13 @@ export default function SalesRegisterReportPage() {
   const [billType, setBillType] = useState<string | null>(null);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   return (
-    <div className="space-y-4 p-8">
+    <div ref={kbdRef} className="space-y-4 p-8">
       <div>
         <h1 className="text-2xl font-semibold">Sales Register</h1>
         <p className="text-muted-foreground text-sm">
@@ -53,6 +59,7 @@ export default function SalesRegisterReportPage() {
           <div className="flex flex-wrap items-end gap-3">
             <div className="w-56 space-y-1.5">
               <SearchableSelect
+                data-kbd-item=""
                 options={customers}
                 value={customerId}
                 onChange={setCustomerId}
@@ -61,6 +68,7 @@ export default function SalesRegisterReportPage() {
             </div>
             <div className="w-48 space-y-1.5">
               <SearchableSelect
+                data-kbd-item=""
                 options={[
                   { value: "cash_bill", label: "Cash" },
                   { value: "credit_bill", label: "Credit" },
@@ -73,11 +81,21 @@ export default function SalesRegisterReportPage() {
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">From</Label>
-              <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+              <Input
+                type="date"
+                data-kbd-item=""
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+              />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">To</Label>
-              <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+              <Input
+                type="date"
+                data-kbd-item=""
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+              />
             </div>
           </div>
 

@@ -9,6 +9,8 @@ import {
   SOURCE_TYPE_CONFIG,
   type SourceItemType,
 } from "@/lib/documents/entryCorrectionSourceTypes";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 
 interface EntryCorrectionRow {
   id: string;
@@ -21,11 +23,16 @@ interface EntryCorrectionRow {
 }
 
 export default function EntryCorrectionsPage() {
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
+
   return (
-    <div className="space-y-4 p-8">
+    <div ref={kbdRef} className="space-y-4 p-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Entry Correction</h1>
-        <Link href="/entry-corrections/new" className={buttonVariants()}>
+        <Link href="/entry-corrections/new" data-kbd-item="" className={buttonVariants()}>
           New Correction
         </Link>
       </div>
@@ -56,6 +63,7 @@ export default function EntryCorrectionsPage() {
             render: (row) => (
               <Link
                 href={`/entry-corrections/${row.id}`}
+                data-kbd-item=""
                 className={buttonVariants({ variant: "outline", size: "sm" })}
               >
                 View

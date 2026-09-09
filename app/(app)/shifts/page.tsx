@@ -18,6 +18,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useStoreCurrencySymbol } from "@/lib/hooks/useStoreCurrencySymbol";
 import { formatTimestamp } from "@/lib/datetime/format";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 import { useInvalidateResource } from "@/lib/pagination/useList";
 
@@ -73,7 +75,7 @@ function OpenShiftDialog({ onOpened }: { onOpened: () => void }) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button size="sm" />}>Open Shift</DialogTrigger>
+      <DialogTrigger render={<Button size="sm" data-kbd-item="" />}>Open Shift</DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Open Shift</DialogTitle>
@@ -112,9 +114,13 @@ function OpenShiftDialog({ onOpened }: { onOpened: () => void }) {
 export default function ShiftsPage() {
   const currencySymbol = useStoreCurrencySymbol();
   const invalidate = useInvalidateResource();
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   return (
-    <div className="space-y-4 p-8">
+    <div ref={kbdRef} className="space-y-4 p-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Shifts</h1>
         <OpenShiftDialog onOpened={() => invalidate("shifts")} />

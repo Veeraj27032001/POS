@@ -8,6 +8,8 @@ import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { DataTable } from "@/components/data-table/data-table";
 import { StoreCardFilter } from "@/components/store-card-filter";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { useInvalidateResource } from "@/lib/pagination/useList";
 
 import { EditSeriesDialog } from "./edit-series-dialog";
@@ -27,6 +29,10 @@ export default function NumberingSeriesPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [copying, setCopying] = useState(false);
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   async function handleCopyToAllStores() {
     if (!selectedStoreId) return;
@@ -101,12 +107,13 @@ export default function NumberingSeriesPage() {
   }
 
   return (
-    <div className="space-y-4 p-8">
+    <div ref={kbdRef} className="space-y-4 p-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Numbering Series</h1>
         <div className="flex gap-2">
           <Button
             variant="outline"
+            data-kbd-item=""
             disabled={!selectedStoreId || copying}
             onClick={handleCopyToAllStores}
           >
@@ -140,6 +147,7 @@ export default function NumberingSeriesPage() {
                 <div className="flex gap-2">
                   <Link
                     href={`/numbering-series/${row.id}`}
+                    data-kbd-item=""
                     className={buttonVariants({ variant: "outline", size: "sm" })}
                   >
                     View
@@ -153,6 +161,7 @@ export default function NumberingSeriesPage() {
                   <Button
                     variant="outline"
                     size="sm"
+                    data-kbd-item=""
                     disabled={togglingId === row.id}
                     onClick={() => handleToggleActive(row)}
                   >
@@ -162,6 +171,7 @@ export default function NumberingSeriesPage() {
                   <Button
                     variant="destructive"
                     size="sm"
+                    data-kbd-item=""
                     disabled={deletingId === row.id}
                     onClick={() => handleDelete(row)}
                   >

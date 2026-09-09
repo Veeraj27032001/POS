@@ -20,6 +20,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatTimestamp } from "@/lib/datetime/format";
 import { downloadIntegrationGuidePdf } from "@/lib/ecommerce/integrationGuidePdf";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 import { useInvalidateResource } from "@/lib/pagination/useList";
 
@@ -187,6 +189,8 @@ function NewCredentialDialog({ onCreated }: { onCreated: () => void }) {
     setCreated(null);
   }
 
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({ selector: "[data-kbd-item]" });
+
   return (
     <Dialog
       open={open}
@@ -195,151 +199,176 @@ function NewCredentialDialog({ onCreated }: { onCreated: () => void }) {
         else setOpen(true);
       }}
     >
-      <DialogTrigger render={<Button />}>New credential</DialogTrigger>
+      <DialogTrigger render={<Button data-kbd-item="" />}>New credential</DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>New API credential</DialogTitle>
         </DialogHeader>
 
-        {!created && (
-          <>
-            <div className="space-y-1.5">
-              <Label>Label</Label>
-              <Input
-                value={label}
-                onChange={(e) => setLabel(e.target.value)}
-                placeholder="e.g. My Shopify Store"
-              />
-            </div>
+        <div ref={kbdRef}>
+          {!created && (
+            <>
+              <div className="space-y-1.5">
+                <Label>Label</Label>
+                <Input
+                  data-kbd-item=""
+                  value={label}
+                  onChange={(e) => setLabel(e.target.value)}
+                  placeholder="e.g. My Shopify Store"
+                />
+              </div>
 
-            <div className="space-y-1.5">
-              <Label>Billing store</Label>
-              <SearchableSelect
-                options={stores}
-                value={billingStoreId}
-                onChange={(id) => {
-                  setBillingStoreId(id);
-                  setOtherStoreIds((prev) => prev.filter((s) => s !== id));
-                }}
-                placeholder="Select a store…"
-              />
-              <p className="text-muted-foreground text-xs">
-                Every order is billed here by default, unless the request names a different store
-                below.
-              </p>
-            </div>
+              <div className="space-y-1.5">
+                <Label>Billing store</Label>
+                <SearchableSelect
+                  data-kbd-item=""
+                  options={stores}
+                  value={billingStoreId}
+                  onChange={(id) => {
+                    setBillingStoreId(id);
+                    setOtherStoreIds((prev) => prev.filter((s) => s !== id));
+                  }}
+                  placeholder="Select a store…"
+                />
+                <p className="text-muted-foreground text-xs">
+                  Every order is billed here by default, unless the request names a different store
+                  below.
+                </p>
+              </div>
 
-            {billingStoreId && otherStores.length > 0 && (
-              <div className="space-y-3 rounded-lg border p-3">
-                <div className="space-y-1.5">
-                  <Label>Also sell from</Label>
-                  <div className="max-h-32 space-y-1.5 overflow-y-auto">
-                    {otherStores.map((store) => (
-                      <div key={store.value} className="flex items-center gap-2">
-                        <Checkbox
-                          id={`store-${store.value}`}
-                          checked={otherStoreIds.includes(store.value)}
-                          onCheckedChange={(checked) =>
-                            toggleOtherStore(store.value, checked === true)
-                          }
-                        />
-                        <Label htmlFor={`store-${store.value}`}>{store.label}</Label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                {otherStoreIds.length > 0 && (
-                  <>
-                    <div className="flex items-center gap-2">
-                      <Checkbox
-                        id="split-orders-enabled"
-                        checked={splitOrdersEnabled}
-                        onCheckedChange={(checked) => setSplitOrdersEnabled(checked === true)}
-                      />
-                      <Label htmlFor="split-orders-enabled">
-                        Allow one order to split across stores when no single store has enough stock
-                      </Label>
+              {billingStoreId && otherStores.length > 0 && (
+                <div className="space-y-3 rounded-lg border p-3">
+                  <div className="space-y-1.5">
+                    <Label>Also sell from</Label>
+                    <div className="max-h-32 space-y-1.5 overflow-y-auto">
+                      {otherStores.map((store) => (
+                        <div key={store.value} className="flex items-center gap-2">
+                          <Checkbox
+                            id={`store-${store.value}`}
+                            data-kbd-item=""
+                            checked={otherStoreIds.includes(store.value)}
+                            onCheckedChange={(checked) =>
+                              toggleOtherStore(store.value, checked === true)
+                            }
+                          />
+                          <Label htmlFor={`store-${store.value}`}>{store.label}</Label>
+                        </div>
+                      ))}
                     </div>
-                    <p className="text-muted-foreground text-xs">
-                      The billing store is tried first. If it can&apos;t cover an order alone, stock
-                      moves in from another selected store automatically — the order still gets one
-                      bill.
-                    </p>
-                  </>
-                )}
+                  </div>
+                  {otherStoreIds.length > 0 && (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="split-orders-enabled"
+                          data-kbd-item=""
+                          checked={splitOrdersEnabled}
+                          onCheckedChange={(checked) => setSplitOrdersEnabled(checked === true)}
+                        />
+                        <Label htmlFor="split-orders-enabled">
+                          Allow one order to split across stores when no single store has enough
+                          stock
+                        </Label>
+                      </div>
+                      <p className="text-muted-foreground text-xs">
+                        The billing store is tried first. If it can&apos;t cover an order alone,
+                        stock moves in from another selected store automatically — the order still
+                        gets one bill.
+                      </p>
+                    </>
+                  )}
+                </div>
+              )}
+
+              <DialogFooter>
+                <Button type="button" variant="outline" data-kbd-item="" onClick={close}>
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  data-kbd-item=""
+                  onClick={() => void submit()}
+                  disabled={submitting}
+                >
+                  {submitting ? "Creating…" : "Create"}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+
+          {created && (
+            <>
+              <p className="text-muted-foreground text-sm">
+                Copy the secret now — it won&apos;t be shown again.
+              </p>
+              <div className="space-y-1.5">
+                <Label>API key</Label>
+                <div className="flex gap-2">
+                  <Input
+                    readOnly
+                    data-kbd-item=""
+                    value={created.apiKey}
+                    className="font-mono text-xs"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    data-kbd-item=""
+                    onClick={() => {
+                      void navigator.clipboard.writeText(created.apiKey);
+                      toast.success("API key copied.");
+                    }}
+                  >
+                    Copy
+                  </Button>
+                </div>
               </div>
-            )}
-
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={close}>
-                Cancel
-              </Button>
-              <Button type="button" onClick={() => void submit()} disabled={submitting}>
-                {submitting ? "Creating…" : "Create"}
-              </Button>
-            </DialogFooter>
-          </>
-        )}
-
-        {created && (
-          <>
-            <p className="text-muted-foreground text-sm">
-              Copy the secret now — it won&apos;t be shown again.
-            </p>
-            <div className="space-y-1.5">
-              <Label>API key</Label>
-              <div className="flex gap-2">
-                <Input readOnly value={created.apiKey} className="font-mono text-xs" />
+              <div className="space-y-1.5">
+                <Label>API secret</Label>
+                <div className="flex gap-2">
+                  <Input
+                    readOnly
+                    data-kbd-item=""
+                    value={created.apiSecret}
+                    className="font-mono text-xs"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    data-kbd-item=""
+                    onClick={() => {
+                      void navigator.clipboard.writeText(created.apiSecret);
+                      toast.success("API secret copied.");
+                    }}
+                  >
+                    Copy
+                  </Button>
+                </div>
+              </div>
+              <DialogFooter className="sm:justify-between">
                 <Button
                   type="button"
                   variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    void navigator.clipboard.writeText(created.apiKey);
-                    toast.success("API key copied.");
-                  }}
+                  data-kbd-item=""
+                  onClick={() =>
+                    downloadIntegrationGuidePdf({
+                      storeName: created.storeName,
+                      apiKey: created.apiKey,
+                      apiSecret: created.apiSecret,
+                    })
+                  }
                 >
-                  Copy
+                  Download setup guide (PDF)
                 </Button>
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label>API secret</Label>
-              <div className="flex gap-2">
-                <Input readOnly value={created.apiSecret} className="font-mono text-xs" />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    void navigator.clipboard.writeText(created.apiSecret);
-                    toast.success("API secret copied.");
-                  }}
-                >
-                  Copy
+                <Button type="button" data-kbd-item="" onClick={close}>
+                  Done
                 </Button>
-              </div>
-            </div>
-            <DialogFooter className="sm:justify-between">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() =>
-                  downloadIntegrationGuidePdf({
-                    storeName: created.storeName,
-                    apiKey: created.apiKey,
-                    apiSecret: created.apiSecret,
-                  })
-                }
-              >
-                Download setup guide (PDF)
-              </Button>
-              <Button type="button" onClick={close}>
-                Done
-              </Button>
-            </DialogFooter>
-          </>
-        )}
+              </DialogFooter>
+            </>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
@@ -403,6 +432,8 @@ function EditCredentialDialog({ row, onSaved }: { row: ApiCredentialRow; onSaved
     }
   }
 
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({ selector: "[data-kbd-item]" });
+
   return (
     <Dialog
       open={open}
@@ -411,73 +442,88 @@ function EditCredentialDialog({ row, onSaved }: { row: ApiCredentialRow; onSaved
         setOpen(next);
       }}
     >
-      <DialogTrigger render={<Button size="sm" variant="outline" />}>Edit</DialogTrigger>
+      <DialogTrigger render={<Button size="sm" variant="outline" data-kbd-item="" />}>
+        Edit
+      </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Edit API credential</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-1.5">
-          <Label>Label</Label>
-          <Input value={label} onChange={(e) => setLabel(e.target.value)} />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label>Billing store</Label>
-          <SearchableSelect
-            options={stores}
-            value={billingStoreId}
-            onChange={(id) => {
-              setBillingStoreId(id);
-              setOtherStoreIds((prev) => prev.filter((s) => s !== id));
-            }}
-            placeholder="Select a store…"
-          />
-          <p className="text-muted-foreground text-xs">
-            Every order is billed here by default, unless the request names a different store below.
-          </p>
-        </div>
-
-        {billingStoreId && otherStores.length > 0 && (
-          <div className="space-y-3 rounded-lg border p-3">
-            <div className="space-y-1.5">
-              <Label>Also sell from</Label>
-              <div className="max-h-32 space-y-1.5 overflow-y-auto">
-                {otherStores.map((store) => (
-                  <div key={store.value} className="flex items-center gap-2">
-                    <Checkbox
-                      id={`edit-store-${row.id}-${store.value}`}
-                      checked={otherStoreIds.includes(store.value)}
-                      onCheckedChange={(checked) => toggleOtherStore(store.value, checked === true)}
-                    />
-                    <Label htmlFor={`edit-store-${row.id}-${store.value}`}>{store.label}</Label>
-                  </div>
-                ))}
-              </div>
-            </div>
-            {otherStoreIds.length > 0 && (
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id={`edit-split-${row.id}`}
-                  checked={splitOrdersEnabled}
-                  onCheckedChange={(checked) => setSplitOrdersEnabled(checked === true)}
-                />
-                <Label htmlFor={`edit-split-${row.id}`}>
-                  Allow one order to split across stores when no single store has enough stock
-                </Label>
-              </div>
-            )}
+        <div ref={kbdRef}>
+          <div className="space-y-1.5">
+            <Label>Label</Label>
+            <Input data-kbd-item="" value={label} onChange={(e) => setLabel(e.target.value)} />
           </div>
-        )}
 
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-            Cancel
-          </Button>
-          <Button type="button" onClick={() => void submit()} disabled={submitting}>
-            {submitting ? "Saving…" : "Save"}
-          </Button>
-        </DialogFooter>
+          <div className="space-y-1.5">
+            <Label>Billing store</Label>
+            <SearchableSelect
+              data-kbd-item=""
+              options={stores}
+              value={billingStoreId}
+              onChange={(id) => {
+                setBillingStoreId(id);
+                setOtherStoreIds((prev) => prev.filter((s) => s !== id));
+              }}
+              placeholder="Select a store…"
+            />
+            <p className="text-muted-foreground text-xs">
+              Every order is billed here by default, unless the request names a different store
+              below.
+            </p>
+          </div>
+
+          {billingStoreId && otherStores.length > 0 && (
+            <div className="space-y-3 rounded-lg border p-3">
+              <div className="space-y-1.5">
+                <Label>Also sell from</Label>
+                <div className="max-h-32 space-y-1.5 overflow-y-auto">
+                  {otherStores.map((store) => (
+                    <div key={store.value} className="flex items-center gap-2">
+                      <Checkbox
+                        id={`edit-store-${row.id}-${store.value}`}
+                        data-kbd-item=""
+                        checked={otherStoreIds.includes(store.value)}
+                        onCheckedChange={(checked) =>
+                          toggleOtherStore(store.value, checked === true)
+                        }
+                      />
+                      <Label htmlFor={`edit-store-${row.id}-${store.value}`}>{store.label}</Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {otherStoreIds.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id={`edit-split-${row.id}`}
+                    data-kbd-item=""
+                    checked={splitOrdersEnabled}
+                    onCheckedChange={(checked) => setSplitOrdersEnabled(checked === true)}
+                  />
+                  <Label htmlFor={`edit-split-${row.id}`}>
+                    Allow one order to split across stores when no single store has enough stock
+                  </Label>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button type="button" variant="outline" data-kbd-item="" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              data-kbd-item=""
+              onClick={() => void submit()}
+              disabled={submitting}
+            >
+              {submitting ? "Saving…" : "Save"}
+            </Button>
+          </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
@@ -486,6 +532,10 @@ function EditCredentialDialog({ row, onSaved }: { row: ApiCredentialRow; onSaved
 export default function EcommerceSettingsPage() {
   const invalidate = useInvalidateResource();
   const [revokingId, setRevokingId] = useState<string | null>(null);
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   async function revoke(id: string) {
     setRevokingId(id);
@@ -504,7 +554,7 @@ export default function EcommerceSettingsPage() {
   }
 
   return (
-    <div className="space-y-8 p-8">
+    <div ref={kbdRef} className="space-y-8 p-8">
       <div>
         <h1 className="text-2xl font-semibold">E-commerce</h1>
         <p className="text-muted-foreground text-sm">
@@ -577,6 +627,7 @@ export default function EcommerceSettingsPage() {
                   <Button
                     size="sm"
                     variant="outline"
+                    data-kbd-item=""
                     onClick={() =>
                       downloadIntegrationGuidePdf({
                         storeName: row.billingStore?.name ?? "Store",
@@ -591,6 +642,7 @@ export default function EcommerceSettingsPage() {
                     <Button
                       size="sm"
                       variant="outline"
+                      data-kbd-item=""
                       disabled={revokingId === row.id}
                       onClick={() => void revoke(row.id)}
                     >

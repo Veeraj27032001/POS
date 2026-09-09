@@ -2,6 +2,8 @@
 
 import { BarcodeViewDialog } from "@/components/barcode-view-dialog";
 import { DataTable } from "@/components/data-table/data-table";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { useListCount } from "@/lib/pagination/useList";
 
 import { PrintAllButton } from "../print-all-button";
@@ -26,9 +28,13 @@ async function fetchAllLabels() {
 
 export default function ProductBarcodesPage() {
   const countQuery = useListCount({ resource: "barcodes/product", pageSize: 1 });
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   return (
-    <div className="space-y-4 p-8">
+    <div ref={kbdRef} className="space-y-4 p-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Product Barcodes</h1>
         <PrintAllButton

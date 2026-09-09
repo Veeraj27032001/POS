@@ -61,7 +61,9 @@ export function CancelHeldBillDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button size="sm" variant="destructive" />}>Cancel</DialogTrigger>
+      <DialogTrigger render={<Button size="sm" variant="destructive" data-kbd-item="" />}>
+        Cancel
+      </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Cancel bill {documentNumber}</DialogTitle>

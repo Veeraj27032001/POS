@@ -4,6 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/data-table/data-table";
 import { formatTimestamp } from "@/lib/datetime/format";
 import { useStoreCurrencySymbol } from "@/lib/hooks/useStoreCurrencySymbol";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 
 interface OnlineOrderRow {
   id: string;
@@ -28,9 +30,13 @@ const STATUS_BADGE: Record<OnlineOrderRow["status"], "default" | "secondary" | "
 // accepted it links to the real Bill that got created at that moment.
 export default function OnlineOrdersPage() {
   const currencySymbol = useStoreCurrencySymbol();
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   return (
-    <div className="space-y-4 p-8">
+    <div ref={kbdRef} className="space-y-4 p-8">
       <div>
         <h1 className="text-2xl font-semibold">Online Orders</h1>
         <p className="text-muted-foreground text-sm">

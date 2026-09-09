@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { useInvalidateResource } from "@/lib/pagination/useList";
 
 interface RoleRow {
@@ -53,14 +55,20 @@ function NewRoleDialog({ onCreated }: { onCreated: () => void }) {
     }
   }
 
+  const kbdRef = useArrowKeyNav<HTMLFormElement>({ selector: "[data-kbd-item]" });
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button>New Role</Button>} />
+      <DialogTrigger render={<Button data-kbd-item="">New Role</Button>} />
       <DialogContent>
         <DialogHeader>
           <DialogTitle>New Role</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <form
+          ref={kbdRef}
+          onSubmit={handleSubmit}
+          className="flex min-h-0 flex-1 flex-col overflow-hidden"
+        >
           <DialogFormBody>
             <div className="space-y-1.5 sm:col-span-2">
               <Label htmlFor="role-name">
@@ -69,6 +77,7 @@ function NewRoleDialog({ onCreated }: { onCreated: () => void }) {
               </Label>
               <Input
                 id="role-name"
+                data-kbd-item=""
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
@@ -76,7 +85,7 @@ function NewRoleDialog({ onCreated }: { onCreated: () => void }) {
             </div>
           </DialogFormBody>
           <DialogFormActions>
-            <Button type="submit" disabled={submitting}>
+            <Button type="submit" data-kbd-item="" disabled={submitting}>
               {submitting && <Loader2Icon className="size-3.5 animate-spin" />}
               Save
             </Button>
@@ -89,9 +98,13 @@ function NewRoleDialog({ onCreated }: { onCreated: () => void }) {
 
 export default function RolesPage() {
   const invalidate = useInvalidateResource();
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   return (
-    <div className="space-y-4 p-8">
+    <div ref={kbdRef} className="space-y-4 p-8">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Roles</h1>

@@ -20,6 +20,7 @@ export function BarcodeViewDialog({ value, label }: { value: string; label?: str
         render={
           <button
             type="button"
+            data-kbd-item=""
             className="hover:ring-primary rounded-md p-1 transition hover:ring-2"
           />
         }

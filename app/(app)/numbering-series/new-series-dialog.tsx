@@ -21,6 +21,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useSubmitGuard } from "@/lib/forms/useSubmitGuard";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { numberingSeriesCreateSchema, seriesTypeSchema } from "@/lib/masters/schemas";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 import { useInvalidateResource } from "@/lib/pagination/useList";
@@ -62,15 +63,17 @@ export function NewSeriesDialog({ storeId }: { storeId: string }) {
   }
 
   const guardedSubmit = useSubmitGuard(onSubmit);
+  const kbdRef = useArrowKeyNav<HTMLFormElement>({ selector: "[data-kbd-item]" });
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button>New Series</Button>} />
+      <DialogTrigger render={<Button data-kbd-item="">New Series</Button>} />
       <DialogContent>
         <DialogHeader>
           <DialogTitle>New Numbering Series</DialogTitle>
         </DialogHeader>
         <form
+          ref={kbdRef}
           onSubmit={handleSubmit(guardedSubmit)}
           className="flex min-h-0 flex-1 flex-col overflow-hidden"
         >
@@ -85,6 +88,7 @@ export function NewSeriesDialog({ storeId }: { storeId: string }) {
                 control={control}
                 render={({ field }) => (
                   <SearchableSelect
+                    data-kbd-item=""
                     options={SERIES_TYPE_OPTIONS}
                     value={field.value ?? null}
                     onChange={(v) => field.onChange(v ?? "")}
@@ -107,6 +111,7 @@ export function NewSeriesDialog({ storeId }: { storeId: string }) {
                 control={control}
                 render={({ field }) => (
                   <SearchableSelect
+                    data-kbd-item=""
                     options={financialYears}
                     value={field.value ?? null}
                     onChange={(v) => field.onChange(v ?? "")}
@@ -121,7 +126,7 @@ export function NewSeriesDialog({ storeId }: { storeId: string }) {
 
             <div className="space-y-1.5">
               <Label htmlFor="prefix">Prefix</Label>
-              <Input id="prefix" placeholder="e.g. CB" {...register("prefix")} />
+              <Input id="prefix" data-kbd-item="" placeholder="e.g. CB" {...register("prefix")} />
             </div>
 
             <div className="space-y-1.5">
@@ -129,6 +134,7 @@ export function NewSeriesDialog({ storeId }: { storeId: string }) {
               <Input
                 id="currentNumber"
                 type="number"
+                data-kbd-item=""
                 {...register("currentNumber", {
                   setValueAs: (v) => (v === "" || v === null ? 0 : Number(v)),
                 })}
@@ -137,7 +143,7 @@ export function NewSeriesDialog({ storeId }: { storeId: string }) {
           </DialogFormBody>
 
           <DialogFormActions>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" data-kbd-item="" disabled={isSubmitting}>
               {isSubmitting ? "Saving…" : "Save"}
             </Button>
           </DialogFormActions>

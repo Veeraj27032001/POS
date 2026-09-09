@@ -31,6 +31,7 @@ export function PrintAllButton({
   return (
     <Button
       variant="outline"
+      data-kbd-item=""
       disabled={totalCount === 0 || printing}
       onClick={() => void handleClick()}
     >

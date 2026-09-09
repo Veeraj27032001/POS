@@ -6,6 +6,8 @@ import { buttonVariants } from "@/components/ui/button";
 import { DataTable } from "@/components/data-table/data-table";
 import { formatDateOnly, toDateOnly } from "@/lib/datetime/dateOnly";
 import { PRODUCT_REQUEST_STATUS_LABELS } from "@/lib/documents/productRequestStatus";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 
 interface ProductRequestRow {
@@ -18,12 +20,16 @@ interface ProductRequestRow {
 
 export default function ProductRequestsPage() {
   const suppliers = useOptionsList("suppliers", "name");
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   return (
-    <div className="space-y-4 p-8">
+    <div ref={kbdRef} className="space-y-4 p-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Product Requests</h1>
-        <Link href="/product-requests/new" className={buttonVariants()}>
+        <Link href="/product-requests/new" data-kbd-item="" className={buttonVariants()}>
           New Product Request
         </Link>
       </div>
@@ -54,6 +60,7 @@ export default function ProductRequestsPage() {
             render: (row) => (
               <Link
                 href={`/product-requests/${row.id}`}
+                data-kbd-item=""
                 className={buttonVariants({ variant: "outline", size: "sm" })}
               >
                 View

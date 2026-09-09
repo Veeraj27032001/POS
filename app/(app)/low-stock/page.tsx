@@ -5,6 +5,8 @@ import { useState } from "react";
 
 import { DataTable } from "@/components/data-table/data-table";
 import { SearchableSelect } from "@/components/searchable-select";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 
 interface LowStockRow {
@@ -18,9 +20,13 @@ interface LowStockRow {
 export default function LowStockPage() {
   const warehouses = useOptionsList("warehouses", "name");
   const [warehouseId, setWarehouseId] = useState<string | null>(null);
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   return (
-    <div className="space-y-4 p-8">
+    <div ref={kbdRef} className="space-y-4 p-8">
       <div>
         <h1 className="text-2xl font-semibold">Low Stock</h1>
         <p className="text-muted-foreground text-sm">
@@ -30,6 +36,7 @@ export default function LowStockPage() {
 
       <div className="max-w-xs space-y-1.5">
         <SearchableSelect
+          data-kbd-item=""
           options={warehouses}
           value={warehouseId}
           onChange={setWarehouseId}

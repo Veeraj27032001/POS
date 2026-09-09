@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/data-table/data-table";
 import { useStoreCurrencySymbol } from "@/lib/hooks/useStoreCurrencySymbol";
 import { formatTimestamp } from "@/lib/datetime/format";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { printCreditNote } from "@/lib/billing/printing";
 
 interface CreditNoteRow {
@@ -27,6 +29,10 @@ const BILL_TYPE_LABELS: Record<string, string> = {
 export default function CreditNotesPage() {
   const currencySymbol = useStoreCurrencySymbol();
   const [printingId, setPrintingId] = useState<string | null>(null);
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   async function handlePrint(row: CreditNoteRow, e: React.MouseEvent) {
     e.stopPropagation();
@@ -41,7 +47,7 @@ export default function CreditNotesPage() {
   }
 
   return (
-    <div className="space-y-4 p-8">
+    <div ref={kbdRef} className="space-y-4 p-8">
       <h1 className="text-2xl font-semibold">Credit Notes</h1>
 
       <DataTable<CreditNoteRow>
@@ -74,6 +80,7 @@ export default function CreditNotesPage() {
               <Button
                 variant="outline"
                 size="sm"
+                data-kbd-item=""
                 disabled={printingId === row.id}
                 onClick={(e) => handlePrint(row, e)}
               >

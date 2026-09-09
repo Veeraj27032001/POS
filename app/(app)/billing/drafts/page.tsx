@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { DataTable } from "@/components/data-table/data-table";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { formatTimestamp } from "@/lib/datetime/format";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 
 interface DraftBillRow {
   id: string;
@@ -18,12 +20,16 @@ interface DraftBillRow {
 
 export default function DraftBillsPage() {
   const router = useRouter();
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   return (
-    <div className="space-y-4 p-8">
+    <div ref={kbdRef} className="space-y-4 p-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Draft Bills</h1>
-        <Link href="/billing" className={buttonVariants({ variant: "outline" })}>
+        <Link href="/billing" data-kbd-item="" className={buttonVariants({ variant: "outline" })}>
           Back to Billing
         </Link>
       </div>
@@ -54,7 +60,11 @@ export default function DraftBillsPage() {
             key: "actions",
             header: "",
             render: (row) => (
-              <Button size="sm" onClick={() => router.push(`/billing?billId=${row.id}`)}>
+              <Button
+                size="sm"
+                data-kbd-item=""
+                onClick={() => router.push(`/billing?billId=${row.id}`)}
+              >
                 Continue
               </Button>
             ),

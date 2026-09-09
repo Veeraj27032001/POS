@@ -7,6 +7,8 @@ import { SearchableSelect } from "@/components/searchable-select";
 import { StoreCardFilter } from "@/components/store-card-filter";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 
 interface StockReportRow {
@@ -32,9 +34,13 @@ export default function StockReportPage() {
   const [warehouseId, setWarehouseId] = useState<string | null>(null);
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [groupByWarehouse, setGroupByWarehouse] = useState(true);
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   return (
-    <div className="space-y-4 p-8">
+    <div ref={kbdRef} className="space-y-4 p-8">
       <div>
         <h1 className="text-2xl font-semibold">Stock Report</h1>
         <p className="text-muted-foreground text-sm">
@@ -50,6 +56,7 @@ export default function StockReportPage() {
           <div className="flex items-end gap-3">
             <div className="w-56 space-y-1.5">
               <SearchableSelect
+                data-kbd-item=""
                 options={warehouses}
                 value={warehouseId}
                 onChange={setWarehouseId}
@@ -58,6 +65,7 @@ export default function StockReportPage() {
             </div>
             <div className="w-56 space-y-1.5">
               <SearchableSelect
+                data-kbd-item=""
                 options={categories}
                 value={categoryId}
                 onChange={setCategoryId}
@@ -67,6 +75,7 @@ export default function StockReportPage() {
             <div className="flex items-center gap-2 pb-2">
               <Checkbox
                 id="group-by-warehouse"
+                data-kbd-item=""
                 checked={groupByWarehouse}
                 onCheckedChange={(checked) => setGroupByWarehouse(Boolean(checked))}
               />

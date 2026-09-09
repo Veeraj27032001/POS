@@ -6,6 +6,8 @@ import { DataTable } from "@/components/data-table/data-table";
 import { SearchableSelect } from "@/components/searchable-select";
 import { StoreCardFilter } from "@/components/store-card-filter";
 import { useStoreCurrencySymbol } from "@/lib/hooks/useStoreCurrencySymbol";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 
 interface CreditOutstandingRow {
@@ -29,6 +31,10 @@ export default function CreditOutstandingReportPage() {
   const customers = useOptionsList("customers", "name");
   const [customerId, setCustomerId] = useState<string | null>(null);
   const [summary, setSummary] = useState<Record<string, number> | null>(null);
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   useEffect(() => {
     if (!selectedStoreId) {
@@ -55,7 +61,7 @@ export default function CreditOutstandingReportPage() {
   }, [selectedStoreId, customerId]);
 
   return (
-    <div className="space-y-4 p-8">
+    <div ref={kbdRef} className="space-y-4 p-8">
       <div>
         <h1 className="text-2xl font-semibold">Credit Bill Outstanding / Aging</h1>
         <p className="text-muted-foreground text-sm">
@@ -69,6 +75,7 @@ export default function CreditOutstandingReportPage() {
         <>
           <div className="w-56 space-y-1.5">
             <SearchableSelect
+              data-kbd-item=""
               options={customers}
               value={customerId}
               onChange={setCustomerId}

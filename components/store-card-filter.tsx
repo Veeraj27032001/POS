@@ -25,6 +25,7 @@ export function StoreCardFilter({ value, onChange }: StoreCardFilterProps) {
         <button
           key={store.value}
           type="button"
+          data-kbd-item=""
           onClick={() => onChange(store.value)}
           aria-pressed={value === store.value}
           className={cn(

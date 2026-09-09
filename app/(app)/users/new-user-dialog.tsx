@@ -21,6 +21,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useSubmitGuard } from "@/lib/forms/useSubmitGuard";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { userCreateSchema } from "@/lib/masters/schemas";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 import { useInvalidateResource } from "@/lib/pagination/useList";
@@ -66,15 +67,17 @@ export function NewUserDialog() {
   }
 
   const guardedSubmit = useSubmitGuard(onSubmit);
+  const kbdRef = useArrowKeyNav<HTMLFormElement>({ selector: "[data-kbd-item]" });
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button>New User</Button>} />
+      <DialogTrigger render={<Button data-kbd-item="">New User</Button>} />
       <DialogContent>
         <DialogHeader>
           <DialogTitle>New User</DialogTitle>
         </DialogHeader>
         <form
+          ref={kbdRef}
           onSubmit={handleSubmit(guardedSubmit)}
           className="flex min-h-0 flex-1 flex-col overflow-hidden"
         >
@@ -84,7 +87,7 @@ export function NewUserDialog() {
                 Name
                 <RequiredMark />
               </Label>
-              <Input id="name" {...register("name")} />
+              <Input id="name" data-kbd-item="" {...register("name")} />
               {errors.name && <p className="text-sm text-red-600">{errors.name.message}</p>}
             </div>
 
@@ -93,7 +96,7 @@ export function NewUserDialog() {
                 Email
                 <RequiredMark />
               </Label>
-              <Input id="email" type="email" {...register("email")} />
+              <Input id="email" type="email" data-kbd-item="" {...register("email")} />
               {errors.email && <p className="text-sm text-red-600">{errors.email.message}</p>}
             </div>
 
@@ -102,7 +105,7 @@ export function NewUserDialog() {
                 Temporary password
                 <RequiredMark />
               </Label>
-              <Input id="password" type="password" {...register("password")} />
+              <Input id="password" type="password" data-kbd-item="" {...register("password")} />
               {errors.password && <p className="text-sm text-red-600">{errors.password.message}</p>}
             </div>
 
@@ -111,7 +114,12 @@ export function NewUserDialog() {
                 Confirm password
                 <RequiredMark />
               </Label>
-              <Input id="confirmPassword" type="password" {...register("confirmPassword")} />
+              <Input
+                id="confirmPassword"
+                type="password"
+                data-kbd-item=""
+                {...register("confirmPassword")}
+              />
               {errors.confirmPassword && (
                 <p className="text-sm text-red-600">{errors.confirmPassword.message}</p>
               )}
@@ -127,6 +135,7 @@ export function NewUserDialog() {
                 control={control}
                 render={({ field }) => (
                   <SearchableSelect
+                    data-kbd-item=""
                     options={roles}
                     value={field.value ?? null}
                     onChange={(v) => field.onChange(v ?? "")}
@@ -146,6 +155,7 @@ export function NewUserDialog() {
                 control={control}
                 render={({ field }) => (
                   <SearchableSelect
+                    data-kbd-item=""
                     options={stores}
                     value={field.value ?? null}
                     onChange={field.onChange}
@@ -157,7 +167,7 @@ export function NewUserDialog() {
           </DialogFormBody>
 
           <DialogFormActions>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" data-kbd-item="" disabled={isSubmitting}>
               {isSubmitting ? "Saving…" : "Save"}
             </Button>
           </DialogFormActions>

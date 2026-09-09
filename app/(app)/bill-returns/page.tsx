@@ -2,6 +2,8 @@
 
 import { DataTable } from "@/components/data-table/data-table";
 import { formatTimestamp } from "@/lib/datetime/format";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 
 interface BillReturnRow {
   id: string;
@@ -19,8 +21,13 @@ const BILL_TYPE_LABELS: Record<string, string> = {
 };
 
 export default function BillReturnsPage() {
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
+
   return (
-    <div className="space-y-4 p-8">
+    <div ref={kbdRef} className="space-y-4 p-8">
       <h1 className="text-2xl font-semibold">Returns</h1>
 
       <DataTable<BillReturnRow>

@@ -7,6 +7,8 @@ import { toast } from "sonner";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { DataTable } from "@/components/data-table/data-table";
+import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
+import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { useInvalidateResource } from "@/lib/pagination/useList";
 
 import { NewUserDialog } from "./new-user-dialog";
@@ -24,6 +26,10 @@ export default function UsersPage() {
   const invalidate = useInvalidateResource();
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const kbdRef = useArrowKeyNav<HTMLDivElement>({
+    selector: "[data-kbd-item]",
+    onBoundaryLeft: focusCurrentNavLink,
+  });
 
   async function handleToggleActive(row: UserRow) {
     const activating = !row.isActive;
@@ -69,7 +75,7 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="space-y-4 p-8">
+    <div ref={kbdRef} className="space-y-4 p-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Users</h1>
         <NewUserDialog />
@@ -101,6 +107,7 @@ export default function UsersPage() {
               <div className="flex gap-2">
                 <Link
                   href={`/users/${row.id}`}
+                  data-kbd-item=""
                   className={buttonVariants({ variant: "outline", size: "sm" })}
                 >
                   View
@@ -108,6 +115,7 @@ export default function UsersPage() {
                 <Button
                   variant="outline"
                   size="sm"
+                  data-kbd-item=""
                   disabled={togglingId === row.id}
                   onClick={() => handleToggleActive(row)}
                 >
@@ -117,6 +125,7 @@ export default function UsersPage() {
                 <Button
                   variant="destructive"
                   size="sm"
+                  data-kbd-item=""
                   disabled={deletingId === row.id}
                   onClick={() => handleDelete(row)}
                 >
