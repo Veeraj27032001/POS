@@ -7,16 +7,12 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { SendPaymentLinkDialog } from "@/components/billing/send-payment-link-dialog";
-import { EditableLineValue } from "@/components/billing/editable-line-value";
 import { useStoreCurrencySymbol } from "@/lib/hooks/useStoreCurrencySymbol";
 import { useStorePaymentGatewayAvailable } from "@/lib/hooks/useStorePaymentGatewayAvailable";
 import { formatDateOnly, toDateOnly } from "@/lib/datetime/dateOnly";
 import { formatTimestamp } from "@/lib/datetime/format";
 import { printBill, printReceipt } from "@/lib/billing/printing";
-import {
-  EDITABLE_COMPLETED_BILL_WINDOW_HOURS,
-  isCompletedBillStillEditable,
-} from "@/lib/billing/editableCompletedBillWindow";
+import { isCompletedBillStillEditable } from "@/lib/billing/editableCompletedBillWindow";
 import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
 import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
@@ -241,7 +237,6 @@ export default function BillViewPage() {
   const [bill, setBill] = useState<BillDetail | null | undefined>(undefined);
   const [printingReceipt, setPrintingReceipt] = useState(false);
   const [printingBill, setPrintingBill] = useState(false);
-  const [updatingLineId, setUpdatingLineId] = useState<string | null>(null);
   const currencySymbol = useStoreCurrencySymbol();
   const paymentGatewayAvailable = useStorePaymentGatewayAvailable();
   const kbdRef = useArrowKeyNav<HTMLDivElement>({
@@ -281,47 +276,8 @@ export default function BillViewPage() {
 
   useEffect(load, [id]);
 
-  const canEditCompletedLines =
+  const canEditBill =
     bill != null && bill.status === "completed" && isCompletedBillStillEditable(bill.completedAt);
-
-  async function updateLineQuantity(lineId: string, quantity: number) {
-    setUpdatingLineId(lineId);
-    try {
-      const res = await fetch(`/api/bills/${id}/lines/${lineId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ quantity }),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        toast.error(body?.error?.message ?? "Failed to update the line.");
-        return;
-      }
-      const body = (await res.json()) as { warning?: string };
-      if (body.warning) toast.warning(body.warning);
-      toast.success("Line updated.");
-      load();
-    } finally {
-      setUpdatingLineId(null);
-    }
-  }
-
-  async function removeLine(lineId: string) {
-    if (!window.confirm("Remove this line from the bill? This cannot be undone.")) return;
-    setUpdatingLineId(lineId);
-    try {
-      const res = await fetch(`/api/bills/${id}/lines/${lineId}`, { method: "DELETE" });
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        toast.error(body?.error?.message ?? "Failed to remove the line.");
-        return;
-      }
-      toast.success("Line removed.");
-      load();
-    } finally {
-      setUpdatingLineId(null);
-    }
-  }
 
   return (
     <div ref={kbdRef} className="space-y-4 p-8">
@@ -360,6 +316,15 @@ export default function BillViewPage() {
               >
                 {printingBill ? "Printing…" : "Print Bill"}
               </Button>
+              {canEditBill && (
+                <Link
+                  href={`/bills/${bill.id}/edit`}
+                  data-kbd-item=""
+                  className={buttonVariants({ variant: "outline", size: "sm" })}
+                >
+                  Edit
+                </Link>
+              )}
               {bill.status === "completed" && (
                 <Link
                   href={`/bills/${bill.id}/return`}
@@ -371,14 +336,6 @@ export default function BillViewPage() {
               )}
             </div>
           </div>
-
-          {canEditCompletedLines && (
-            <p className="text-warning text-sm">
-              This bill can still be edited directly — that window closes{" "}
-              {EDITABLE_COMPLETED_BILL_WINDOW_HOURS} hours after completion. After that, use Return
-              instead.
-            </p>
-          )}
 
           <dl className="bg-border grid grid-cols-1 gap-px overflow-hidden rounded-lg border sm:grid-cols-2 lg:grid-cols-3">
             {[
@@ -411,65 +368,35 @@ export default function BillViewPage() {
                   <TableHead>Total</TableHead>
                   <TableHead>Source</TableHead>
                   <TableHead>Status</TableHead>
-                  {canEditCompletedLines && <TableHead />}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {bill.lines.map((line) => {
-                  const editable = canEditCompletedLines && line.status === "active";
-                  return (
-                    <TableRow key={line.id}>
-                      <TableCell>
-                        <div>{line.productName}</div>
-                        <div className="text-muted-foreground text-xs">{line.productBarcode}</div>
-                      </TableCell>
-                      <TableCell>
-                        {editable ? (
-                          <EditableLineValue
-                            value={line.quantity}
-                            min={1}
-                            onCommit={(next) => void updateLineQuantity(line.id, next)}
-                          />
-                        ) : (
-                          line.quantity
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {currencySymbol}
-                        {money(line.unitPrice)}
-                      </TableCell>
-                      <TableCell>
-                        {line.discountApplied
-                          ? `${currencySymbol}${money(line.discountApplied)}`
-                          : "—"}
-                      </TableCell>
-                      <TableCell>
-                        {currencySymbol}
-                        {money(line.lineTotal)}
-                      </TableCell>
-                      <TableCell>
-                        <LineSource bill={bill} line={line} />
-                      </TableCell>
-                      <TableCell className="capitalize">{line.status}</TableCell>
-                      {canEditCompletedLines && (
-                        <TableCell>
-                          {editable && (
-                            <Button
-                              type="button"
-                              variant="destructive"
-                              size="sm"
-                              data-kbd-item=""
-                              disabled={updatingLineId === line.id}
-                              onClick={() => void removeLine(line.id)}
-                            >
-                              Remove
-                            </Button>
-                          )}
-                        </TableCell>
-                      )}
-                    </TableRow>
-                  );
-                })}
+                {bill.lines.map((line) => (
+                  <TableRow key={line.id}>
+                    <TableCell>
+                      <div>{line.productName}</div>
+                      <div className="text-muted-foreground text-xs">{line.productBarcode}</div>
+                    </TableCell>
+                    <TableCell>{line.quantity}</TableCell>
+                    <TableCell>
+                      {currencySymbol}
+                      {money(line.unitPrice)}
+                    </TableCell>
+                    <TableCell>
+                      {line.discountApplied
+                        ? `${currencySymbol}${money(line.discountApplied)}`
+                        : "—"}
+                    </TableCell>
+                    <TableCell>
+                      {currencySymbol}
+                      {money(line.lineTotal)}
+                    </TableCell>
+                    <TableCell>
+                      <LineSource bill={bill} line={line} />
+                    </TableCell>
+                    <TableCell className="capitalize">{line.status}</TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           </div>

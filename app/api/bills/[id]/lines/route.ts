@@ -5,10 +5,12 @@ import {
   blockLineAllocations,
   replaceBillLineAllocations,
 } from "@/lib/billing/allocateBillLineStock";
+import { isCompletedBillStillEditable } from "@/lib/billing/editableCompletedBillWindow";
 import {
   getSelfBlockedByWarehouse,
   applySelfBlocked,
 } from "@/lib/billing/getSelfBlockedByWarehouse";
+import { getSelfSoldByWarehouse } from "@/lib/billing/getSelfSoldByWarehouse";
 import { getStoreWideAvailable } from "@/lib/billing/getStoreWideAvailable";
 import { getWarehouseAvailability } from "@/lib/billing/getWarehouseAvailability";
 import { recomputeBillTotals } from "@/lib/billing/recomputeBillTotals";
@@ -50,10 +52,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (session.user.storeId && bill.storeId !== session.user.storeId) {
       return apiErrorResponse("not_found", "Bill not found.", 404);
     }
-    if (bill.status !== "draft" && bill.status !== "held") {
+    const inProgress = bill.status === "draft" || bill.status === "held";
+    const editableCompleted =
+      bill.status === "completed" && isCompletedBillStillEditable(bill.completedAt);
+    if (!inProgress && !editableCompleted) {
       return apiErrorResponse("bad_request", `Can't add items to a ${bill.status} bill.`, 400);
     }
     const isHeld = bill.status === "held";
+    const isCompleted = bill.status === "completed";
+    const hardValidated = isHeld || isCompleted;
 
     const product = await db.product.findUnique({
       where: { id: data.productId },
@@ -64,12 +71,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
 
     const isHeldStockTracked = isHeld && product.stockTracked;
-    const [existingLine, perWarehouse, selfBlocked, reasonCode] = await Promise.all([
+    const isCompletedStockTracked = isCompleted && product.stockTracked;
+    const [existingLine, perWarehouse, selfBlocked, selfSold, reasonCode] = await Promise.all([
       db.billLine.findFirst({
         where: { billId: id, productId: data.productId, status: "active" },
       }),
       product.stockTracked ? getWarehouseAvailability(bill.storeId, data.productId) : [],
       isHeldStockTracked ? getSelfBlockedByWarehouse(id, data.productId) : null,
+      isCompletedStockTracked ? getSelfSoldByWarehouse(id, data.productId) : null,
       isHeldStockTracked
         ? db.reasonCode.findFirst({
             where: { category: "stock_block", label: "Reserved — pending bill" },
@@ -79,15 +88,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const existingQuantity = existingLine?.quantity ?? 0;
     const newQuantity = existingQuantity + (data.quantity ?? 1);
 
-    // On a held bill, this line's current block already subtracts from
-    // `available` — add it back so editing an already-blocked line isn't
-    // checked against its own reservation.
-    const effectivePerWarehouse = selfBlocked
-      ? applySelfBlocked(perWarehouse, selfBlocked)
+    const selfContribution = selfBlocked ?? selfSold;
+    const effectivePerWarehouse = selfContribution
+      ? applySelfBlocked(perWarehouse, selfContribution)
       : perWarehouse;
 
-    // Draft reserves nothing, so oversell there is only a warning. Held is
-    // a real reservation, so it's a hard block instead.
     let stockWarning: string | undefined;
     if (product.stockTracked) {
       const storeAvailable = await getStoreWideAvailable(
@@ -98,7 +103,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       const resultingAvailable = storeAvailable + existingQuantity - newQuantity;
       if (resultingAvailable < 0) {
         const message = `Only ${storeAvailable + existingQuantity} of ${product.name} available across this store's warehouses.`;
-        if (isHeld) return apiErrorResponse("bad_request", message, 400);
+        if (hardValidated) return apiErrorResponse("bad_request", message, 400);
         stockWarning = message;
       }
     }
@@ -124,7 +129,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         })
       : { allocations: [] };
     if ("error" in allocResult) {
-      if (isHeld) return apiErrorResponse("bad_request", allocResult.error, 400);
+      if (hardValidated) return apiErrorResponse("bad_request", allocResult.error, 400);
       stockWarning = allocResult.error;
     } else if (allocResult.fellBack) {
       stockWarning =

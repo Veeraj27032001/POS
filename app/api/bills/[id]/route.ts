@@ -1,6 +1,10 @@
 import { auth } from "@/auth";
 import { hasPermission } from "@/lib/auth/rbac";
 import { asAppSession } from "@/lib/auth/types";
+import {
+  EDITABLE_COMPLETED_BILL_WINDOW_HOURS,
+  isCompletedBillStillEditable,
+} from "@/lib/billing/editableCompletedBillWindow";
 import { billAttachCustomerSchema } from "@/lib/billing/schemas";
 import { getBillOutstandingBalance } from "@/lib/credit/getOutstandingBalance";
 import { unscoped } from "@/lib/db";
@@ -99,8 +103,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (session.user.storeId && bill.storeId !== session.user.storeId) {
       return apiErrorResponse("not_found", "Bill not found.", 404);
     }
-    if (bill.status !== "draft" && bill.status !== "held") {
-      return apiErrorResponse("bad_request", `Can't update a ${bill.status} bill.`, 400);
+    const inProgress = bill.status === "draft" || bill.status === "held";
+    const editableCompleted =
+      bill.status === "completed" && isCompletedBillStillEditable(bill.completedAt);
+    if (!inProgress && !editableCompleted) {
+      const reason =
+        bill.status === "completed"
+          ? `This bill was completed more than ${EDITABLE_COMPLETED_BILL_WINDOW_HOURS} hours ago and can no longer be edited directly — use Return instead.`
+          : `Can't update a ${bill.status} bill.`;
+      return apiErrorResponse("bad_request", reason, 400);
     }
 
     const updates: Record<string, unknown> = {};
