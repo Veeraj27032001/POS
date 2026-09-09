@@ -71,20 +71,18 @@ export function AppNav({ groups, collapsed = false }: AppNavProps) {
       const prev = Math.max(0, index - 1);
       itemRefs.current[prev]?.focus();
     } else if (event.key === "ArrowRight") {
-      event.preventDefault();
       const item = flatItems[index];
       // Prefix match, not just equality — matches focusCurrentNavLink's own
-      // logic for the reverse direction. Without this, pressing Right again
-      // while already on a nested/detail route under this section (e.g.
-      // /products/abc123, whose nav link's href is just /products) found no
-      // exact match and re-clicked the link, navigating back to the list
-      // page and discarding whatever detail view was open.
+      // logic for the reverse direction.
       const alreadyHere = item.href === pathname || pathname.startsWith(`${item.href}/`);
-      if (alreadyHere) {
-        document.querySelector<HTMLElement>("main [data-kbd-item]")?.focus();
-      } else {
-        itemRefs.current[index]?.click();
-      }
+      // Right arrow only ever moves focus into the current page's own
+      // content — it never navigates. Navigating to a different page is
+      // Enter's job (native <a> activation), same as every other link on
+      // the page; this is what makes it impossible for an arrow key to
+      // ever trigger an unwanted page reload.
+      if (!alreadyHere) return;
+      event.preventDefault();
+      document.querySelector<HTMLElement>("main [data-kbd-item]")?.focus();
     }
   }
 

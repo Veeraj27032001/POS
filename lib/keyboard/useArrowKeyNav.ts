@@ -30,32 +30,45 @@ function isTextEditable(el: HTMLElement): boolean {
 }
 
 // Selection range isn't supported on every input type — Chromium returns
-// null (not a throw) for type="number"/"date"/etc. rather than a real
-// offset, so it must be checked explicitly: comparing null against a
-// numeric target (0, or the value's length) is never true, which silently
-// made caretAtEnd unreachable and stuck every such field's ArrowRight with
-// no way out. Some other browsers throw instead for the same types, so
-// that's still caught too. Either way, failing open (treating it as "at
-// the boundary") means arrow-key navigation still works there instead of
-// getting stuck with no way to tell the caret's real position.
+// null (not a throw; confirmed directly, not assumed) for
+// type="number"/"date" rather than a real offset. For those two, failing
+// open (treating it as "at the boundary") is actually correct: each owns
+// Left/Right internally for its own spinner/segment behavior, so there's
+// no real caret position to preserve and handing the keystroke onward is
+// the right call. type="email" returns null too, but has no such native
+// owner — it's a plain text field like any other, so failing open there
+// instead made every Left/Right on it act as if the caret were always at
+// both ends simultaneously, ejecting focus on the very first keystroke
+// regardless of where the caret actually was. Anything else that reports
+// null (a future input type, or a browser that returns null somewhere
+// Chromium doesn't) fails closed instead — Left/Right simply won't be a
+// way to leave that field, same as a plain page with no custom nav at
+// all; Tab still works. Some browsers throw instead of returning null for
+// the same types, so that's caught too, with the same type-based split.
+const BOUNDARY_FAILS_OPEN_TYPES = new Set(["number", "date"]);
+
+function failsOpen(el: HTMLElement): boolean {
+  return el.tagName === "INPUT" && BOUNDARY_FAILS_OPEN_TYPES.has((el as HTMLInputElement).type);
+}
+
 function caretAtStart(el: HTMLElement): boolean {
   try {
     const input = el as HTMLInputElement | HTMLTextAreaElement;
-    if (input.selectionStart === null || input.selectionEnd === null) return true;
+    if (input.selectionStart === null || input.selectionEnd === null) return failsOpen(el);
     return input.selectionStart === 0 && input.selectionEnd === 0;
   } catch {
-    return true;
+    return failsOpen(el);
   }
 }
 
 function caretAtEnd(el: HTMLElement): boolean {
   try {
     const input = el as HTMLInputElement | HTMLTextAreaElement;
-    if (input.selectionStart === null || input.selectionEnd === null) return true;
+    if (input.selectionStart === null || input.selectionEnd === null) return failsOpen(el);
     const length = input.value?.length ?? 0;
     return input.selectionStart === length && input.selectionEnd === length;
   } catch {
-    return true;
+    return failsOpen(el);
   }
 }
 
