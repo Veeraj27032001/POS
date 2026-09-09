@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { getPrintBridge } from "@/lib/adapters/print";
 import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
 import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
+import { useHsnCodeSearch } from "@/lib/masters/useHsnCodeSearch";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 import { useTaxPreferences } from "@/lib/masters/useTaxPreferences";
 import { useInvalidateResource } from "@/lib/pagination/useList";
@@ -53,7 +54,8 @@ export default function ProductViewPage() {
   const [deleting, setDeleting] = useState(false);
   const invalidate = useInvalidateResource();
   const categories = useOptionsList("categories", "name");
-  const hsnCodes = useOptionsList("hsn-codes/options", "hsnCode");
+  const { resolveLabel: resolveHsnCodeLabel } = useHsnCodeSearch();
+  const [hsnCodeLabel, setHsnCodeLabel] = useState<string | null>(null);
   const uoms = useOptionsList("uoms", "name");
   const preferences = useTaxPreferences();
   const hsnEnabled = preferences?.hsnTaxDisplayEnabled ?? false;
@@ -67,6 +69,20 @@ export default function ProductViewPage() {
       .then((res) => (res.ok ? res.json() : null))
       .then(setRow);
   }, [id]);
+
+  useEffect(() => {
+    if (!row?.hsnCodeId) {
+      setHsnCodeLabel(null);
+      return;
+    }
+    let cancelled = false;
+    resolveHsnCodeLabel(row.hsnCodeId).then((label) => {
+      if (!cancelled) setHsnCodeLabel(label);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [row?.hsnCodeId, resolveHsnCodeLabel]);
 
   async function handleToggleActive() {
     if (!row) return;
@@ -217,7 +233,7 @@ export default function ProductViewPage() {
           {[
             ["Name", row.name],
             ["Category", lookupLabel(categories, row.categoryId)],
-            ...(hsnEnabled ? [["HSN code", lookupLabel(hsnCodes, row.hsnCodeId)]] : []),
+            ...(hsnEnabled ? [["HSN code", hsnCodeLabel ?? (row.hsnCodeId ? "…" : "—")]] : []),
             ["Unit of measure", lookupLabel(uoms, row.uomId)],
             ["Price", row.price],
             ["Default cost price", row.defaultCostPrice ?? "—"],

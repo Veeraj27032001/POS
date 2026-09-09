@@ -45,8 +45,19 @@ export function AppNav({ groups, collapsed = false }: AppNavProps) {
   // just-clicked link mid-transition and silently cancelling the navigation.
   useEffect(() => {
     if (pathname === "/billing") return;
-    const idx = flatItems.findIndex((item) => item.href === pathname);
-    if (idx >= 0) itemRefs.current[idx]?.focus();
+    // Longest-prefix match, not just equality — a detail/nested route (e.g.
+    // /products/abc123) has no nav item with that exact href, only a
+    // parent-section one (/products), which should still end up focused.
+    let bestIdx = -1;
+    let bestLength = -1;
+    flatItems.forEach((item, i) => {
+      const matches = item.href === pathname || pathname.startsWith(`${item.href}/`);
+      if (matches && item.href.length > bestLength) {
+        bestIdx = i;
+        bestLength = item.href.length;
+      }
+    });
+    if (bestIdx >= 0) itemRefs.current[bestIdx]?.focus();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
@@ -62,7 +73,14 @@ export function AppNav({ groups, collapsed = false }: AppNavProps) {
     } else if (event.key === "ArrowRight") {
       event.preventDefault();
       const item = flatItems[index];
-      if (item.href === pathname) {
+      // Prefix match, not just equality — matches focusCurrentNavLink's own
+      // logic for the reverse direction. Without this, pressing Right again
+      // while already on a nested/detail route under this section (e.g.
+      // /products/abc123, whose nav link's href is just /products) found no
+      // exact match and re-clicked the link, navigating back to the list
+      // page and discarding whatever detail view was open.
+      const alreadyHere = item.href === pathname || pathname.startsWith(`${item.href}/`);
+      if (alreadyHere) {
         document.querySelector<HTMLElement>("main [data-kbd-item]")?.focus();
       } else {
         itemRefs.current[index]?.click();

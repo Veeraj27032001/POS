@@ -23,6 +23,57 @@ function delegateOf(name: string) {
   return (client: unknown) => (client as Record<string, ResourceDelegate>)[name];
 }
 
+// Soft delete never hits a real FK constraint, so a warehouse/terminal/
+// denomination still referenced by real transactional records would
+// otherwise just vanish from every list while every row still pointing at
+// it keeps working — silently orphaning history. Checked directly against
+// every table that actually carries the FK, not derived from a single
+// "in use" flag, so this can't drift out of sync with the schema silently.
+async function assertWarehouseNotInUse(warehouseId: string): Promise<{ forbidden: string } | null> {
+  const db = unscoped();
+  const counts = await Promise.all([
+    db.stockInwardMain.count({ where: { warehouseId } }),
+    db.stockDamageMain.count({ where: { warehouseId } }),
+    db.stockBlockMain.count({ where: { warehouseId } }),
+    db.stockTransferMain.count({ where: { sourceWarehouseId: warehouseId } }),
+    db.stockTransferItem.count({ where: { destinationWarehouseId: warehouseId } }),
+    db.stockPositiveAdjustmentMain.count({ where: { warehouseId } }),
+    db.stockOpeningMain.count({ where: { warehouseId } }),
+    db.stockNegativeAdjustmentMain.count({ where: { warehouseId } }),
+    db.stockQualityCheckMain.count({ where: { warehouseId } }),
+    db.ecommerceOrderItemLock.count({ where: { warehouseId } }),
+    db.billLineWarehouseAllocation.count({ where: { warehouseId } }),
+    db.billReturnLine.count({ where: { warehouseId } }),
+  ]);
+  if (counts.some((c) => c > 0)) {
+    return { forbidden: "This warehouse has stock or billing history and cannot be deleted." };
+  }
+  return null;
+}
+
+async function assertTerminalNotInUse(terminalId: string): Promise<{ forbidden: string } | null> {
+  const db = unscoped();
+  const [billCount, shiftCount] = await Promise.all([
+    db.bill.count({ where: { terminalId } }),
+    db.shift.count({ where: { terminalId } }),
+  ]);
+  if (billCount > 0 || shiftCount > 0) {
+    return { forbidden: "This terminal has been used for billing and cannot be deleted." };
+  }
+  return null;
+}
+
+async function assertCashDenominationNotInUse(
+  denominationId: string,
+): Promise<{ forbidden: string } | null> {
+  const db = unscoped();
+  const count = await db.shiftCashCount.count({ where: { denominationId } });
+  if (count > 0) {
+    return { forbidden: "This denomination has been used in a shift count and cannot be deleted." };
+  }
+  return null;
+}
+
 // For models with a stores many-to-many relation (Customer, Supplier):
 // wraps the delegate to always include the related store ids (needed for
 // the multi-select field to show its current value), and turns an incoming
@@ -174,6 +225,7 @@ export const warehouseResource = defineResource({
   updateSchema: schemas.warehouseUpdateSchema,
   searchFields: ["name"],
   getDelegate: delegateOf("warehouse"),
+  beforeDelete: (existing) => assertWarehouseNotInUse(existing.id as string),
 });
 
 export const terminalResource = defineResource({
@@ -188,6 +240,7 @@ export const terminalResource = defineResource({
   // The hidden per-store online-order terminal is never shown here — it's
   // not something staff pick or manage, just an FK target for online bills.
   extraWhere: () => ({ isSystemGenerated: false }),
+  beforeDelete: (existing) => assertTerminalNotInUse(existing.id as string),
 });
 
 export const paymentMethodResource = defineResource({
@@ -249,6 +302,7 @@ export const cashDenominationResource = defineResource({
   createSchema: schemas.cashDenominationCreateSchema,
   updateSchema: schemas.cashDenominationUpdateSchema,
   getDelegate: delegateOf("cashDenomination"),
+  beforeDelete: (existing) => assertCashDenominationNotInUse(existing.id as string),
 });
 
 export const billFormatResource = defineResource({

@@ -311,6 +311,11 @@ export function defineResource<TCreate, TUpdate>(config: ResourceConfig<TCreate,
         return apiErrorResponse("not_supported", "This record cannot be deleted.", 400);
       }
 
+      if (config.beforeDelete) {
+        const rejection = await config.beforeDelete(existing, session);
+        if (rejection) return apiErrorResponse("forbidden", rejection.forbidden, 409);
+      }
+
       const updated = await delegate.update({ where: { id }, data: { isDeleted: true } });
 
       await writeAuditLog({

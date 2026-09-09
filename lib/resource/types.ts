@@ -76,6 +76,17 @@ export interface ResourceConfig<TCreate, TUpdate> {
     existing: Record<string, unknown>,
     session: AppSession,
   ) => void | Promise<void>;
+  /** Runs before a (soft) delete — return a rejection to block it, e.g. a
+   * master still referenced by real transactional records (stock documents,
+   * bills, shifts). Deliberately not a Prisma-relation "cannot delete"
+   * error: soft delete never hits a real FK constraint, so without this the
+   * record would just quietly disappear from every list while every row
+   * still pointing at it keeps working, silently orphaning history. Return
+   * null to allow the delete. */
+  beforeDelete?: (
+    existing: Record<string, unknown>,
+    session: AppSession,
+  ) => ResourceHookRejection | null | Promise<ResourceHookRejection | null>;
   /** Extra `where` conditions merged into every read/write, e.g. to hide
    * higher-privilege rows from lower-privilege viewers (Users' role
    * hierarchy). Applied on top of, never instead of, store scoping. */

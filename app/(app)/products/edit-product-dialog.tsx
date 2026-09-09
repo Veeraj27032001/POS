@@ -25,6 +25,7 @@ import { Label } from "@/components/ui/label";
 import { useSubmitGuard } from "@/lib/forms/useSubmitGuard";
 import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { productUpdateSchema } from "@/lib/masters/schemas";
+import { useHsnCodeSearch } from "@/lib/masters/useHsnCodeSearch";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
 import { useTaxPreferences } from "@/lib/masters/useTaxPreferences";
 
@@ -47,7 +48,7 @@ export function EditProductDialog(props: EditProductDialogProps) {
   const { id, onSaved, ...current } = props;
   const [open, setOpen] = useState(false);
   const categories = useOptionsList("categories", "name");
-  const hsnCodes = useOptionsList("hsn-codes/options", "hsnCode");
+  const hsnCodeSearch = useHsnCodeSearch();
   const uoms = useOptionsList("uoms", "name");
   const preferences = useTaxPreferences();
   const hsnEnabled = preferences?.hsnTaxDisplayEnabled ?? false;
@@ -150,7 +151,8 @@ export function EditProductDialog(props: EditProductDialogProps) {
                   render={({ field }) => (
                     <SearchableSelect
                       data-kbd-item=""
-                      options={hsnCodes}
+                      onSearch={hsnCodeSearch.onSearch}
+                      resolveLabel={hsnCodeSearch.resolveLabel}
                       value={field.value ?? null}
                       onChange={(v) => field.onChange(v ?? "")}
                       placeholder="Select HSN code…"

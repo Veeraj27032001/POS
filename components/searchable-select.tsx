@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, ChevronsUpDown } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   Command,
@@ -12,6 +12,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 import { cn } from "@/lib/utils";
 
 export interface SearchableSelectOption {
@@ -20,7 +21,19 @@ export interface SearchableSelectOption {
 }
 
 export interface SearchableSelectProps {
-  options: SearchableSelectOption[];
+  /** The full option list, held client-side — fine for masters up to a few
+   * hundred rows. For anything larger, use `onSearch` instead so the list
+   * is never fetched or rendered all at once. */
+  options?: SearchableSelectOption[];
+  /** Server-search mode: called (debounced) with the current search text,
+   * including an empty string on first open, and expected to return an
+   * already-capped page of matches. Use for masters too large to hold or
+   * render as a flat list (e.g. tens of thousands of rows). */
+  onSearch?: (query: string) => Promise<SearchableSelectOption[]>;
+  /** Required alongside onSearch whenever `value` isn't null — the search
+   * page is capped, so an already-selected value's label can't always be
+   * found in it; this resolves that one value directly instead. */
+  resolveLabel?: (value: string) => Promise<string | null>;
   value: string | null;
   onChange: (value: string | null) => void;
   placeholder?: string;
@@ -33,6 +46,8 @@ export interface SearchableSelectProps {
 
 export function SearchableSelect({
   options,
+  onSearch,
+  resolveLabel,
   value,
   onChange,
   placeholder = "Select…",
@@ -43,10 +58,66 @@ export function SearchableSelect({
   "data-kbd-item": dataKbdItem,
 }: SearchableSelectProps) {
   const [open, setOpen] = useState(false);
-  const selected = options.find((o) => o.value === value);
+  const [query, setQuery] = useState("");
+  const debouncedQuery = useDebouncedValue(query, 250);
+  const [searchResults, setSearchResults] = useState<SearchableSelectOption[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [resolvedLabel, setResolvedLabel] = useState<string | null>(null);
+
+  // Server-search mode fetches a fresh page whenever the (debounced) query
+  // changes, including once on open with an empty query so the list isn't
+  // blank before the user types anything.
+  useEffect(() => {
+    if (!onSearch || !open) return;
+    let cancelled = false;
+    setSearching(true);
+    onSearch(debouncedQuery)
+      .then((results) => {
+        if (!cancelled) setSearchResults(results);
+      })
+      .finally(() => {
+        if (!cancelled) setSearching(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [onSearch, open, debouncedQuery]);
+
+  // The selected value's label may not be in the current search page —
+  // resolve it directly so the trigger button doesn't just show a raw id.
+  useEffect(() => {
+    if (!onSearch || !resolveLabel || !value) {
+      setResolvedLabel(null);
+      return;
+    }
+    const fromResults = searchResults.find((o) => o.value === value)?.label;
+    if (fromResults) {
+      setResolvedLabel(fromResults);
+      return;
+    }
+    let cancelled = false;
+    resolveLabel(value).then((label) => {
+      if (!cancelled) setResolvedLabel(label);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onSearch, resolveLabel, value]);
+
+  const items = onSearch ? searchResults : (options ?? []);
+  const selectedLabel = onSearch
+    ? resolvedLabel
+    : (options ?? []).find((o) => o.value === value)?.label;
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) setQuery("");
+      }}
+    >
       <PopoverTrigger
         disabled={disabled}
         data-kbd-item={dataKbdItem}
@@ -55,21 +126,25 @@ export function SearchableSelect({
           className,
         )}
       >
-        <span className={selected ? "" : "text-muted-foreground"}>
-          {selected ? selected.label : placeholder}
+        <span className={selectedLabel ? "" : "text-muted-foreground"}>
+          {selectedLabel ?? placeholder}
         </span>
         <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
       </PopoverTrigger>
       <PopoverContent className="w-(--anchor-width) p-0" align="start">
-        <Command>
-          <CommandInput placeholder={searchPlaceholder} />
+        <Command shouldFilter={!onSearch}>
+          <CommandInput
+            placeholder={searchPlaceholder}
+            value={onSearch ? query : undefined}
+            onValueChange={onSearch ? setQuery : undefined}
+          />
           <CommandList>
-            <CommandEmpty>{emptyMessage}</CommandEmpty>
+            <CommandEmpty>{searching ? "Searching…" : emptyMessage}</CommandEmpty>
             <CommandGroup>
-              {options.map((option) => (
+              {items.map((option) => (
                 <CommandItem
                   key={option.value}
-                  value={option.label}
+                  value={onSearch ? option.value : option.label}
                   onSelect={() => {
                     onChange(option.value === value ? null : option.value);
                     setOpen(false);
