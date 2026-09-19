@@ -81,7 +81,7 @@ export default function StaleStockBlocksPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Transaction No.</TableHead>
-                <TableHead>Warehouse</TableHead>
+                <TableHead>Storage</TableHead>
                 <TableHead>Product</TableHead>
                 <TableHead>Quantity</TableHead>
                 <TableHead>Blocked on</TableHead>

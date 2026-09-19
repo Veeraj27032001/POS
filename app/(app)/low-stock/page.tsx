@@ -30,7 +30,7 @@ export default function LowStockPage() {
       <div>
         <h1 className="text-2xl font-semibold">Low Stock</h1>
         <p className="text-muted-foreground text-sm">
-          Products at or below their reorder level for the selected warehouse.
+          Products at or below their reorder level for the selected storage location.
         </p>
       </div>
 
@@ -40,12 +40,14 @@ export default function LowStockPage() {
           options={warehouses}
           value={warehouseId}
           onChange={setWarehouseId}
-          placeholder="Select warehouse…"
+          placeholder="Select storage…"
         />
       </div>
 
       {!warehouseId && (
-        <p className="text-muted-foreground text-sm">Select a warehouse to check its stock.</p>
+        <p className="text-muted-foreground text-sm">
+          Select a storage location to check its stock.
+        </p>
       )}
 
       {warehouseId && (

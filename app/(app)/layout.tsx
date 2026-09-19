@@ -79,7 +79,7 @@ const NAV_ITEM_MODULE: Record<string, string> = {
   "/suppliers": "suppliers",
   "/users": "users",
   "/stores": "stores",
-  "/warehouses": "settings",
+  "/warehouses": "warehouses",
   "/terminals": "settings",
   "/payment-methods": "payment_methods",
   "/reason-codes": "reason_codes",
@@ -267,7 +267,7 @@ const NAV_GROUPS: AppNavGroup[] = [
     label: "Operations",
     items: [
       { href: "/stores", label: "Stores", icon: <Store className="h-4 w-4" /> },
-      { href: "/warehouses", label: "Warehouses", icon: <Warehouse className="h-4 w-4" /> },
+      { href: "/warehouses", label: "Storage", icon: <Warehouse className="h-4 w-4" /> },
       { href: "/terminals", label: "Terminals", icon: <Store className="h-4 w-4" /> },
       {
         href: "/payment-methods",

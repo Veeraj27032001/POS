@@ -119,7 +119,7 @@ export default function StockOpeningViewPage() {
 
           <dl className="bg-border grid grid-cols-1 gap-px overflow-hidden rounded-lg border sm:grid-cols-2">
             {[
-              ["Warehouse", lookupLabel(warehouses, row.warehouseId)],
+              ["Storage", lookupLabel(warehouses, row.warehouseId)],
               ["Opening date", formatDateOnly(toDateOnly(row.openingDate))],
               ["Notes", row.notes ?? "—"],
             ].map(([label, value]) => (

@@ -101,7 +101,7 @@ export default function NewStockTransferPage() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label>
-                  Source warehouse
+                  Source storage
                   <RequiredMark />
                 </Label>
                 <Controller
@@ -112,7 +112,7 @@ export default function NewStockTransferPage() {
                       options={warehouses}
                       value={field.value ?? null}
                       onChange={(v) => field.onChange(v ?? "")}
-                      placeholder="Select warehouse…"
+                      placeholder="Select storage…"
                       data-kbd-item=""
                     />
                   )}
@@ -151,7 +151,7 @@ export default function NewStockTransferPage() {
                       checked={destinationKind === "warehouse"}
                       onChange={() => handleDestinationKindChange("warehouse")}
                     />
-                    Same store — another warehouse
+                    Same store — another storage location
                   </label>
                   <label className="flex items-center gap-1.5">
                     <input
@@ -177,7 +177,7 @@ export default function NewStockTransferPage() {
                       onChange={(v) => field.onChange(v ?? "")}
                       placeholder={
                         destinationKind === "warehouse"
-                          ? "Select destination warehouse…"
+                          ? "Select destination storage…"
                           : "Select destination store…"
                       }
                       data-kbd-item=""
@@ -190,7 +190,8 @@ export default function NewStockTransferPage() {
                 {destinationKind === "store" && (
                   <p className="text-muted-foreground text-xs">
                     The destination store will receive this as a pending request — the stock stays
-                    blocked at the source warehouse until they accept, reject, or you cancel it.
+                    blocked at the source storage location until they accept, reject, or you cancel
+                    it.
                   </p>
                 )}
               </div>

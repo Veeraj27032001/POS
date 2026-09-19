@@ -121,7 +121,7 @@ export async function POST(request: Request) {
           allocations = allocResult.allocations;
           if (allocResult.fellBack) {
             allocationWarning =
-              "The chosen warehouse split no longer has enough stock — showing an automatic reallocation instead.";
+              "The chosen storage split no longer has enough stock — showing an automatic reallocation instead.";
           }
         }
         for (const w of perWarehouse) warehouseIds.add(w.warehouseId);

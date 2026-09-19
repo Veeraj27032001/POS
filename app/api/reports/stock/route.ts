@@ -57,7 +57,7 @@ export async function GET(request: Request) {
       orderBy: { name: "asc" },
     });
     if (warehouseId && warehouses.length === 0) {
-      return apiErrorResponse("not_found", "Warehouse not found.", 404);
+      return apiErrorResponse("not_found", "Storage location not found.", 404);
     }
 
     const products = await db.product.findMany({

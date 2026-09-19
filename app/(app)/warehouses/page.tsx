@@ -30,7 +30,7 @@ export default function WarehousesPage() {
           z.infer<typeof warehouseUpdateSchema>
         >
           resource="warehouses"
-          title="Warehouses"
+          title="Storage"
           columns={[
             { key: "name", header: "Name" },
             { key: "address", header: "Address" },

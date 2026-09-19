@@ -23,7 +23,7 @@ export async function GET(request: Request) {
   if (!financialYearId || !warehouseId || !productId) {
     return apiErrorResponse(
       "bad_request",
-      "Financial year, warehouse and product are all required.",
+      "Financial year, storage location and product are all required.",
       400,
     );
   }
@@ -38,10 +38,10 @@ export async function GET(request: Request) {
 
     const warehouse = await db.warehouse.findUnique({ where: { id: warehouseId } });
     if (!warehouse) {
-      return apiErrorResponse("not_found", "Warehouse not found.", 404);
+      return apiErrorResponse("not_found", "Storage location not found.", 404);
     }
     if (session.user.storeId && warehouse.storeId !== session.user.storeId) {
-      return apiErrorResponse("forbidden", "That warehouse belongs to another store.", 403);
+      return apiErrorResponse("forbidden", "That storage location belongs to another store.", 403);
     }
 
     const product = await db.product.findUnique({ where: { id: productId } });

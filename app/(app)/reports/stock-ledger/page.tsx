@@ -107,8 +107,8 @@ export default function StockLedgerReportPage() {
       <div>
         <h1 className="text-2xl font-semibold">Stock Ledger</h1>
         <p className="text-muted-foreground text-sm">
-          Opening balance, every movement, and closing balance for one product at one warehouse
-          across a financial year.
+          Opening balance, every movement, and closing balance for one product at one storage
+          location across a financial year.
         </p>
       </div>
 
@@ -131,7 +131,7 @@ export default function StockLedgerReportPage() {
               options={warehouses}
               value={warehouseId}
               onChange={setWarehouseId}
-              placeholder="Warehouse"
+              placeholder="Storage"
             />
           </div>
           <div className="w-64 space-y-1.5">
@@ -154,7 +154,7 @@ export default function StockLedgerReportPage() {
           <dl className="bg-border grid grid-cols-1 gap-px overflow-hidden rounded-lg border sm:grid-cols-3">
             {[
               ["Product", result.productName],
-              ["Warehouse", result.warehouseName],
+              ["Storage", result.warehouseName],
               ["Financial Year", result.financialYearLabel],
               ["Opening Balance", String(result.openingBalance)],
               ["Closing Balance", String(result.closingBalance)],

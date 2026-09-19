@@ -121,7 +121,7 @@ export default function StockPositiveAdjustmentViewPage() {
 
           <dl className="bg-border grid grid-cols-1 gap-px overflow-hidden rounded-lg border sm:grid-cols-2">
             {[
-              ["Warehouse", lookupLabel(warehouses, row.warehouseId)],
+              ["Storage", lookupLabel(warehouses, row.warehouseId)],
               ["Adjustment date", formatDateOnly(toDateOnly(row.adjustmentDate))],
               ["Notes", row.notes ?? "—"],
             ].map(([label, value]) => (

@@ -88,7 +88,7 @@ export default function NewStockNegativeAdjustmentPage() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label>
-                  Warehouse
+                  Storage
                   <RequiredMark />
                 </Label>
                 <Controller
@@ -99,7 +99,7 @@ export default function NewStockNegativeAdjustmentPage() {
                       options={warehouses}
                       value={field.value ?? null}
                       onChange={(v) => field.onChange(v ?? "")}
-                      placeholder="Select warehouse…"
+                      placeholder="Select storage…"
                       data-kbd-item=""
                     />
                   )}

@@ -35,7 +35,7 @@ export default function StockTransfersPage() {
     { key: "documentNumber", header: "Transaction No." },
     {
       key: "sourceWarehouseId",
-      header: "Source warehouse",
+      header: "Source storage",
       render: (row: StockTransferRow) =>
         warehouses.find((w) => w.value === row.sourceWarehouseId)?.label ?? "—",
     },

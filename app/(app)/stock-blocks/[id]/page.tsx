@@ -150,7 +150,7 @@ export default function StockBlockViewPage() {
 
           <dl className="bg-border grid grid-cols-1 gap-px overflow-hidden rounded-lg border sm:grid-cols-2">
             {[
-              ["Warehouse", lookupLabel(warehouses, row.warehouseId)],
+              ["Storage", lookupLabel(warehouses, row.warehouseId)],
               ["Blocked on", formatDateOnly(toDateOnly(row.blockedAt))],
               [
                 "Review by date",

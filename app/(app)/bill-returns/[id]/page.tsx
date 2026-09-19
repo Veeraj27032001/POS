@@ -286,7 +286,7 @@ export default function BillReturnDetailPage() {
                   <TableHead>Product</TableHead>
                   <TableHead>Qty</TableHead>
                   <TableHead>Condition</TableHead>
-                  <TableHead>Warehouse</TableHead>
+                  <TableHead>Storage</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

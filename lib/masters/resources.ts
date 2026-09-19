@@ -46,7 +46,9 @@ async function assertWarehouseNotInUse(warehouseId: string): Promise<{ forbidden
     db.billReturnLine.count({ where: { warehouseId } }),
   ]);
   if (counts.some((c) => c > 0)) {
-    return { forbidden: "This warehouse has stock or billing history and cannot be deleted." };
+    return {
+      forbidden: "This storage location has stock or billing history and cannot be deleted.",
+    };
   }
   return null;
 }
@@ -219,7 +221,7 @@ export const supplierResource = defineResource({
 
 export const warehouseResource = defineResource({
   name: "warehouse",
-  module: "settings",
+  module: "warehouses",
   scoping: "optional",
   createSchema: schemas.warehouseCreateSchema,
   updateSchema: schemas.warehouseUpdateSchema,
@@ -398,6 +400,15 @@ export const storeResource = defineResource({
     }
     await createDefaultBillFormats(newStoreId);
     await getOnlineOrderTerminal(newStoreId);
+    await unscoped().warehouse.create({
+      data: {
+        name: created.name as string,
+        address: created.address as string,
+        countryId: (created.countryId as string | null) ?? null,
+        stateId: (created.stateId as string | null) ?? null,
+        storeId: newStoreId,
+      },
+    });
   },
 });
 

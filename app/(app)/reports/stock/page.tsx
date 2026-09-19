@@ -45,7 +45,7 @@ export default function StockReportPage() {
         <h1 className="text-2xl font-semibold">Stock Report</h1>
         <p className="text-muted-foreground text-sm">
           Current on-hand and available stock for the selected store — per product, or broken down
-          by warehouse.
+          by storage location.
         </p>
       </div>
 
@@ -60,7 +60,7 @@ export default function StockReportPage() {
                 options={warehouses}
                 value={warehouseId}
                 onChange={setWarehouseId}
-                placeholder="All warehouses"
+                placeholder="All storage locations"
               />
             </div>
             <div className="w-56 space-y-1.5">
@@ -79,7 +79,7 @@ export default function StockReportPage() {
                 checked={groupByWarehouse}
                 onCheckedChange={(checked) => setGroupByWarehouse(Boolean(checked))}
               />
-              <Label htmlFor="group-by-warehouse">Break down by warehouse</Label>
+              <Label htmlFor="group-by-warehouse">Break down by storage location</Label>
             </div>
           </div>
 
@@ -103,7 +103,7 @@ export default function StockReportPage() {
                 render: (row) => row.skuBarcode ?? "—",
               },
               { key: "categoryName", header: "Category", render: (row) => row.categoryName ?? "—" },
-              ...(groupByWarehouse ? [{ key: "warehouseName", header: "Warehouse" }] : []),
+              ...(groupByWarehouse ? [{ key: "warehouseName", header: "Storage" }] : []),
               { key: "onHand", header: "On Hand" },
               { key: "available", header: "Available" },
             ]}

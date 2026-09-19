@@ -65,7 +65,7 @@ export default function SalesReportPage() {
                 options={warehouses}
                 value={warehouseId}
                 onChange={setWarehouseId}
-                placeholder="All warehouses"
+                placeholder="All storage locations"
               />
             </div>
             <div className="w-56 space-y-1.5">
@@ -102,7 +102,7 @@ export default function SalesReportPage() {
                 checked={groupByWarehouse}
                 onCheckedChange={(checked) => setGroupByWarehouse(Boolean(checked))}
               />
-              <Label htmlFor="group-by-warehouse">Break down by warehouse</Label>
+              <Label htmlFor="group-by-warehouse">Break down by storage location</Label>
             </div>
           </div>
 
@@ -128,7 +128,7 @@ export default function SalesReportPage() {
                 render: (row) => row.skuBarcode ?? "—",
               },
               { key: "categoryName", header: "Category", render: (row) => row.categoryName ?? "—" },
-              ...(groupByWarehouse ? [{ key: "warehouseName", header: "Warehouse" }] : []),
+              ...(groupByWarehouse ? [{ key: "warehouseName", header: "Storage" }] : []),
               { key: "quantitySold", header: "Qty Sold" },
               {
                 key: "revenue",

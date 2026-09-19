@@ -123,7 +123,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const validWarehouseIds = new Set(storeWarehouses.map((w) => w.id));
     for (const line of data.lines) {
       if (!validWarehouseIds.has(line.warehouseId)) {
-        return apiErrorResponse("bad_request", "One of the selected warehouses is invalid.", 400);
+        return apiErrorResponse(
+          "bad_request",
+          "One of the selected storage locations is invalid.",
+          400,
+        );
       }
     }
 

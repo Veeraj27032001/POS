@@ -224,7 +224,7 @@ export default function StockTransferViewPage() {
 
           <dl className="bg-border grid grid-cols-1 gap-px overflow-hidden rounded-lg border sm:grid-cols-2">
             {[
-              ["Source warehouse", lookupLabel(warehouses, row.sourceWarehouseId)],
+              ["Source storage", lookupLabel(warehouses, row.sourceWarehouseId)],
               ["Destination store", lookupLabel(stores, row.destinationStoreId)],
               ["Transfer date", formatDateOnly(toDateOnly(row.requestedAt))],
               [
@@ -247,7 +247,7 @@ export default function StockTransferViewPage() {
                   <TableHead>Product</TableHead>
                   <TableHead>Barcode</TableHead>
                   <TableHead>Quantity</TableHead>
-                  <TableHead>Destination warehouse</TableHead>
+                  <TableHead>Destination storage</TableHead>
                   <TableHead>Accepted</TableHead>
                   <TableHead>Rejected</TableHead>
                 </TableRow>

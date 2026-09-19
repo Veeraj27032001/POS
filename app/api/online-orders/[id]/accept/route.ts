@@ -127,7 +127,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       if (!w || !w.isActive || w.isDeleted || !w.storeId) {
         return apiErrorResponse(
           "bad_request",
-          "One of the chosen warehouses is no longer available.",
+          "One of the chosen storage locations is no longer available.",
           400,
         );
       }

@@ -18,7 +18,7 @@ export default function WarehouseViewPage() {
   return (
     <ResourceViewPage<WarehouseRow, z.infer<typeof warehouseUpdateSchema>>
       resource="warehouses"
-      title="Warehouses"
+      title="Storage"
       fields={[
         { name: "name", label: "Name", type: "text" },
         { name: "address", label: "Address", type: "text" },

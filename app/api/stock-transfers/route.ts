@@ -82,7 +82,7 @@ export async function POST(request: Request) {
     if (!sourceWarehouse || sourceWarehouse.storeId !== session.user.storeId) {
       return apiErrorResponse(
         "bad_request",
-        "Select a source warehouse belonging to your store.",
+        "Select a source storage location belonging to your store.",
         400,
       );
     }
@@ -95,14 +95,14 @@ export async function POST(request: Request) {
       if (!destWarehouse || destWarehouse.storeId !== session.user.storeId) {
         return apiErrorResponse(
           "bad_request",
-          "Select a destination warehouse belonging to your own store.",
+          "Select a destination storage location belonging to your own store.",
           400,
         );
       }
       if (destWarehouse.id === sourceWarehouse.id) {
         return apiErrorResponse(
           "bad_request",
-          "Destination warehouse must be different from the source warehouse.",
+          "Destination storage location must be different from the source storage location.",
           400,
         );
       }
@@ -116,7 +116,7 @@ export async function POST(request: Request) {
       if (destStore.id === session.user.storeId) {
         return apiErrorResponse(
           "bad_request",
-          "For a transfer within your own store, pick a destination warehouse instead of a store.",
+          "For a transfer within your own store, pick a destination storage location instead of a store.",
           400,
         );
       }

@@ -129,7 +129,7 @@ export default function StockInwardViewPage() {
 
           <dl className="bg-border grid grid-cols-1 gap-px overflow-hidden rounded-lg border sm:grid-cols-2">
             {[
-              ["Warehouse", lookupLabel(warehouses, row.warehouseId)],
+              ["Storage", lookupLabel(warehouses, row.warehouseId)],
               ["Supplier", lookupLabel(suppliers, row.supplierId)],
               ["Product request", lookupLabel(purchaseOrders, row.purchaseOrderId)],
               ["Inward date", formatDateOnly(toDateOnly(row.inwardDate))],

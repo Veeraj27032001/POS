@@ -150,7 +150,7 @@ export default function ReceiveStockTransferPage() {
                   <span>Product</span>
                   <span>Accepted</span>
                   <span>Rejected</span>
-                  <span>Destination warehouse</span>
+                  <span>Destination storage</span>
                 </div>
                 <div className="divide-y">
                   {fields.map((field, index) => (
@@ -191,7 +191,7 @@ export default function ReceiveStockTransferPage() {
                             options={warehouses}
                             value={f.value ?? null}
                             onChange={(v) => f.onChange(v ?? "")}
-                            placeholder="Select warehouse…"
+                            placeholder="Select storage…"
                           />
                         )}
                       />

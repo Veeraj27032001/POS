@@ -606,7 +606,7 @@ test("Customer: requires at least one store, supports selecting more than one", 
   await expect(page.getByText(customerName)).toBeVisible();
 });
 
-test("Warehouse: store dropdown is scoped to the requester — Admin sees only their own store", async ({
+test("Storage: store dropdown is scoped to the requester — Admin sees only their own store", async ({
   page,
 }) => {
   test.skip(!ADMIN2_EMAIL || !ADMIN2_PASSWORD, "SEED_ADMIN2_EMAIL/PASSWORD not configured");
@@ -684,7 +684,7 @@ test("New User: a duplicate email gets a clear conflict message, not a generic f
   await expect(page.getByText("Failed to save.")).not.toBeVisible();
 });
 
-test("Warehouses: store cards filter the list, default to the first store", async ({ page }) => {
+test("Storage: store cards filter the list, default to the first store", async ({ page }) => {
   await login(page);
   await page.goto("/warehouses");
 
@@ -702,11 +702,11 @@ test("Warehouses: store cards filter the list, default to the first store", asyn
   await page.getByLabel("Name").fill(warehouseName);
   await page.getByLabel("Address").fill("789 Test Road");
   await page.getByRole("button", { name: "Save" }).click();
-  await expect(page.getByText("Warehouse created.")).toBeVisible();
+  await expect(page.getByText("Storage created.")).toBeVisible();
   await expect(page.getByText(warehouseName)).toBeVisible();
 });
 
-test("Warehouses: a store-scoped Admin sees only their own store card", async ({ page }) => {
+test("Storage: a store-scoped Admin sees only their own store card", async ({ page }) => {
   test.skip(!ADMIN2_EMAIL || !ADMIN2_PASSWORD, "SEED_ADMIN2_EMAIL/PASSWORD not configured");
   await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
   await page.goto("/warehouses");
@@ -1150,7 +1150,7 @@ test("Stock Inward: pickup from a Product Request marks it received", async ({ p
   // The Product Request already had a supplier — the pickup should carry it over.
   await expect(page.getByRole("button", { name: supplierName, exact: true })).toBeVisible();
 
-  await page.getByText("Select warehouse…").click();
+  await page.getByText("Select storage…").click();
   await page.getByRole("option").first().click();
   await page.getByRole("button", { name: "Save" }).click();
   await expect(page.getByText("Stock inward recorded.")).toBeVisible();
@@ -1167,7 +1167,7 @@ test("Stock Inward: direct entry without pickup saves with no linked purchase or
   await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
 
   await page.goto("/stock-inwards/new");
-  await page.getByText("Select warehouse…").click();
+  await page.getByText("Select storage…").click();
   await page.getByRole("option").first().click();
   await page.getByText("Select product…").click();
   await page.getByRole("option").first().click();
@@ -1188,7 +1188,7 @@ test("Stock Inward: edit and delete a direct entry", async ({ page }) => {
   await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
 
   await page.goto("/stock-inwards/new");
-  await page.getByText("Select warehouse…").click();
+  await page.getByText("Select storage…").click();
   await page.getByRole("option").first().click();
   await page.getByText("Select product…").click();
   await page.getByRole("option").first().click();
@@ -1226,7 +1226,7 @@ test("Stock Inward: cannot reduce quantity below what damage/blocks already cons
   await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
 
   await page.goto("/stock-inwards/new");
-  await page.getByText("Select warehouse…").click();
+  await page.getByText("Select storage…").click();
   const warehouseName = (await page.getByRole("option").first().textContent())!.trim();
   await page.getByRole("option").first().click();
   await page.getByText("Select product…").click();
@@ -1247,7 +1247,7 @@ test("Stock Inward: cannot reduce quantity below what damage/blocks already cons
   const createdInward = (await inwardResponse.json()) as { main: { id: string } };
 
   await page.goto("/stock-damages/new");
-  await page.getByText("Select warehouse…").click();
+  await page.getByText("Select storage…").click();
   await page.getByRole("option", { name: warehouseName, exact: true }).click();
   await page.getByText("Select product…").click();
   await page.getByRole("option", { name: productName, exact: true }).click();
@@ -1268,7 +1268,7 @@ test("Stock Damage: succeeds within available stock, rejected beyond it", async 
   await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
 
   await page.goto("/stock-inwards/new");
-  await page.getByText("Select warehouse…").click();
+  await page.getByText("Select storage…").click();
   const warehouseName = (await page.getByRole("option").first().textContent())!.trim();
   await page.getByRole("option").first().click();
   await page.getByText("Select product…").click();
@@ -1279,7 +1279,7 @@ test("Stock Damage: succeeds within available stock, rejected beyond it", async 
   await expect(page.getByText("Stock inward recorded.")).toBeVisible();
 
   await page.goto("/stock-damages/new");
-  await page.getByText("Select warehouse…").click();
+  await page.getByText("Select storage…").click();
   await page.getByRole("option", { name: warehouseName, exact: true }).click();
   await page.getByText("Select product…").click();
   await page.getByRole("option", { name: productName, exact: true }).click();
@@ -1291,7 +1291,7 @@ test("Stock Damage: succeeds within available stock, rejected beyond it", async 
   await expect(page).toHaveURL(/\/stock-damages$/);
 
   await page.goto("/stock-damages/new");
-  await page.getByText("Select warehouse…").click();
+  await page.getByText("Select storage…").click();
   await page.getByRole("option", { name: warehouseName, exact: true }).click();
   await page.getByText("Select product…").click();
   await page.getByRole("option", { name: productName, exact: true }).click();
@@ -1308,7 +1308,7 @@ test("Stock Damage: edit and delete", async ({ page }) => {
   await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
 
   await page.goto("/stock-inwards/new");
-  await page.getByText("Select warehouse…").click();
+  await page.getByText("Select storage…").click();
   await page.getByRole("option").first().click();
   await page.getByText("Select product…").click();
   await page.getByRole("option").first().click();
@@ -1317,7 +1317,7 @@ test("Stock Damage: edit and delete", async ({ page }) => {
   await expect(page.getByText("Stock inward recorded.")).toBeVisible();
 
   await page.goto("/stock-damages/new");
-  await page.getByText("Select warehouse…").click();
+  await page.getByText("Select storage…").click();
   await page.getByRole("option").first().click();
   await page.getByText("Select product…").click();
   await page.getByRole("option").first().click();
@@ -1357,7 +1357,7 @@ test("Stock Block: create, appears in Stale Blocks when overdue, then release", 
   await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
 
   await page.goto("/stock-blocks/new");
-  await page.getByText("Select warehouse…").click();
+  await page.getByText("Select storage…").click();
   await page.getByRole("option").first().click();
   await page.getByLabel("Review by date").fill("2020-01-01");
   await page.getByText("Select product…").click();
@@ -1396,7 +1396,7 @@ test("Stock Block: edit and delete while all items are still active", async ({ p
   await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
 
   await page.goto("/stock-blocks/new");
-  await page.getByText("Select warehouse…").click();
+  await page.getByText("Select storage…").click();
   await page.getByRole("option").first().click();
   await page.getByText("Select product…").click();
   await page.getByRole("option").first().click();
@@ -1515,10 +1515,10 @@ test("Stock Transfer: same-store transfer completes immediately", async ({ page 
   await page.getByLabel("Name").fill(secondWarehouseName);
   await page.getByLabel("Address").fill("456 Transfer Test Road");
   await page.getByRole("button", { name: "Save" }).click();
-  await expect(page.getByText("Warehouse created.")).toBeVisible();
+  await expect(page.getByText("Storage created.")).toBeVisible();
 
   await page.goto("/stock-inwards/new");
-  await page.getByText("Select warehouse…").click();
+  await page.getByText("Select storage…").click();
   const sourceWarehouseName = (await page.getByRole("option").first().textContent())!.trim();
   await page.getByRole("option").first().click();
   await page.getByText("Select product…").click();
@@ -1529,9 +1529,9 @@ test("Stock Transfer: same-store transfer completes immediately", async ({ page 
   await expect(page.getByText("Stock inward recorded.")).toBeVisible();
 
   await page.goto("/stock-transfers/new");
-  await page.getByText("Select warehouse…").click();
+  await page.getByText("Select storage…").click();
   await page.getByRole("option", { name: sourceWarehouseName, exact: true }).click();
-  await page.getByText("Select destination warehouse…").click();
+  await page.getByText("Select destination storage…").click();
   await page.getByRole("option", { name: secondWarehouseName, exact: true }).click();
   await page.getByText("Select product…").click();
   await page.getByRole("option", { name: productName, exact: true }).click();
@@ -1586,7 +1586,7 @@ test("Stock Transfer: cross-store request, receive, and reflect on both sides", 
   await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
 
   await page.goto("/stock-inwards/new");
-  await page.getByText("Select warehouse…").click();
+  await page.getByText("Select storage…").click();
   const sourceWarehouseName = (await page.getByRole("option").first().textContent())!.trim();
   await page.getByRole("option").first().click();
   await page.getByText("Select product…").click();
@@ -1597,7 +1597,7 @@ test("Stock Transfer: cross-store request, receive, and reflect on both sides", 
   await expect(page.getByText("Stock inward recorded.")).toBeVisible();
 
   await page.goto("/stock-transfers/new");
-  await page.getByText("Select warehouse…").click();
+  await page.getByText("Select storage…").click();
   await page.getByRole("option", { name: sourceWarehouseName, exact: true }).click();
   await page.getByText("Different store").click();
   await page.getByText("Select destination store…").click();
@@ -1635,8 +1635,8 @@ test("Stock Transfer: cross-store request, receive, and reflect on both sides", 
     page.waitForResponse((res) => res.url().includes("/api/warehouses?")),
     page.getByRole("link", { name: "Receive" }).click(),
   ]);
-  await expect(page.getByText("Select warehouse…")).toBeVisible();
-  await page.getByText("Select warehouse…").click();
+  await expect(page.getByText("Select storage…")).toBeVisible();
+  await page.getByText("Select storage…").click();
   await expect(page.getByRole("option").first()).toBeVisible();
   await page.getByRole("option", { name: warehouseName, exact: true }).click();
   await page.getByRole("button", { name: "Save" }).click();
@@ -1667,7 +1667,7 @@ test("Stock Transfer: the requester can cancel a pending cross-store request", a
 
   await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
   await page.goto("/stock-transfers/new");
-  await page.getByText("Select warehouse…").click();
+  await page.getByText("Select storage…").click();
   await page.getByRole("option").first().click();
   await page.getByText("Different store").click();
   await page.getByText("Select destination store…").click();
@@ -1709,7 +1709,7 @@ test("Stock Transfer: edit and delete a pending request, blocked once accepted",
 
   await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
   await page.goto("/stock-transfers/new");
-  await page.getByText("Select warehouse…").click();
+  await page.getByText("Select storage…").click();
   await page.getByRole("option").first().click();
   await page.getByText("Different store").click();
   await page.getByText("Select destination store…").click();
@@ -1748,7 +1748,7 @@ test("Quality Check: succeeds within available stock, rejected beyond it", async
   await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
 
   await page.goto("/stock-inwards/new");
-  await page.getByText("Select warehouse…").click();
+  await page.getByText("Select storage…").click();
   const warehouseName = (await page.getByRole("option").first().textContent())!.trim();
   await page.getByRole("option").first().click();
   await page.getByText("Select product…").click();
@@ -1759,7 +1759,7 @@ test("Quality Check: succeeds within available stock, rejected beyond it", async
   await expect(page.getByText("Stock inward recorded.")).toBeVisible();
 
   await page.goto("/stock-quality-checks/new");
-  await page.getByText("Select warehouse…").click();
+  await page.getByText("Select storage…").click();
   await page.getByRole("option", { name: warehouseName, exact: true }).click();
   await page.getByText("Select product…").click();
   await page.getByRole("option", { name: productName, exact: true }).click();
@@ -1771,7 +1771,7 @@ test("Quality Check: succeeds within available stock, rejected beyond it", async
   await expect(page).toHaveURL(/\/stock-quality-checks$/);
 
   await page.goto("/stock-quality-checks/new");
-  await page.getByText("Select warehouse…").click();
+  await page.getByText("Select storage…").click();
   await page.getByRole("option", { name: warehouseName, exact: true }).click();
   await page.getByText("Select product…").click();
   await page.getByRole("option", { name: productName, exact: true }).click();
@@ -1788,7 +1788,7 @@ test("Quality Check: edit and delete", async ({ page }) => {
   await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
 
   await page.goto("/stock-inwards/new");
-  await page.getByText("Select warehouse…").click();
+  await page.getByText("Select storage…").click();
   await page.getByRole("option").first().click();
   await page.getByText("Select product…").click();
   await page.getByRole("option").first().click();
@@ -1797,7 +1797,7 @@ test("Quality Check: edit and delete", async ({ page }) => {
   await expect(page.getByText("Stock inward recorded.")).toBeVisible();
 
   await page.goto("/stock-quality-checks/new");
-  await page.getByText("Select warehouse…").click();
+  await page.getByText("Select storage…").click();
   await page.getByRole("option").first().click();
   await page.getByText("Select product…").click();
   await page.getByRole("option").first().click();
@@ -1835,7 +1835,7 @@ test("Positive Adjustment: create, edit, and delete", async ({ page }) => {
   await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
 
   await page.goto("/stock-positive-adjustments/new");
-  await page.getByText("Select warehouse…").click();
+  await page.getByText("Select storage…").click();
   await page.getByRole("option").first().click();
   await page.getByText("Select product…").click();
   await page.getByRole("option").first().click();
@@ -1876,7 +1876,7 @@ test("Positive Adjustment: cannot reduce quantity below what's already consumed 
   await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
 
   await page.goto("/stock-positive-adjustments/new");
-  await page.getByText("Select warehouse…").click();
+  await page.getByText("Select storage…").click();
   const warehouseName = (await page.getByRole("option").first().textContent())!.trim();
   await page.getByRole("option").first().click();
   await page.getByText("Select product…").click();
@@ -1899,7 +1899,7 @@ test("Positive Adjustment: cannot reduce quantity below what's already consumed 
   const createdAdj = (await adjResponse.json()) as { main: { id: string } };
 
   await page.goto("/stock-damages/new");
-  await page.getByText("Select warehouse…").click();
+  await page.getByText("Select storage…").click();
   await page.getByRole("option", { name: warehouseName, exact: true }).click();
   await page.getByText("Select product…").click();
   await page.getByRole("option", { name: productName, exact: true }).click();
@@ -1922,7 +1922,7 @@ test("Negative Adjustment: succeeds within available stock, rejected beyond it",
   await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
 
   await page.goto("/stock-inwards/new");
-  await page.getByText("Select warehouse…").click();
+  await page.getByText("Select storage…").click();
   const warehouseName = (await page.getByRole("option").first().textContent())!.trim();
   await page.getByRole("option").first().click();
   await page.getByText("Select product…").click();
@@ -1933,7 +1933,7 @@ test("Negative Adjustment: succeeds within available stock, rejected beyond it",
   await expect(page.getByText("Stock inward recorded.")).toBeVisible();
 
   await page.goto("/stock-negative-adjustments/new");
-  await page.getByText("Select warehouse…").click();
+  await page.getByText("Select storage…").click();
   await page.getByRole("option", { name: warehouseName, exact: true }).click();
   await page.getByText("Select product…").click();
   await page.getByRole("option", { name: productName, exact: true }).click();
@@ -1945,7 +1945,7 @@ test("Negative Adjustment: succeeds within available stock, rejected beyond it",
   await expect(page).toHaveURL(/\/stock-negative-adjustments$/);
 
   await page.goto("/stock-negative-adjustments/new");
-  await page.getByText("Select warehouse…").click();
+  await page.getByText("Select storage…").click();
   await page.getByRole("option", { name: warehouseName, exact: true }).click();
   await page.getByText("Select product…").click();
   await page.getByRole("option", { name: productName, exact: true }).click();
@@ -1962,7 +1962,7 @@ test("Negative Adjustment: edit and delete", async ({ page }) => {
   await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
 
   await page.goto("/stock-inwards/new");
-  await page.getByText("Select warehouse…").click();
+  await page.getByText("Select storage…").click();
   await page.getByRole("option").first().click();
   await page.getByText("Select product…").click();
   await page.getByRole("option").first().click();
@@ -1971,7 +1971,7 @@ test("Negative Adjustment: edit and delete", async ({ page }) => {
   await expect(page.getByText("Stock inward recorded.")).toBeVisible();
 
   await page.goto("/stock-negative-adjustments/new");
-  await page.getByText("Select warehouse…").click();
+  await page.getByText("Select storage…").click();
   await page.getByRole("option").first().click();
   await page.getByText("Select product…").click();
   await page.getByRole("option").first().click();
@@ -2010,7 +2010,7 @@ test("Opening Balance: create, edit, and delete", async ({ page }) => {
   await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
 
   await page.goto("/stock-openings/new");
-  await page.getByText("Select warehouse…").click();
+  await page.getByText("Select storage…").click();
   await page.getByRole("option").first().click();
   await page.getByText("Select product…").click();
   await page.getByRole("option").first().click();
@@ -2048,7 +2048,7 @@ test("Opening Balance: cannot reduce quantity below what's already consumed else
   await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
 
   await page.goto("/stock-openings/new");
-  await page.getByText("Select warehouse…").click();
+  await page.getByText("Select storage…").click();
   const warehouseName = (await page.getByRole("option").first().textContent())!.trim();
   await page.getByRole("option").first().click();
   await page.getByText("Select product…").click();
@@ -2068,7 +2068,7 @@ test("Opening Balance: cannot reduce quantity below what's already consumed else
   const createdOpening = (await openingResponse.json()) as { main: { id: string } };
 
   await page.goto("/stock-damages/new");
-  await page.getByText("Select warehouse…").click();
+  await page.getByText("Select storage…").click();
   await page.getByRole("option", { name: warehouseName, exact: true }).click();
   await page.getByText("Select product…").click();
   await page.getByRole("option", { name: productName, exact: true }).click();
@@ -2089,7 +2089,7 @@ test("Entry Correction: corrects a source document's quantity and logs it", asyn
   await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
 
   await page.goto("/stock-openings/new");
-  await page.getByText("Select warehouse…").click();
+  await page.getByText("Select storage…").click();
   await page.getByRole("option").first().click();
   await page.getByText("Select product…").click();
   const productName = (await page.getByRole("option").first().textContent())!.trim();
@@ -2163,7 +2163,7 @@ test("Low Stock: flags a product at or below its reorder level for a warehouse",
 
   await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
   await page.goto("/stock-openings/new");
-  await page.getByText("Select warehouse…").click();
+  await page.getByText("Select storage…").click();
   const warehouseName = (await page.getByRole("option").first().textContent())!.trim();
   await page.getByRole("option").first().click();
   await page.getByText("Select product…").click();
@@ -2173,7 +2173,7 @@ test("Low Stock: flags a product at or below its reorder level for a warehouse",
   await expect(page.getByText("Opening balance recorded.")).toBeVisible();
 
   await page.goto("/low-stock");
-  await page.getByText("Select warehouse…").click();
+  await page.getByText("Select storage…").click();
   await page.getByRole("option", { name: warehouseName, exact: true }).click();
   const row = page.getByRole("row").filter({ hasText: productName });
   await expect(row).toBeVisible();
@@ -2213,7 +2213,7 @@ test("Billing: cash bill golden path — scan, pay, complete", async ({ page }) 
   await loginAs(page, ADMIN2_EMAIL!, ADMIN2_PASSWORD!);
 
   await page.goto("/stock-openings/new");
-  await page.getByText("Select warehouse…").click();
+  await page.getByText("Select storage…").click();
   await page.getByRole("option").first().click();
   await page.getByText("Select product…").click();
   await page.getByRole("option", { name: productName, exact: true }).click();

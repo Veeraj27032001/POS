@@ -84,7 +84,7 @@ export function LineWarehouseSplit({
         (w) => w.warehouseId === entry.warehouseId,
       )?.available;
       if (available !== undefined && entry.quantity > available) {
-        toast.error(`Only ${available} available at that warehouse.`);
+        toast.error(`Only ${available} available at that storage location.`);
         return;
       }
     }
@@ -102,14 +102,14 @@ export function LineWarehouseSplit({
         >
           {allocations.length > 0
             ? allocations.map((a) => `${a.warehouseName}: ${a.quantity}`).join(", ")
-            : "Choose warehouses"}
+            : "Choose storage"}
         </DialogTrigger>
         {loading && <Loader2Icon className="text-muted-foreground size-3 animate-spin" />}
       </div>
       {warning && <div className="text-warning text-xs">{warning}</div>}
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Warehouse split — {productName}</DialogTitle>
+          <DialogTitle>Storage split — {productName}</DialogTitle>
         </DialogHeader>
         <div ref={kbdRef} className="contents">
           <div className="space-y-1">

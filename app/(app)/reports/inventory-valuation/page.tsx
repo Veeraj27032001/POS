@@ -95,7 +95,7 @@ export default function InventoryValuationReportPage() {
                 options={warehouses}
                 value={warehouseId}
                 onChange={setWarehouseId}
-                placeholder="All warehouses"
+                placeholder="All storage locations"
               />
             </div>
             <div className="w-56 space-y-1.5">
@@ -114,7 +114,7 @@ export default function InventoryValuationReportPage() {
                 checked={groupByWarehouse}
                 onCheckedChange={(checked) => setGroupByWarehouse(Boolean(checked))}
               />
-              <Label htmlFor="group-by-warehouse">Break down by warehouse</Label>
+              <Label htmlFor="group-by-warehouse">Break down by storage location</Label>
             </div>
             {totalValue !== null && (
               <div className="bg-card ml-auto rounded-lg border px-4 py-2 text-sm">
@@ -137,7 +137,7 @@ export default function InventoryValuationReportPage() {
               { key: "productName", header: "Product" },
               { key: "systemBarcode", header: "System Barcode" },
               { key: "categoryName", header: "Category", render: (row) => row.categoryName ?? "—" },
-              ...(groupByWarehouse ? [{ key: "warehouseName", header: "Warehouse" }] : []),
+              ...(groupByWarehouse ? [{ key: "warehouseName", header: "Storage" }] : []),
               { key: "onHand", header: "On Hand" },
               {
                 key: "unitCost",

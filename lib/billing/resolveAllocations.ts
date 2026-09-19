@@ -23,14 +23,14 @@ export async function resolveAllocations(params: {
     select: { id: true },
   });
   if (warehouses.length === 0) {
-    return { error: "This store has no active warehouse to allocate stock from." };
+    return { error: "This store has no active storage location to allocate stock from." };
   }
 
   if (params.requested && params.requested.length > 0) {
     const total = params.requested.reduce((sum, a) => sum + a.quantity, 0);
     if (total !== params.quantity) {
       return {
-        error: `Warehouse allocations must add up to ${params.quantity}, not ${total}.`,
+        error: `Storage allocations must add up to ${params.quantity}, not ${total}.`,
       };
     }
     const validIds = new Set(warehouses.map((w) => w.id));

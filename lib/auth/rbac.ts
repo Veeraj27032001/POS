@@ -26,6 +26,7 @@ export const SUPER_ADMIN_ROLE_NAME = "Super Admin";
 
 export const SUPER_ADMIN_ONLY_MODULES = [
   "stores",
+  "warehouses",
   "numbering_series",
   "reason_codes",
   "payment_methods",

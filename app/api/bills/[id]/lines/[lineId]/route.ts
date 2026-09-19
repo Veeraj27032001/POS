@@ -123,7 +123,7 @@ export async function PATCH(
       stockWarning = allocResult.error;
     } else if (allocResult.fellBack) {
       stockWarning =
-        "The chosen warehouse split was no longer available — reallocated automatically.";
+        "The chosen storage split was no longer available — reallocated automatically.";
     }
     const allocations = "error" in allocResult ? [] : allocResult.allocations;
 

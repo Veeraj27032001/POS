@@ -121,7 +121,7 @@ export default function StockDamageViewPage() {
 
           <dl className="bg-border grid grid-cols-1 gap-px overflow-hidden rounded-lg border sm:grid-cols-2">
             {[
-              ["Warehouse", lookupLabel(warehouses, row.warehouseId)],
+              ["Storage", lookupLabel(warehouses, row.warehouseId)],
               ["Damage date", formatDateOnly(toDateOnly(row.damageDate))],
               ["Notes", row.notes ?? "—"],
             ].map(([label, value]) => (

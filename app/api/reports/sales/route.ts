@@ -48,7 +48,7 @@ export async function GET(request: Request) {
     if (warehouseId) {
       const warehouse = await db.warehouse.findUnique({ where: { id: warehouseId } });
       if (!warehouse || warehouse.storeId !== effectiveStoreId) {
-        return apiErrorResponse("not_found", "Warehouse not found.", 404);
+        return apiErrorResponse("not_found", "Storage location not found.", 404);
       }
     }
 

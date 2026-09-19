@@ -48,7 +48,7 @@ export default function StockBlocksPage() {
           { key: "documentNumber", header: "Transaction No." },
           {
             key: "warehouseId",
-            header: "Warehouse",
+            header: "Storage",
             render: (row) => warehouses.find((w) => w.value === row.warehouseId)?.label ?? "—",
           },
           {

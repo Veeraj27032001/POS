@@ -229,7 +229,7 @@ export default function BillReturnFormPage() {
                               }))}
                               value={row.warehouseId}
                               onChange={(v) => updateRow(line.id, index, { warehouseId: v })}
-                              placeholder="Select warehouse…"
+                              placeholder="Select storage…"
                               className="w-48"
                             />
                             {rows.length > 1 && (
@@ -254,7 +254,7 @@ export default function BillReturnFormPage() {
                           data-kbd-item=""
                           onClick={() => addRow(line.id)}
                         >
-                          + Split across another warehouse
+                          + Split across another storage location
                         </Button>
                       </div>
                     </div>

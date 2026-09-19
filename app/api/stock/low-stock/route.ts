@@ -36,7 +36,7 @@ export async function GET(request: Request) {
   return withStoreContext(async () => {
     const warehouse = await unscoped().warehouse.findUnique({ where: { id: warehouseId } });
     if (!warehouse || (session.user.storeId && warehouse.storeId !== session.user.storeId)) {
-      return apiErrorResponse("not_found", "Warehouse not found.", 404);
+      return apiErrorResponse("not_found", "Storage location not found.", 404);
     }
 
     const products = await unscoped().product.findMany({

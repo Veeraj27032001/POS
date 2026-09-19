@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 
 const APP_NAME = "POS";
 const APP_DESCRIPTION =
-  "Store-scoped, multi-warehouse retail POS for the India market — masters, stock, billing, and reporting in one portal.";
+  "Store-scoped, multi-storage retail POS for the India market — masters, stock, billing, and reporting in one portal.";
 const SITE_URL = "https://pos.vedixsolutions.com";
 
 export const metadata: Metadata = {
