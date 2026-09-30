@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { LoadingState } from "@/components/loading-state";
 import { SearchableSelect } from "@/components/searchable-select";
 import { StoreCardFilter } from "@/components/store-card-filter";
 import { Button } from "@/components/ui/button";
@@ -130,9 +131,7 @@ export default function TaxEnginePage() {
 
       <StoreCardFilter value={selectedStoreId} onChange={setSelectedStoreId} />
 
-      {store === undefined && selectedStoreId && (
-        <p className="text-muted-foreground text-sm">Loading…</p>
-      )}
+      {store === undefined && selectedStoreId && <LoadingState />}
 
       {store && (
         <div className="max-w-md space-y-3 rounded-lg border p-4">

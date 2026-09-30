@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { LoadingState } from "@/components/loading-state";
 import { buttonVariants } from "@/components/ui/button";
 import {
   Table,
@@ -78,7 +79,7 @@ export default function ShiftDetailPage() {
         ← Back to Shifts
       </Link>
 
-      {shift === undefined && <p className="text-muted-foreground">Loading…</p>}
+      {shift === undefined && <LoadingState />}
       {shift === null && <p className="text-muted-foreground">Shift not found.</p>}
 
       {shift && (

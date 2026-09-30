@@ -16,6 +16,7 @@ import { isCompletedBillStillEditable } from "@/lib/billing/editableCompletedBil
 import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
 import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { useOptionsList } from "@/lib/masters/useOptionsList";
+import { LoadingState } from "@/components/loading-state";
 import { SearchableSelect } from "@/components/searchable-select";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -289,7 +290,7 @@ export default function BillViewPage() {
         ← Back to Bills
       </Link>
 
-      {bill === undefined && <p className="text-muted-foreground">Loading…</p>}
+      {bill === undefined && <LoadingState />}
       {bill === null && <p className="text-muted-foreground">Bill not found.</p>}
 
       {bill && (

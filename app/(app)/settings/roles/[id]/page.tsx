@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { LoadingState } from "@/components/loading-state";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RBAC_ACTIONS, SUPER_ADMIN_ONLY_MODULES } from "@/lib/auth/rbac";
@@ -74,12 +75,7 @@ export default function RoleDetailPage() {
   useEffect(refresh, [id]);
 
   if (!role) {
-    return (
-      <div className="text-muted-foreground flex items-center gap-2 p-8 text-sm">
-        <Loader2Icon className="size-4 animate-spin" />
-        Loading…
-      </div>
-    );
+    return <LoadingState className="p-8" />;
   }
 
   const modules = Array.from(new Set(role.roleRights.map((r) => r.module))).filter(

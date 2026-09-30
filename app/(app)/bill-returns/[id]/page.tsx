@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { LoadingState } from "@/components/loading-state";
 import { SearchableSelect } from "@/components/searchable-select";
 import { Button } from "@/components/ui/button";
 import {
@@ -192,7 +193,7 @@ export default function BillReturnDetailPage() {
 
   return (
     <div ref={kbdRef} className="space-y-4 p-8">
-      {detail === undefined && <p className="text-muted-foreground">Loading…</p>}
+      {detail === undefined && <LoadingState />}
       {detail === null && <p className="text-muted-foreground">Return not found.</p>}
 
       {detail && (

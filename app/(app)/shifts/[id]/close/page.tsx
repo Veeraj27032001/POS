@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { LoadingState } from "@/components/loading-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -121,7 +122,7 @@ export default function CloseShiftPage() {
         ← Back to shift
       </Link>
 
-      {shift === undefined && <p className="text-muted-foreground">Loading…</p>}
+      {shift === undefined && <LoadingState />}
       {shift === null && <p className="text-muted-foreground">Shift not found.</p>}
 
       {shift && shift.status !== "open" && (

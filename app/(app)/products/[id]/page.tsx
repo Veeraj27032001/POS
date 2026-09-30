@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { LoadingState } from "@/components/loading-state";
 import { ProductHsnTaxDetails } from "@/components/product-hsn-tax-details";
 import { ProductMediaManager } from "@/components/product-media-manager";
 import { ProductPriceHistory } from "@/components/product-price-history";
@@ -211,7 +212,7 @@ export default function ProductViewPage() {
         )}
       </div>
 
-      {row === undefined && <p className="text-muted-foreground">Loading…</p>}
+      {row === undefined && <LoadingState />}
       {row === null && <p className="text-muted-foreground">Record not found.</p>}
 
       {row && (

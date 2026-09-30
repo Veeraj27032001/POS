@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { LoadingState } from "@/components/loading-state";
 import { RequiredMark } from "@/components/required-mark";
 import { SearchableSelect } from "@/components/searchable-select";
 import { Button } from "@/components/ui/button";
@@ -161,7 +162,7 @@ export default function BillReturnFormPage() {
         ← Back to bill
       </Link>
 
-      {form === undefined && <p className="text-muted-foreground">Loading…</p>}
+      {form === undefined && <LoadingState />}
       {form === null && <p className="text-muted-foreground">Bill not found.</p>}
 
       {form && (

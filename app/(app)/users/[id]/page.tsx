@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { LoadingState } from "@/components/loading-state";
 import { Button } from "@/components/ui/button";
 import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
 import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
@@ -152,7 +153,7 @@ export default function UserViewPage() {
         )}
       </div>
 
-      {row === undefined && <p className="text-muted-foreground">Loading…</p>}
+      {row === undefined && <LoadingState />}
       {row === null && <p className="text-muted-foreground">Record not found.</p>}
 
       {row && (

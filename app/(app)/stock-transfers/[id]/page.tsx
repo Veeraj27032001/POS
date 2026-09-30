@@ -7,6 +7,7 @@ import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { LoadingState } from "@/components/loading-state";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Table,
@@ -147,7 +148,7 @@ export default function StockTransferViewPage() {
         ← Back to Stock Transfer
       </Link>
 
-      {row === undefined && <p className="text-muted-foreground">Loading…</p>}
+      {row === undefined && <LoadingState />}
       {row === null && <p className="text-muted-foreground">Record not found.</p>}
 
       {row && (

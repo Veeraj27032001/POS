@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { BlockPalette } from "@/components/billing/design-builder/block-palette";
 import { PropertyPanel } from "@/components/billing/design-builder/property-panel";
 import { SortableBlockChip } from "@/components/billing/design-builder/sortable-block-chip";
+import { LoadingState } from "@/components/loading-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -253,7 +254,7 @@ export default function BillFormatDesignPage() {
   }
 
   if (row === undefined) {
-    return <p className="text-muted-foreground p-8">Loading…</p>;
+    return <LoadingState className="p-8" />;
   }
   if (row === null) {
     return <p className="text-muted-foreground p-8">Bill format not found.</p>;

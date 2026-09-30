@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import { LoadingState } from "@/components/loading-state";
 import { buttonVariants } from "@/components/ui/button";
 import { formatDateOnly, toDateOnly } from "@/lib/datetime/dateOnly";
 import {
@@ -70,7 +71,7 @@ export default function StaleStockBlocksPage() {
         </div>
       </div>
 
-      {rows === undefined && <p className="text-muted-foreground">Loading…</p>}
+      {rows === undefined && <LoadingState />}
       {rows && rows.length === 0 && (
         <p className="text-muted-foreground">No stale blocks right now.</p>
       )}

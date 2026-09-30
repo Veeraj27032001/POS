@@ -9,6 +9,7 @@ import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import type { z } from "zod";
 
+import { LoadingState } from "@/components/loading-state";
 import { ProductSelectWithStock } from "@/components/product-select-with-stock";
 import { RequiredMark } from "@/components/required-mark";
 import { SearchableSelect } from "@/components/searchable-select";
@@ -150,7 +151,7 @@ export default function EditStockInwardPage() {
         ← Back to Stock Inward
       </Link>
 
-      {loaded === "pending" && <p className="text-muted-foreground">Loading…</p>}
+      {loaded === "pending" && <LoadingState />}
       {loaded === "not_found" && <p className="text-muted-foreground">Record not found.</p>}
       {loaded === "not_editable" && (
         <p className="text-muted-foreground">

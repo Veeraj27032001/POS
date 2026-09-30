@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { LoadingState } from "@/components/loading-state";
 import { Button } from "@/components/ui/button";
 import { useStoreCurrencySymbol } from "@/lib/hooks/useStoreCurrencySymbol";
 import { formatTimestamp } from "@/lib/datetime/format";
@@ -59,7 +60,7 @@ export default function RefundDetailPage() {
 
   return (
     <div ref={kbdRef} className="space-y-4 p-8">
-      {detail === undefined && <p className="text-muted-foreground">Loading…</p>}
+      {detail === undefined && <LoadingState />}
       {detail === null && <p className="text-muted-foreground">Refund not found.</p>}
 
       {detail && (

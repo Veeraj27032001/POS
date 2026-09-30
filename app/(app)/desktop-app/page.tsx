@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { UploadReleaseDialog } from "@/components/desktop-app/upload-release-dialog";
+import { LoadingState } from "@/components/loading-state";
 import { Button } from "@/components/ui/button";
 import { hasPermission } from "@/lib/auth/rbac";
 import { asAppSession } from "@/lib/auth/types";
@@ -68,7 +69,7 @@ export default function DesktopAppPage() {
         {canManage && <UploadReleaseDialog onUploaded={load} />}
       </div>
 
-      {releases === undefined && <p className="text-muted-foreground text-sm">Loading…</p>}
+      {releases === undefined && <LoadingState />}
       {releases?.length === 0 && (
         <p className="text-muted-foreground text-sm">No versions uploaded yet.</p>
       )}

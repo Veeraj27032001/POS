@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { LoadingState } from "@/components/loading-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -164,7 +165,7 @@ export default function OnlineOrderDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id]);
 
-  if (loading) return <div className="p-8">Loading…</div>;
+  if (loading) return <LoadingState className="p-8" />;
   if (!order) return <div className="p-8">Online order not found.</div>;
 
   const total =

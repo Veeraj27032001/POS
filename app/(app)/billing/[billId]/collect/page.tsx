@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { SendLinkPanel } from "@/components/billing/send-link-panel";
+import { LoadingState } from "@/components/loading-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -233,7 +234,7 @@ export default function CollectGatewayPaymentPage() {
   }
 
   if (bill === undefined || clearingStale) {
-    return <p className="text-muted-foreground p-8 text-sm">Loading…</p>;
+    return <LoadingState className="p-8" />;
   }
   if (bill === null) {
     return <p className="text-muted-foreground p-8 text-sm">Bill not found.</p>;

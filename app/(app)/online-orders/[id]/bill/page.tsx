@@ -9,6 +9,7 @@ import {
   type AllocationDisplay,
   type WarehouseAvailabilityDisplay,
 } from "@/components/billing/line-warehouse-split";
+import { LoadingState } from "@/components/loading-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useStoreCurrencySymbol } from "@/lib/hooks/useStoreCurrencySymbol";
@@ -237,7 +238,7 @@ export default function GenerateBillPage() {
     }
   }
 
-  if (loading) return <div className="p-8">Loading…</div>;
+  if (loading) return <LoadingState className="p-8" />;
   if (!order) return <div className="p-8">Online order not found.</div>;
   if (order.status !== "pending") {
     return (

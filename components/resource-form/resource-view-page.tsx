@@ -9,6 +9,7 @@ import type { Control, FieldValues } from "react-hook-form";
 import { toast } from "sonner";
 import type { ZodType } from "zod";
 
+import { LoadingState } from "@/components/loading-state";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -267,7 +268,7 @@ export function ResourceViewPage<
         )}
       </div>
 
-      {row === undefined && <p className="text-muted-foreground">Loading…</p>}
+      {row === undefined && <LoadingState />}
       {row === null && <p className="text-muted-foreground">Record not found.</p>}
 
       {row && (

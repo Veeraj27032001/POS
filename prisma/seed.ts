@@ -231,6 +231,7 @@ async function main() {
     create: {
       id: IDS.store,
       name: "Demo Store",
+      code: "str1",
       address: "123 MG Road, Bengaluru",
       countryId: countryIds.IN,
       stateId: indiaStateIds.KA,

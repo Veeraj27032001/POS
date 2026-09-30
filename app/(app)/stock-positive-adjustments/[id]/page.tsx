@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { LoadingState } from "@/components/loading-state";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { formatDateOnly, toDateOnly } from "@/lib/datetime/dateOnly";
 import {
@@ -91,7 +92,7 @@ export default function StockPositiveAdjustmentViewPage() {
         ← Back to Positive Adjustment
       </Link>
 
-      {row === undefined && <p className="text-muted-foreground">Loading…</p>}
+      {row === undefined && <LoadingState />}
       {row === null && <p className="text-muted-foreground">Record not found.</p>}
 
       {row && (

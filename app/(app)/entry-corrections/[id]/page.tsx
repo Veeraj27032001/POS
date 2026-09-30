@@ -11,6 +11,7 @@ import {
 } from "@/lib/documents/entryCorrectionSourceTypes";
 import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
 import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
+import { LoadingState } from "@/components/loading-state";
 
 interface EntryCorrectionRow {
   id: string;
@@ -48,7 +49,7 @@ export default function EntryCorrectionViewPage() {
         ← Back to Entry Correction
       </Link>
 
-      {row === undefined && <p className="text-muted-foreground">Loading…</p>}
+      {row === undefined && <LoadingState />}
       {row === null && <p className="text-muted-foreground">Record not found.</p>}
 
       {row && (

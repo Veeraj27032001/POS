@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { LoadingState } from "@/components/loading-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -235,7 +236,7 @@ export default function SecuritySettingsPage() {
       </div>
 
       <div className="max-w-md space-y-6">
-        {mfaMethod === undefined && <p className="text-muted-foreground">Loading…</p>}
+        {mfaMethod === undefined && <LoadingState />}
 
         {mfaMethod === null && !enrollment && (
           <div className="space-y-4 rounded-2xl border p-4">

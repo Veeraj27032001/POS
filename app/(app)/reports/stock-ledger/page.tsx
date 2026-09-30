@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { LoadingState } from "@/components/loading-state";
 import { SearchableSelect } from "@/components/searchable-select";
 import { StoreCardFilter } from "@/components/store-card-filter";
 import {
@@ -146,7 +147,7 @@ export default function StockLedgerReportPage() {
         </div>
       )}
 
-      {loading && <p className="text-muted-foreground text-sm">Loading…</p>}
+      {loading && <LoadingState />}
       {error && <p className="text-destructive text-sm">{error}</p>}
 
       {result && !loading && (

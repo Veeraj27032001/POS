@@ -4,6 +4,7 @@ import { CheckCircle2Icon, XCircleIcon } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { LoadingState } from "@/components/loading-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -67,8 +68,8 @@ export default function PayPage() {
     <div className="bg-background flex min-h-screen items-center justify-center p-6">
       <Card className="w-full max-w-sm">
         {info === undefined && (
-          <CardContent className="text-muted-foreground p-8 text-center text-sm">
-            Loading…
+          <CardContent className="p-8">
+            <LoadingState className="justify-center" />
           </CardContent>
         )}
         {info === null && (

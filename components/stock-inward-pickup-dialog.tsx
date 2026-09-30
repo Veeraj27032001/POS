@@ -1,5 +1,6 @@
 "use client";
 
+import { Loader2Icon } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -232,7 +233,7 @@ export function StockInwardPickupDialog({
                 disabled={!selectedRequest || loading}
                 onClick={goToItems}
               >
-                {loading ? "Loading…" : "Next"}
+                {loading ? <Loader2Icon className="size-4 animate-spin" /> : "Next"}
               </Button>
             )}
             {step === 2 && (
