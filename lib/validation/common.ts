@@ -63,4 +63,19 @@ export const optionalPhoneSchema = z
     message: "Must be a valid phone number.",
   });
 
+// 15 chars: 2-digit state code, 10-char PAN, entity code, 'Z', checksum char.
+// Format only — the mod-36 checksum is deliberately not enforced, so existing
+// and test GSTINs stay accepted.
+const GSTIN_PATTERN = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
+
+export const optionalGstinSchema = z
+  .string()
+  .trim()
+  .optional()
+  .nullable()
+  .transform((v) => (v ? v.toUpperCase() : null))
+  .refine((v) => v === null || GSTIN_PATTERN.test(v), {
+    message: "Must be a valid 15-character GSTIN, e.g. 29ABCDE1234F1Z5.",
+  });
+
 export const isActiveSchema = z.boolean().default(true);
