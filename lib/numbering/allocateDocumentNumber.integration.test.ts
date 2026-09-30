@@ -45,11 +45,11 @@ afterAll(async () => {
 });
 
 describe("allocateDocumentNumber", () => {
-  it("formats the document number as prefix/fy label/padded number", async () => {
+  it("formats the document number as prefix/store code/fy label/padded number", async () => {
     const result = await db.$transaction((tx) =>
       allocateDocumentNumber(tx, { seriesType: "cash_bill", storeId, financialYearId }),
     );
-    expect(result.documentNumber).toBe(`CB/${marker}_fy/0001`);
+    expect(result.documentNumber).toBe(`CB/${marker}_s/${marker}_fy/0001`);
     expect(result.number).toBe(1);
   });
 

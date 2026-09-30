@@ -43,7 +43,7 @@ export function Breadcrumbs() {
       </Link>
       {crumbs.map((crumb, index) => (
         <Fragment key={crumb.href}>
-          <span className="text-border">/</span>
+          <span className="text-muted-foreground/60">/</span>
           {index === crumbs.length - 1 || !crumb.navigable ? (
             <span
               className={index === crumbs.length - 1 ? "text-foreground font-medium" : undefined}

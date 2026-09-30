@@ -18,7 +18,7 @@ export async function allocateDocumentNumber(
         financialYearId: params.financialYearId,
       },
     },
-    include: { financialYear: true },
+    include: { financialYear: true, store: { select: { code: true } } },
   });
 
   if (!series || !series.isActive) {
@@ -32,7 +32,12 @@ export async function allocateDocumentNumber(
     data: { currentNumber: { increment: 1 } },
   });
 
-  const documentNumber = `${series.prefix ?? params.seriesType}/${series.financialYear.label}/${String(updated.currentNumber).padStart(4, "0")}`;
+  const documentNumber = [
+    series.prefix ?? params.seriesType,
+    series.store.code,
+    series.financialYear.label,
+    String(updated.currentNumber).padStart(4, "0"),
+  ].join("/");
 
   return { documentNumber, seriesId: series.id, number: updated.currentNumber };
 }

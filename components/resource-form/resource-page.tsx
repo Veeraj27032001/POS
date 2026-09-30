@@ -26,6 +26,9 @@ import { ResourceForm } from "./resource-form";
 import type { ResourceFieldConfig } from "./types";
 
 function singularize(label: string): string {
+  // "Units of Measure" pluralises the head noun, not the tail.
+  const ofIndex = label.indexOf(" of ");
+  if (ofIndex > 0) return singularize(label.slice(0, ofIndex)) + label.slice(ofIndex);
   if (/ies$/.test(label)) return label.replace(/ies$/, "y");
   return label.replace(/s$/, "");
 }
@@ -221,7 +224,7 @@ export function ResourcePage<
         <div className="flex gap-2">
           {headerExtra}
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-            <DialogTrigger render={<Button data-kbd-item="">New</Button>} />
+            <DialogTrigger render={<Button data-kbd-item="">New {singular}</Button>} />
             <DialogContent className={dialogClassName}>
               <DialogHeader>
                 <DialogTitle>New {singular}</DialogTitle>

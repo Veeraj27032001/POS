@@ -14,7 +14,7 @@ export function AuthSplitLayout({ children }: { children: ReactNode }) {
             POS
           </p>
           <p className="mx-auto max-w-sm text-3xl leading-tight font-extrabold">
-            Run every register, warehouse and storefront from one portal.
+            Run every register, storage location and storefront from one portal.
           </p>
         </div>
       </div>
