@@ -199,10 +199,10 @@ function NewCredentialDialog({ onCreated }: { onCreated: () => void }) {
         else setOpen(true);
       }}
     >
-      <DialogTrigger render={<Button data-kbd-item="" />}>New credential</DialogTrigger>
+      <DialogTrigger render={<Button data-kbd-item="" />}>New API Credential</DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>New API credential</DialogTitle>
+          <DialogTitle>New API Credential</DialogTitle>
         </DialogHeader>
 
         <div ref={kbdRef}>

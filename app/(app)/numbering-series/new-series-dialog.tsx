@@ -67,7 +67,7 @@ export function NewSeriesDialog({ storeId }: { storeId: string }) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button data-kbd-item="">New Series</Button>} />
+      <DialogTrigger render={<Button data-kbd-item="">New Numbering Series</Button>} />
       <DialogContent>
         <DialogHeader>
           <DialogTitle>New Numbering Series</DialogTitle>

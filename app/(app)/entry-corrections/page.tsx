@@ -33,7 +33,7 @@ export default function EntryCorrectionsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Entry Correction</h1>
         <Link href="/entry-corrections/new" data-kbd-item="" className={buttonVariants()}>
-          New Correction
+          New Entry Correction
         </Link>
       </div>
 
