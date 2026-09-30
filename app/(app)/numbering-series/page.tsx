@@ -27,41 +27,11 @@ export default function NumberingSeriesPage() {
   const invalidate = useInvalidateResource();
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [copying, setCopying] = useState(false);
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const kbdRef = useArrowKeyNav<HTMLDivElement>({
     selector: "[data-kbd-item]",
     onBoundaryLeft: focusCurrentNavLink,
   });
-
-  async function handleCopyToAllStores() {
-    if (!selectedStoreId) return;
-    if (
-      !window.confirm(
-        "Copy every numbering series from the selected store to all other stores that don't already have it?",
-      )
-    ) {
-      return;
-    }
-
-    setCopying(true);
-    try {
-      const res = await fetch("/api/numbering-series/copy-to-all-stores", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sourceStoreId: selectedStoreId }),
-      });
-      const body = await res.json().catch(() => null);
-      if (!res.ok) {
-        toast.error(body?.error?.message ?? "Failed to copy series.");
-        return;
-      }
-      invalidate("numbering-series");
-      toast.success(`Copied ${body.copiedCount} series across ${body.targetStoreCount} store(s).`);
-    } finally {
-      setCopying(false);
-    }
-  }
 
   async function handleToggleActive(row: SeriesRow) {
     const activating = !row.isActive;
@@ -111,15 +81,6 @@ export default function NumberingSeriesPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Numbering Series</h1>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            data-kbd-item=""
-            disabled={!selectedStoreId || copying}
-            onClick={handleCopyToAllStores}
-          >
-            {copying && <Loader2Icon className="size-3.5 animate-spin" />}
-            Copy to All Stores
-          </Button>
           {selectedStoreId && <NewSeriesDialog storeId={selectedStoreId} />}
         </div>
       </div>

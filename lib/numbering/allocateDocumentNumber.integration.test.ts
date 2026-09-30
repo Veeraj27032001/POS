@@ -13,7 +13,9 @@ let storeId: string;
 let financialYearId: string;
 
 beforeAll(async () => {
-  const store = await db.store.create({ data: { name: `${marker}_store`, address: "x" } });
+  const store = await db.store.create({
+    data: { name: `${marker}_store`, code: `${marker}_s`, address: "x" },
+  });
   storeId = store.id;
 
   const fy = await db.financialYear.create({

@@ -36,6 +36,18 @@ export const isoDateOnlySchema = z
 
 export const emailSchema = z.string().trim().pipe(z.email("Must be a valid email address."));
 
+// `.optional()` only excuses `undefined`, so a blank input ("") would still
+// fail email-format validation and reject the whole payload.
+export const optionalEmailSchema = z
+  .string()
+  .trim()
+  .optional()
+  .nullable()
+  .transform((v) => (v ? v : null))
+  .refine((v) => v === null || z.email().safeParse(v).success, {
+    message: "Must be a valid email address.",
+  });
+
 export const phoneSchema = z
   .string()
   .trim()

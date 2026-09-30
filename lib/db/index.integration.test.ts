@@ -17,8 +17,12 @@ beforeAll(async () => {
   const role = await db.role.create({ data: { name: `${marker}_role` } });
   roleId = role.id;
 
-  const storeA = await db.store.create({ data: { name: `${marker}_store_a`, address: "x" } });
-  const storeB = await db.store.create({ data: { name: `${marker}_store_b`, address: "x" } });
+  const storeA = await db.store.create({
+    data: { name: `${marker}_store_a`, code: `${marker}_a`, address: "x" },
+  });
+  const storeB = await db.store.create({
+    data: { name: `${marker}_store_b`, code: `${marker}_b`, address: "x" },
+  });
   storeAId = storeA.id;
   storeBId = storeB.id;
 

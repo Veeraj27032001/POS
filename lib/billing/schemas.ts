@@ -1,11 +1,11 @@
 import { z } from "zod";
 
 import {
-  emailSchema,
   isoDateOnlySchema,
   nonNegativeDecimal,
   nonNegativeInt,
   opaqueIdSchema,
+  optionalEmailSchema,
   optionalPhoneSchema,
   optionalString,
   positiveInt,
@@ -62,7 +62,7 @@ export const billDiscountSchema = z.object({
 export const billCustomerDetailsSchema = z.object({
   name: optionalString(255),
   phone: optionalPhoneSchema,
-  email: emailSchema.optional().nullable(),
+  email: optionalEmailSchema,
   address: optionalString(500),
   countryId: opaqueIdSchema.optional().nullable(),
   stateId: opaqueIdSchema.optional().nullable(),

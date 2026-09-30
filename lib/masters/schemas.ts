@@ -9,6 +9,7 @@ import {
   nonNegativeDecimal,
   nonNegativeInt,
   opaqueIdSchema,
+  optionalEmailSchema,
   optionalPhoneSchema,
   optionalString,
   phoneSchema,
@@ -81,7 +82,7 @@ export const productSupplierPriceCreateSchema = z.object({
 export const customerCreateSchema = z.object({
   name: requiredString("Name"),
   phone: optionalPhoneSchema,
-  email: emailSchema.optional().nullable(),
+  email: optionalEmailSchema,
   address: optionalString(500),
   countryId: opaqueIdSchema.optional().nullable(),
   stateId: opaqueIdSchema.optional().nullable(),
@@ -97,7 +98,7 @@ export const customerUpdateSchema = customerCreateSchema.partial();
 export const supplierCreateSchema = z.object({
   name: requiredString("Name"),
   contactPhone: phoneSchema.optional().nullable(),
-  contactEmail: emailSchema.optional().nullable(),
+  contactEmail: optionalEmailSchema,
   address: optionalString(500),
   countryId: opaqueIdSchema.optional().nullable(),
   stateId: opaqueIdSchema.optional().nullable(),
