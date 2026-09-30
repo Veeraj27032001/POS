@@ -432,10 +432,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             collapsed && "md:justify-center",
           )}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="POS logo" className="size-7 shrink-0 rounded-lg object-cover" />
           {(!collapsed || mobileNavOpen) && (
-            <span className="flex-1 text-[15px] font-extrabold">POS</span>
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/logo.png"
+                alt="POS logo"
+                className="size-7 shrink-0 rounded-lg object-cover"
+              />
+              <span className="flex-1 text-[15px] font-extrabold">POS</span>
+            </>
           )}
           <Button
             variant="ghost"
