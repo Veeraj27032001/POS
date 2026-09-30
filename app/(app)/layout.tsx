@@ -421,14 +421,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       <aside
         className={cn(
-          "bg-sidebar fixed inset-y-0 left-0 z-50 flex w-64 shrink-0 flex-col overflow-hidden border-r backdrop-blur-xl transition-transform duration-200 md:static md:z-auto md:translate-x-0 md:transition-[width] md:duration-150",
+          "bg-sidebar text-sidebar-foreground border-sidebar-border fixed inset-y-0 left-0 z-50 flex w-64 shrink-0 flex-col overflow-hidden border-r shadow-sm transition-transform duration-200 md:static md:z-auto md:translate-x-0 md:transition-[width] md:duration-150",
           mobileNavOpen ? "translate-x-0" : "-translate-x-full",
           collapsed ? "md:w-16" : "md:w-64",
         )}
       >
         <div
           className={cn(
-            "flex shrink-0 items-center gap-2 p-3 pb-4",
+            "border-sidebar-border flex h-14 shrink-0 items-center gap-2 border-b px-3",
             collapsed && "md:justify-center",
           )}
         >
@@ -438,9 +438,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <img
                 src="/logo.png"
                 alt="POS logo"
-                className="size-7 shrink-0 rounded-lg object-cover"
+                className="size-8 shrink-0 rounded bg-white/90 object-contain p-0.5"
               />
-              <span className="flex-1 text-[15px] font-extrabold">POS</span>
+              <span className="text-sidebar-accent-foreground flex-1 truncate text-[17px] font-light">
+                Omnia POS
+              </span>
             </>
           )}
           <Button
@@ -470,7 +472,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="flex shrink-0 items-center gap-4 border-b px-6 py-3">
+        <header className="bg-card flex h-14 shrink-0 items-center gap-4 border-b px-4">
           <Button
             variant="ghost"
             size="icon-sm"
@@ -528,13 +530,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           )}
         </header>
 
-        <div className="shrink-0 border-b px-6 py-2.5">
+        <div className="flex shrink-0 justify-end px-6 pt-3 pb-1">
           <Breadcrumbs />
         </div>
 
         <TaxStatusBanner />
 
         <main className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto">{children}</main>
+
+        <footer className="bg-card text-muted-foreground shrink-0 border-t px-6 py-2.5 text-xs">
+          <span className="font-semibold">Omnia Retail POS</span> — all rights reserved.
+        </footer>
       </div>
     </div>
   );

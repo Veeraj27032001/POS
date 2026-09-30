@@ -83,7 +83,7 @@ export function AppNav({ groups, collapsed = false }: AppNavProps) {
       {groups.map((group) => (
         <div key={group.label}>
           {!collapsed && (
-            <div className="text-muted-foreground px-3 pb-1.5 text-[11px] font-semibold tracking-wider uppercase">
+            <div className="text-sidebar-foreground/55 px-3 pb-1.5 text-[11px] font-semibold tracking-wider uppercase">
               {group.label}
             </div>
           )}
@@ -101,11 +101,11 @@ export function AppNav({ groups, collapsed = false }: AppNavProps) {
                     title={collapsed ? item.label : undefined}
                     onKeyDown={(e) => handleKeyDown(e, index)}
                     className={cn(
-                      "focus-visible:ring-ring flex items-center gap-2 rounded-lg px-3 py-2 text-sm outline-none focus-visible:ring-2",
+                      "focus-visible:ring-sidebar-ring text-sidebar-foreground flex items-center gap-2 rounded px-3 py-2 text-sm outline-none focus-visible:ring-2",
                       collapsed && "justify-center px-0",
                       pathname === item.href
-                        ? "bg-accent text-accent-foreground font-medium"
-                        : "hover:bg-accent/50",
+                        ? "bg-sidebar-primary text-sidebar-primary-foreground font-medium"
+                        : "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                     )}
                   >
                     {item.icon}
