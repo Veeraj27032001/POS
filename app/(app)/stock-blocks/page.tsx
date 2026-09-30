@@ -58,7 +58,7 @@ export default function StockBlocksPage() {
           },
           {
             key: "actions",
-            header: "",
+            header: "Actions",
             render: (row) => (
               <Link
                 href={`/stock-blocks/${row.id}`}

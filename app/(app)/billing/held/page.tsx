@@ -72,7 +72,7 @@ export default function HeldBillsPage() {
           },
           {
             key: "actions",
-            header: "",
+            header: "Actions",
             render: (row) => (
               <div className="flex justify-end gap-2">
                 <Button size="sm" data-kbd-item="" onClick={() => void resume(row.id)}>

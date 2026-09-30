@@ -56,7 +56,7 @@ export default function ProductRequestsPage() {
           },
           {
             key: "actions",
-            header: "",
+            header: "Actions",
             render: (row) => (
               <Link
                 href={`/product-requests/${row.id}`}

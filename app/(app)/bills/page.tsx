@@ -124,7 +124,7 @@ export default function BillsPage() {
           },
           {
             key: "print",
-            header: "",
+            header: "Actions",
             render: (row) => (
               <div className="flex gap-2">
                 <Button

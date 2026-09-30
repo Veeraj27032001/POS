@@ -171,9 +171,9 @@ export function ResourcePage<
     ...columns,
     {
       key: "__actions",
-      header: "",
+      header: "Actions",
       render: (row) => (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex gap-2">
           <Link
             href={`/${resource}/${getRowId(row)}`}
             data-kbd-item=""

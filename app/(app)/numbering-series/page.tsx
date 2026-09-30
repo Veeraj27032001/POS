@@ -103,7 +103,7 @@ export default function NumberingSeriesPage() {
             },
             {
               key: "actions",
-              header: "",
+              header: "Actions",
               render: (row) => (
                 <div className="flex gap-2">
                   <Link

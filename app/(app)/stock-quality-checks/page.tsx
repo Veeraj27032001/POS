@@ -49,7 +49,7 @@ export default function StockQualityChecksPage() {
           },
           {
             key: "actions",
-            header: "",
+            header: "Actions",
             render: (row) => (
               <Link
                 href={`/stock-quality-checks/${row.id}`}

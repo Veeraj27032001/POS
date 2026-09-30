@@ -75,7 +75,7 @@ export default function CreditNotesPage() {
           },
           {
             key: "print",
-            header: "",
+            header: "Actions",
             render: (row) => (
               <Button
                 variant="outline"

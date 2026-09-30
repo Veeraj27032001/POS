@@ -618,7 +618,7 @@ export default function EcommerceSettingsPage() {
             },
             {
               key: "actions",
-              header: "",
+              header: "Actions",
               render: (row) => (
                 <div className="flex justify-end gap-2">
                   {!row.revokedAt && (

@@ -49,7 +49,7 @@ export default function StockDamagesPage() {
           },
           {
             key: "actions",
-            header: "",
+            header: "Actions",
             render: (row) => (
               <Link
                 href={`/stock-damages/${row.id}`}

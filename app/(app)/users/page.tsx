@@ -102,7 +102,7 @@ export default function UsersPage() {
           { key: "isActive", header: "Active", render: (row) => (row.isActive ? "Yes" : "No") },
           {
             key: "actions",
-            header: "",
+            header: "Actions",
             render: (row) => (
               <div className="flex gap-2">
                 <Link

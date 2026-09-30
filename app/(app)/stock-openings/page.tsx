@@ -49,7 +49,7 @@ export default function StockOpeningsPage() {
           },
           {
             key: "actions",
-            header: "",
+            header: "Actions",
             render: (row) => (
               <Link
                 href={`/stock-openings/${row.id}`}

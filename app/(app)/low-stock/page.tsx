@@ -64,7 +64,7 @@ export default function LowStockPage() {
             { key: "reorderLevel", header: "Reorder level" },
             {
               key: "status",
-              header: "",
+              header: "Status",
               render: (row) =>
                 row.available <= 0 ? (
                   <span className="inline-flex items-center gap-1 text-red-600">

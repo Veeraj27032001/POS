@@ -56,7 +56,7 @@ export default function StockInwardsPage() {
           },
           {
             key: "actions",
-            header: "",
+            header: "Actions",
             render: (row) => (
               <Link
                 href={`/stock-inwards/${row.id}`}

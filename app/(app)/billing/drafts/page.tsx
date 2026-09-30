@@ -58,7 +58,7 @@ export default function DraftBillsPage() {
           },
           {
             key: "actions",
-            header: "",
+            header: "Actions",
             render: (row) => (
               <Button
                 size="sm"

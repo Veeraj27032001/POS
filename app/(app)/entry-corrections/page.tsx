@@ -59,7 +59,7 @@ export default function EntryCorrectionsPage() {
           },
           {
             key: "actions",
-            header: "",
+            header: "Actions",
             render: (row) => (
               <Link
                 href={`/entry-corrections/${row.id}`}

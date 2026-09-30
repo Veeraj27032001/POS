@@ -80,7 +80,7 @@ export default function RefundsPage() {
           },
           {
             key: "print",
-            header: "",
+            header: "Actions",
             render: (row) => (
               <Button
                 variant="outline"

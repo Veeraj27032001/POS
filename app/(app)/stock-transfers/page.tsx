@@ -68,7 +68,7 @@ export default function StockTransfersPage() {
     },
     {
       key: "actions",
-      header: "",
+      header: "Actions",
       render: (row: StockTransferRow) => (
         <Link
           href={`/stock-transfers/${row.id}`}

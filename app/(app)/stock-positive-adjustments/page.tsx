@@ -49,7 +49,7 @@ export default function StockPositiveAdjustmentsPage() {
           },
           {
             key: "actions",
-            header: "",
+            header: "Actions",
             render: (row) => (
               <Link
                 href={`/stock-positive-adjustments/${row.id}`}

@@ -23,11 +23,16 @@ import {
 } from "@/components/ui/table";
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 import { useListCount, usePaginatedList } from "@/lib/pagination/useList";
+import { cn } from "@/lib/utils";
 
 import { LoadProgress } from "./load-progress";
 import type { DataTableColumn, DataTableProps } from "./types";
 
 const DEFAULT_PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+
+// Button-only columns hug their content, so the leftover table width is spread
+// across the data columns instead of pooling in the last column.
+const SHRINK_TO_FIT_KEYS = new Set(["actions", "__actions", "print"]);
 
 export function DataTable<T>({
   resource,
@@ -124,7 +129,7 @@ export function DataTable<T>({
                 return (
                   <TableHead
                     key={col.key}
-                    className={col.className}
+                    className={cn(SHRINK_TO_FIT_KEYS.has(col.key) && "w-1", col.className)}
                     aria-sort={
                       isSorted ? (sortDir === "asc" ? "ascending" : "descending") : undefined
                     }
@@ -205,7 +210,10 @@ export function DataTable<T>({
                   onClick={rowHref ? () => (window.location.href = rowHref(row)) : undefined}
                 >
                   {columns.map((col) => (
-                    <TableCell key={col.key} className={col.className}>
+                    <TableCell
+                      key={col.key}
+                      className={cn(SHRINK_TO_FIT_KEYS.has(col.key) && "w-1", col.className)}
+                    >
                       {col.render
                         ? col.render(row)
                         : String((row as Record<string, unknown>)[col.key] ?? "")}
