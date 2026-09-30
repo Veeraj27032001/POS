@@ -9,6 +9,7 @@ import { storeUpdateSchema } from "@/lib/masters/schemas";
 interface StoreRow {
   id: string;
   name: string;
+  code: string;
   address: string;
   gstin: string | null;
   isActive: boolean;
@@ -22,6 +23,7 @@ export default function StoreViewPage() {
       title="Stores"
       fields={[
         { name: "name", label: "Name", type: "text" },
+        { name: "code", label: "Store code", type: "text" },
         { name: "address", label: "Address", type: "text" },
         {
           name: "countryId",

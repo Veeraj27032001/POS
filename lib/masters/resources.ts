@@ -388,7 +388,8 @@ export const storeResource = defineResource({
   scoping: "none",
   createSchema: schemas.storeCreateSchema,
   updateSchema: schemas.storeUpdateSchema,
-  searchFields: ["name", "gstin"],
+  searchFields: ["name", "code", "gstin"],
+  uniqueFieldLabels: { code: "store code" },
   getDelegate: delegateOf("store"),
   afterCreate: async (created) => {
     const newStoreId = created.id as string;

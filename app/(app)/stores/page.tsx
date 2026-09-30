@@ -8,6 +8,7 @@ import { storeCreateSchema, storeUpdateSchema } from "@/lib/masters/schemas";
 interface StoreRow {
   id: string;
   name: string;
+  code: string;
   address: string;
   gstin: string | null;
   isActive: boolean;
@@ -20,12 +21,14 @@ export default function StoresPage() {
       title="Stores"
       columns={[
         { key: "name", header: "Name" },
+        { key: "code", header: "Code" },
         { key: "address", header: "Address" },
         { key: "gstin", header: "GSTIN", render: (row) => row.gstin ?? "—" },
         { key: "isActive", header: "Active", render: (row) => (row.isActive ? "Yes" : "No") },
       ]}
       fields={[
         { name: "name", label: "Name", type: "text" },
+        { name: "code", label: "Store code", type: "text" },
         { name: "address", label: "Address", type: "text" },
         {
           name: "countryId",

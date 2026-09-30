@@ -96,6 +96,7 @@ model Timezone {
 model Store {
   id                    String     @id @default(uuid())
   name                  String
+  code                  String     @unique
   address               String
   countryId             String?    @map("country_id")
   country               Country?   @relation(fields: [countryId], references: [id])

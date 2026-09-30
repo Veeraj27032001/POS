@@ -243,6 +243,7 @@ export const apiCredentialUpdateSchema = z.object({
 
 export const storeCreateSchema = z.object({
   name: requiredString("Name"),
+  code: requiredString("Store code", 20),
   address: requiredString("Address"),
   countryId: opaqueIdSchema.optional().nullable(),
   stateId: opaqueIdSchema.optional().nullable(),
