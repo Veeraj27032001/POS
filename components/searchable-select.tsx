@@ -18,6 +18,9 @@ import { cn } from "@/lib/utils";
 export interface SearchableSelectOption {
   value: string;
   label: string;
+  /** Extra text the option can be found by without being shown — e.g. a
+   * customer's phone number alongside their name. */
+  keywords?: string[];
 }
 
 export interface SearchableSelectProps {
@@ -151,7 +154,7 @@ export function SearchableSelect({
                 <CommandItem
                   key={option.value}
                   value={option.value}
-                  keywords={[option.label]}
+                  keywords={[option.label, ...(option.keywords ?? [])]}
                   onSelect={() => {
                     onChange(option.value === value ? null : option.value);
                     setOpen(false);

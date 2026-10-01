@@ -161,7 +161,7 @@ export default function BillingPage() {
   const router = useRouter();
 
   const terminals = useOptionsList("terminals", "name");
-  const customers = useOptionsList("customers", "name");
+  const customers = useOptionsList("customers", "name", undefined, ["phone"]);
   const paymentMethods = useOptionsList("payment-methods/options", "name");
   const discountReasons = useOptionsList("reason-codes/options", "label", "category=discount");
   const { terminalId: rememberedTerminalId, setTerminalId: rememberTerminalId } =

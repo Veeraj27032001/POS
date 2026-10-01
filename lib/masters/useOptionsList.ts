@@ -8,8 +8,12 @@ export function useOptionsList(
   resource: string,
   labelField: string,
   extraQuery?: string,
+  /** Row fields the option should also be findable by, without showing them
+   * in the label — e.g. ["phone"] so a customer can be found by number. */
+  keywordFields?: string[],
 ): SearchableSelectOption[] {
   const [options, setOptions] = useState<SearchableSelectOption[]>([]);
+  const keywordKey = keywordFields?.join(",") ?? "";
 
   useEffect(() => {
     if (!resource) {
@@ -27,6 +31,13 @@ export function useOptionsList(
             .map((row) => ({
               value: String(row.id),
               label: String(row[labelField] ?? row.id),
+              keywords: keywordKey
+                ? keywordKey
+                    .split(",")
+                    .map((field) => row[field])
+                    .filter((v) => v != null && v !== "")
+                    .map(String)
+                : undefined,
             })),
         );
       })
@@ -34,7 +45,7 @@ export function useOptionsList(
     return () => {
       cancelled = true;
     };
-  }, [resource, labelField, extraQuery]);
+  }, [resource, labelField, extraQuery, keywordKey]);
 
   return options;
 }
