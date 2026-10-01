@@ -62,6 +62,9 @@ export default function CollectGatewayPaymentPage() {
   const [confirming, setConfirming] = useState(false);
   const [paymentDone, setPaymentDone] = useState(false);
   const [clearingStale, setClearingStale] = useState(true);
+  // One failed automatic request must not retry forever — the user can still
+  // trigger one by hand.
+  const [autoRequestFailed, setAutoRequestFailed] = useState(false);
   const pollCountRef = useRef(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const kbdRef = useArrowKeyNav<HTMLDivElement>({
@@ -143,6 +146,7 @@ export default function CollectGatewayPaymentPage() {
       if (!res.ok) {
         const body = await res.json().catch(() => null);
         toast.error(body?.error?.message ?? "Failed to start the payment request.");
+        setAutoRequestFailed(true);
         return;
       }
       const body = (await res.json()) as CreateResponse;
@@ -158,10 +162,17 @@ export default function CollectGatewayPaymentPage() {
   // QR/Link starts sharing immediately, with no separate "Request payment"
   // click — only Card Machine needs an explicit action.
   useEffect(() => {
-    if (clearingStale || !bill || request || requesting) return;
+    if (clearingStale || !bill || request || requesting || autoRequestFailed) return;
+    // Nothing left to collect — a reload of an already-settled bill must not
+    // ask the gateway for a zero-amount request, which the server rejects and
+    // which would re-fire this effect on every failure.
+    const paid = bill.payments
+      .filter((p) => p.status === "success")
+      .reduce((s, p) => s + Number(p.amount), 0);
+    if (Number(bill.grandTotal) - paid <= 0.01) return;
     if (uiMethod === "qr_link") void requestPayment(uiMethod);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clearingStale, bill, uiMethod, request, requesting]);
+  }, [clearingStale, bill, uiMethod, request, requesting, autoRequestFailed]);
 
   // Accepts an explicit request so the hardware auto-charge path below can
   // pass the just-created request without waiting on the setRequest state
@@ -213,6 +224,7 @@ export default function CollectGatewayPaymentPage() {
     setRequest(null);
     setStatus("pending");
     setPaused(false);
+    setAutoRequestFailed(false);
     setUiMethod(nextMethod);
   }
 
