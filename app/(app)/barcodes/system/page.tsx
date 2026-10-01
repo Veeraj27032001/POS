@@ -7,6 +7,7 @@ import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { useListCount } from "@/lib/pagination/useList";
 
 import { PrintAllButton } from "../print-all-button";
+import { PrintLabelButton } from "../print-label-button";
 
 interface SystemBarcodeRow {
   id: string;
@@ -60,6 +61,17 @@ export default function SystemBarcodesPage() {
             key: "systemBarcode",
             header: "System barcode",
             className: "font-mono",
+          },
+          {
+            key: "actions",
+            header: "Actions",
+            render: (row) => (
+              <PrintLabelButton
+                barcodeValue={row.systemBarcode}
+                productName={row.name}
+                price={Number(row.price)}
+              />
+            ),
           },
         ]}
       />
