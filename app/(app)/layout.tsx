@@ -535,7 +535,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           )}
         </header>
 
-        <div className="flex shrink-0 justify-end px-6 pt-3 pb-1">
+        <div className="flex shrink-0 px-8 pt-3 pb-0">
           <Breadcrumbs />
         </div>
 
