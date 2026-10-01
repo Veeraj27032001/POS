@@ -69,7 +69,7 @@ export async function autoAllocateWarehouses(params: {
   const levels =
     params.perWarehouse ?? (await getWarehouseAvailability(params.storeId, params.productId));
   if (levels.length === 0) {
-    return { error: "This store has no active warehouse to allocate stock from." };
+    return { error: "This store has no active storage location to allocate stock from." };
   }
 
   const withStock = levels.filter((l) => l.available > 0);
@@ -103,7 +103,7 @@ export async function autoAllocateWarehouses(params: {
   }
 
   if (remaining > 0) {
-    return { error: "Not enough stock across this store's warehouses to cover this quantity." };
+    return { error: "Not enough stock in this store's storage to cover this quantity." };
   }
   return { allocations };
 }

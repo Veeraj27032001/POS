@@ -218,7 +218,10 @@ export function useArrowKeyNav<T extends HTMLElement>({
         if (document.activeElement !== document.body) return;
         const items = getItems();
         const fallback = items.find(isFocusable);
-        fallback?.focus();
+        // Recovering focus is housekeeping the user never asked for, so it
+        // must not move the viewport — scrolling here yanks a long page
+        // (billing's cart) back to the top mid-edit.
+        fallback?.focus({ preventScroll: true });
       });
     }
 

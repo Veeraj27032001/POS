@@ -52,13 +52,6 @@ export async function resolveAllocations(params: {
     // Falls through to a fresh auto-allocation below.
   }
 
-  if (warehouses.length === 1) {
-    return {
-      allocations: [{ warehouseId: warehouses[0].id, quantity: params.quantity }],
-      fellBack: !!params.requested?.length,
-    };
-  }
-
   const auto = await autoAllocateWarehouses({
     storeId: params.storeId,
     productId: params.productId,

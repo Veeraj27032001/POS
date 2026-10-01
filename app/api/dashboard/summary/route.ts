@@ -21,7 +21,44 @@ export async function GET() {
 
   const storeId = session.user.storeId;
   if (!storeId) {
-    return Response.json({ hasStore: false });
+    // A cross-store viewer (Super Admin) has no till of their own, so the
+    // operational blocks below mean nothing to them — they get an estate-wide
+    // picture of the stores they administer instead.
+    const db = unscoped();
+    const [stores, userCount, productCount] = await Promise.all([
+      db.store.findMany({
+        where: { isDeleted: false },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, code: true, isActive: true },
+      }),
+      db.user.count({ where: { isDeleted: false, isActive: true } }),
+      db.product.count({ where: { isDeleted: false, isActive: true } }),
+    ]);
+
+    const storeIds = stores.map((s) => s.id);
+    const [terminalCount, warehouseCount] = await Promise.all([
+      db.terminal.count({ where: { storeId: { in: storeIds }, isDeleted: false, isActive: true } }),
+      db.warehouse.count({
+        where: { storeId: { in: storeIds }, isDeleted: false, isActive: true },
+      }),
+    ]);
+
+    return Response.json({
+      hasStore: false,
+      estate: {
+        stores: stores.map((s) => ({
+          id: s.id,
+          name: s.name,
+          code: s.code,
+          isActive: s.isActive,
+        })),
+        activeStores: stores.filter((s) => s.isActive).length,
+        users: userCount,
+        products: productCount,
+        terminals: terminalCount,
+        warehouses: warehouseCount,
+      },
+    });
   }
 
   return withStoreContext(async () => {

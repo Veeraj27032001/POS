@@ -42,6 +42,14 @@ interface DashboardSummary {
   };
   pendingTransfers?: { incoming: number; outgoing: number };
   creditOutstanding?: { total: number; billCount: number };
+  estate?: {
+    stores: { id: string; name: string; code: string; isActive: boolean }[];
+    activeStores: number;
+    users: number;
+    products: number;
+    terminals: number;
+    warehouses: number;
+  };
 }
 
 const BILL_TYPE_LABELS: Record<string, string> = {
@@ -138,11 +146,59 @@ export default function DashboardPage() {
         {greetingText}, {session?.user?.name?.split(" ")[0] ?? "there"}
       </h1>
       <p className="text-muted-foreground mb-1 text-sm">
-        Here&apos;s what&apos;s happening across your store today.
+        {summary && !summary.hasStore
+          ? "Here's the picture across every store you administer."
+          : "Here's what's happening across your store today."}
       </p>
       <p className="text-muted-foreground mb-6 text-xs">
         Signed in as {session?.user?.name} ({session?.user?.roleName})
       </p>
+
+      {summary?.estate && (
+        <div className="mb-6 space-y-4">
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
+            {[
+              { label: "Stores", value: summary.estate.activeStores },
+              { label: "Storage", value: summary.estate.warehouses },
+              { label: "Terminals", value: summary.estate.terminals },
+              { label: "Users", value: summary.estate.users },
+              { label: "Products", value: summary.estate.products },
+            ].map((stat) => (
+              <Card key={stat.label}>
+                <CardContent>
+                  <p className="text-muted-foreground text-xs">{stat.label}</p>
+                  <p className="text-2xl font-extrabold">{stat.value}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          <Card>
+            <CardContent>
+              <p className="mb-3 text-sm font-bold">Stores</p>
+              <div className="divide-border divide-y">
+                {summary.estate.stores.map((store) => (
+                  <Link
+                    key={store.id}
+                    href={`/stores/${store.id}`}
+                    data-kbd-item=""
+                    className="hover:bg-muted/50 flex items-center justify-between rounded px-1 py-2 text-sm"
+                  >
+                    <span className="font-medium">{store.name}</span>
+                    <span className="text-muted-foreground flex items-center gap-3 text-xs">
+                      <span className="font-mono">{store.code}</span>
+                      <span>{store.isActive ? "Active" : "Inactive"}</span>
+                    </span>
+                  </Link>
+                ))}
+                {summary.estate.stores.length === 0 && (
+                  <p className="text-muted-foreground py-2 text-sm">No stores yet.</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {summary?.hasStore && (
         <div ref={widgetsRef} className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">

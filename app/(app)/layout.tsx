@@ -116,9 +116,12 @@ const NAV_ITEM_MODULE: Record<string, string> = {
   "/settings/ecommerce": "ecommerce",
   "/settings/financial-years": "financial_years",
   "/settings/roles": "roles",
+  "/logs": "audit_logs",
 };
 
-const STORE_SPECIFIC_NAV_GROUPS = new Set(["Overview", "Billing", "Stock", "Reports"]);
+// The Dashboard adapts to a cross-store viewer, so Overview is not gated on
+// having a store — the rest of these are store-level work and stay hidden.
+const STORE_SPECIFIC_NAV_GROUPS = new Set(["Billing", "Stock", "Reports"]);
 
 const NAV_GROUPS: AppNavGroup[] = [
   {
@@ -303,6 +306,7 @@ const NAV_GROUPS: AppNavGroup[] = [
         icon: <CalendarRange className="h-4 w-4" />,
       },
       { href: "/settings/roles", label: "Roles", icon: <Shield className="h-4 w-4" /> },
+      { href: "/logs", label: "Activity Log", icon: <ClipboardList className="h-4 w-4" /> },
       { href: "/settings/security", label: "Security", icon: <ShieldCheck className="h-4 w-4" /> },
       {
         href: "/settings/preferences",

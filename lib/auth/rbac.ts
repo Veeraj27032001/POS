@@ -55,6 +55,7 @@ export const BUSINESS_MODULES = [
   "users",
   "roles",
   "settings",
+  "audit_logs",
 ];
 
 export const ALL_MODULES = [...BUSINESS_MODULES, ...SUPER_ADMIN_ONLY_MODULES];

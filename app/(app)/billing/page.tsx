@@ -549,13 +549,16 @@ export default function BillingPage() {
   }
 
   function removeLine(productId: string) {
-    setCartLines((prev) => {
-      const line = prev.find((l) => l.productId === productId);
-      if (line?.serverId) {
-        setRemovedServerLineIds((ids) => [...ids, line.serverId!]);
-      }
-      return prev.filter((l) => l.productId !== productId);
-    });
+    // Queuing the server-side delete has to happen outside the setCartLines
+    // updater — a nested state update there runs during render and can be
+    // dropped, which left the line on the bill and failed the stock check on
+    // save even though it was gone from the screen.
+    const line = cartLines.find((l) => l.productId === productId);
+    const serverId = line?.serverId;
+    if (serverId) {
+      setRemovedServerLineIds((ids) => (ids.includes(serverId) ? ids : [...ids, serverId]));
+    }
+    setCartLines((prev) => prev.filter((l) => l.productId !== productId));
   }
 
   // Quantity change invalidates any manual split — reverts to automatic.
@@ -732,7 +735,8 @@ export default function BillingPage() {
 
     for (const lineId of removedServerLineIds) {
       const res = await fetch(`/api/bills/${billId}/lines/${lineId}`, { method: "DELETE" });
-      if (!res.ok) {
+      // A line that is already gone is the outcome we wanted anyway.
+      if (!res.ok && res.status !== 404) {
         const body = await res.json().catch(() => null);
         toast.error(body?.error?.message ?? "Failed to remove an item.");
         return null;
