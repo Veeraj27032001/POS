@@ -39,7 +39,7 @@ export default function EditStockPositiveAdjustmentPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const invalidate = useInvalidateResource();
-  const warehouses = useOptionsList("warehouses", "name");
+  const warehouses = useOptionsList("warehouses/options", "name");
   const products = useOptionsList("products", "name");
   const reasonCodes = useOptionsList("reason-codes/options", "label", "category=stock_adjustment");
   const [loaded, setLoaded] = useState<"pending" | "ready" | "not_found">("pending");

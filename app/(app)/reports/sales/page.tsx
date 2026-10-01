@@ -29,7 +29,7 @@ export default function SalesReportPage() {
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const currencySymbol = useStoreCurrencySymbol();
   const warehouses = useOptionsList(
-    selectedStoreId ? "warehouses" : "",
+    selectedStoreId ? "warehouses/options" : "",
     "name",
     selectedStoreId ? `storeId=${selectedStoreId}` : undefined,
   );

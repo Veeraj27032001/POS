@@ -47,7 +47,7 @@ export default function EditStockInwardPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const invalidate = useInvalidateResource();
-  const warehouses = useOptionsList("warehouses", "name");
+  const warehouses = useOptionsList("warehouses/options", "name");
   const suppliers = useOptionsList("suppliers", "name");
   const products = useOptionsList("products", "name");
   const [loaded, setLoaded] = useState<"pending" | "ready" | "not_editable" | "not_found">(

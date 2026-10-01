@@ -54,7 +54,7 @@ export default function StockInwardViewPage() {
   const [row, setRow] = useState<StockInwardRow | null | undefined>(undefined);
   const [deleting, setDeleting] = useState(false);
   const invalidate = useInvalidateResource();
-  const warehouses = useOptionsList("warehouses", "name");
+  const warehouses = useOptionsList("warehouses/options", "name");
   const suppliers = useOptionsList("suppliers", "name");
   const purchaseOrders = useOptionsList("product-requests", "documentNumber");
   const kbdRef = useArrowKeyNav<HTMLDivElement>({

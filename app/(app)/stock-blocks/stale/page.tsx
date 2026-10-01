@@ -38,7 +38,7 @@ function lookupLabel(options: { value: string; label: string }[], id: string) {
 
 export default function StaleStockBlocksPage() {
   const [rows, setRows] = useState<StaleBlockItemRow[] | undefined>(undefined);
-  const warehouses = useOptionsList("warehouses", "name");
+  const warehouses = useOptionsList("warehouses/options", "name");
 
   useEffect(() => {
     fetch("/api/stock-blocks/stale")

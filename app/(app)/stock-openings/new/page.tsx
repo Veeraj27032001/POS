@@ -28,7 +28,7 @@ type StockOpeningCreateInput = z.infer<typeof stockOpeningCreateSchema>;
 export default function NewStockOpeningPage() {
   const router = useRouter();
   const invalidate = useInvalidateResource();
-  const warehouses = useOptionsList("warehouses", "name");
+  const warehouses = useOptionsList("warehouses/options", "name");
   const products = useOptionsList("products", "name");
 
   const {

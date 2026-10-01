@@ -26,7 +26,7 @@ interface StockReportRow {
 export default function StockReportPage() {
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const warehouses = useOptionsList(
-    selectedStoreId ? "warehouses" : "",
+    selectedStoreId ? "warehouses/options" : "",
     "name",
     selectedStoreId ? `storeId=${selectedStoreId}` : undefined,
   );

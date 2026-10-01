@@ -32,7 +32,7 @@ type StockInwardCreateInput = z.infer<typeof stockInwardCreateSchema>;
 export default function NewStockInwardPage() {
   const router = useRouter();
   const invalidate = useInvalidateResource();
-  const warehouses = useOptionsList("warehouses", "name");
+  const warehouses = useOptionsList("warehouses/options", "name");
   const suppliers = useOptionsList("suppliers", "name");
   const products = useOptionsList("products", "name");
   const [linkedDocumentNumber, setLinkedDocumentNumber] = useState<string | null>(null);

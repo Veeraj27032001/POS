@@ -28,7 +28,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export default function StockTransfersPage() {
-  const warehouses = useOptionsList("warehouses", "name");
+  const warehouses = useOptionsList("warehouses/options", "name");
   const stores = useOptionsList("stock-transfers/destination-stores", "name");
 
   const columns = (kind: "sent" | "incoming") => [

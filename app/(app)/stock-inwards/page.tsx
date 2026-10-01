@@ -18,7 +18,7 @@ interface StockInwardRow {
 }
 
 export default function StockInwardsPage() {
-  const warehouses = useOptionsList("warehouses", "name");
+  const warehouses = useOptionsList("warehouses/options", "name");
   const suppliers = useOptionsList("suppliers", "name");
   const kbdRef = useArrowKeyNav<HTMLDivElement>({
     selector: "[data-kbd-item]",

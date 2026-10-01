@@ -53,7 +53,7 @@ export default function StockLedgerReportPage() {
       .catch(() => setFinancialYears([]));
   }, []);
   const warehouses = useOptionsList(
-    selectedStoreId ? "warehouses" : "",
+    selectedStoreId ? "warehouses/options" : "",
     "name",
     selectedStoreId ? `storeId=${selectedStoreId}` : undefined,
   );

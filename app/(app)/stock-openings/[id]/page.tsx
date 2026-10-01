@@ -50,7 +50,7 @@ export default function StockOpeningViewPage() {
   const [row, setRow] = useState<StockOpeningRow | null | undefined>(undefined);
   const [deleting, setDeleting] = useState(false);
   const invalidate = useInvalidateResource();
-  const warehouses = useOptionsList("warehouses", "name");
+  const warehouses = useOptionsList("warehouses/options", "name");
   const kbdRef = useArrowKeyNav<HTMLDivElement>({
     selector: "[data-kbd-item]",
     onBoundaryLeft: focusCurrentNavLink,

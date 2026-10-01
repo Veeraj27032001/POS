@@ -420,6 +420,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       )}
 
       <aside
+        data-slot="app-sidebar"
         className={cn(
           "bg-sidebar text-sidebar-foreground border-sidebar-border fixed inset-y-0 left-0 z-50 flex w-64 shrink-0 flex-col overflow-hidden border-r shadow-sm transition-transform duration-200 md:static md:z-auto md:translate-x-0 md:transition-[width] md:duration-150",
           mobileNavOpen ? "translate-x-0" : "-translate-x-full",

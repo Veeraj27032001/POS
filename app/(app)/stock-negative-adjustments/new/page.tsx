@@ -28,7 +28,7 @@ type StockNegativeAdjustmentCreateInput = z.infer<typeof stockNegativeAdjustment
 export default function NewStockNegativeAdjustmentPage() {
   const router = useRouter();
   const invalidate = useInvalidateResource();
-  const warehouses = useOptionsList("warehouses", "name");
+  const warehouses = useOptionsList("warehouses/options", "name");
   const products = useOptionsList("products", "name");
   const reasonCodes = useOptionsList("reason-codes/options", "label", "category=stock_adjustment");
 

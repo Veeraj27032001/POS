@@ -18,7 +18,7 @@ interface LowStockRow {
 }
 
 export default function LowStockPage() {
-  const warehouses = useOptionsList("warehouses", "name");
+  const warehouses = useOptionsList("warehouses/options", "name");
   const [warehouseId, setWarehouseId] = useState<string | null>(null);
   const kbdRef = useArrowKeyNav<HTMLDivElement>({
     selector: "[data-kbd-item]",

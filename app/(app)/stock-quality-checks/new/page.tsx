@@ -28,7 +28,7 @@ type StockQualityCheckCreateInput = z.infer<typeof stockQualityCheckCreateSchema
 export default function NewStockQualityCheckPage() {
   const router = useRouter();
   const invalidate = useInvalidateResource();
-  const warehouses = useOptionsList("warehouses", "name");
+  const warehouses = useOptionsList("warehouses/options", "name");
   const products = useOptionsList("products", "name");
   const reasonCodes = useOptionsList("reason-codes/options", "label", "category=quality_check");
 

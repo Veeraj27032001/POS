@@ -29,7 +29,7 @@ type StockTransferCreateInput = z.infer<typeof stockTransferCreateSchema>;
 export default function NewStockTransferPage() {
   const router = useRouter();
   const invalidate = useInvalidateResource();
-  const warehouses = useOptionsList("warehouses", "name");
+  const warehouses = useOptionsList("warehouses/options", "name");
   const destinationStores = useOptionsList("stock-transfers/destination-stores", "name");
   const products = useOptionsList("products", "name");
   const [destinationKind, setDestinationKind] = useState<"warehouse" | "store">("warehouse");

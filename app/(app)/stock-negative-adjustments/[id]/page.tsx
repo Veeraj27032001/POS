@@ -51,7 +51,7 @@ export default function StockNegativeAdjustmentViewPage() {
   const [row, setRow] = useState<StockNegativeAdjustmentRow | null | undefined>(undefined);
   const [deleting, setDeleting] = useState(false);
   const invalidate = useInvalidateResource();
-  const warehouses = useOptionsList("warehouses", "name");
+  const warehouses = useOptionsList("warehouses/options", "name");
   const reasonCodes = useOptionsList("reason-codes/options", "label", "category=stock_adjustment");
   const kbdRef = useArrowKeyNav<HTMLDivElement>({
     selector: "[data-kbd-item]",

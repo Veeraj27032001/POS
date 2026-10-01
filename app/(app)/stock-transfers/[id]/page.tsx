@@ -78,7 +78,7 @@ export default function StockTransferViewPage() {
   const [updating, setUpdating] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const invalidate = useInvalidateResource();
-  const warehouses = useOptionsList("warehouses", "name");
+  const warehouses = useOptionsList("warehouses/options", "name");
   const stores = useOptionsList("stock-transfers/destination-stores", "name");
   const kbdRef = useArrowKeyNav<HTMLDivElement>({
     selector: "[data-kbd-item]",

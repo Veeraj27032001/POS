@@ -39,7 +39,7 @@ export default function ReceiveStockTransferPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const invalidate = useInvalidateResource();
-  const warehouses = useOptionsList("warehouses", "name");
+  const warehouses = useOptionsList("warehouses/options", "name");
   const [loaded, setLoaded] = useState<"pending" | "ready" | "not_receivable" | "not_found">(
     "pending",
   );

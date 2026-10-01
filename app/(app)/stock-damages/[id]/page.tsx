@@ -51,7 +51,7 @@ export default function StockDamageViewPage() {
   const [row, setRow] = useState<StockDamageRow | null | undefined>(undefined);
   const [deleting, setDeleting] = useState(false);
   const invalidate = useInvalidateResource();
-  const warehouses = useOptionsList("warehouses", "name");
+  const warehouses = useOptionsList("warehouses/options", "name");
   const reasonCodes = useOptionsList("reason-codes/options", "label", "category=damage");
   const kbdRef = useArrowKeyNav<HTMLDivElement>({
     selector: "[data-kbd-item]",

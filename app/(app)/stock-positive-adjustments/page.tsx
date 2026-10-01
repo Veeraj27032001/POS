@@ -17,7 +17,7 @@ interface StockPositiveAdjustmentRow {
 }
 
 export default function StockPositiveAdjustmentsPage() {
-  const warehouses = useOptionsList("warehouses", "name");
+  const warehouses = useOptionsList("warehouses/options", "name");
   const kbdRef = useArrowKeyNav<HTMLDivElement>({
     selector: "[data-kbd-item]",
     onBoundaryLeft: focusCurrentNavLink,

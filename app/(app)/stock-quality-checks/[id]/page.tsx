@@ -51,7 +51,7 @@ export default function StockQualityCheckViewPage() {
   const [row, setRow] = useState<StockQualityCheckRow | null | undefined>(undefined);
   const [deleting, setDeleting] = useState(false);
   const invalidate = useInvalidateResource();
-  const warehouses = useOptionsList("warehouses", "name");
+  const warehouses = useOptionsList("warehouses/options", "name");
   const reasonCodes = useOptionsList("reason-codes/options", "label", "category=quality_check");
   const kbdRef = useArrowKeyNav<HTMLDivElement>({
     selector: "[data-kbd-item]",

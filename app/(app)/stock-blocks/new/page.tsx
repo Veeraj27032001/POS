@@ -27,7 +27,7 @@ type StockBlockCreateInput = z.infer<typeof stockBlockCreateSchema>;
 export default function NewStockBlockPage() {
   const router = useRouter();
   const invalidate = useInvalidateResource();
-  const warehouses = useOptionsList("warehouses", "name");
+  const warehouses = useOptionsList("warehouses/options", "name");
   const products = useOptionsList("products", "name");
   const reasonCodes = useOptionsList("reason-codes/options", "label", "category=stock_block");
 
