@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Omnia Retail POS",
-    short_name: "Omnia POS",
+    name: "Vedix POS",
+    short_name: "Vedix POS",
     description:
       "Store-scoped, multi-storage retail POS for the India market — masters, stock, billing, and reporting in one portal.",
     start_url: "/",

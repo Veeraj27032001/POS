@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const APP_NAME = "POS";
+const APP_NAME = "Vedix POS";
 const APP_DESCRIPTION =
   "Store-scoped, multi-storage retail POS for the India market — masters, stock, billing, and reporting in one portal.";
 const SITE_URL = "https://pos.vedixsolutions.com";

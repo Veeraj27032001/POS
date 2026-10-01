@@ -178,7 +178,7 @@ export default function ProductsPage() {
             key: "__actions",
             header: "Actions",
             render: (row) => (
-              <div className="flex flex-wrap gap-1.5" onClick={(e) => e.stopPropagation()}>
+              <div className="flex gap-1.5" onClick={(e) => e.stopPropagation()}>
                 <Button
                   variant="outline"
                   size="sm"

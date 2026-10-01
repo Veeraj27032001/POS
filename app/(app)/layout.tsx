@@ -441,7 +441,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 className="size-8 shrink-0 rounded bg-white/90 object-contain p-0.5"
               />
               <span className="text-sidebar-accent-foreground flex-1 truncate text-[17px] font-light">
-                Omnia POS
+                Vedix POS
               </span>
             </>
           )}
@@ -539,7 +539,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <main className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto">{children}</main>
 
         <footer className="bg-card text-muted-foreground shrink-0 border-t px-6 py-2.5 text-xs">
-          <span className="font-semibold">Omnia Retail POS</span> — all rights reserved.
+          <span className="font-semibold">Vedix POS</span> — all rights reserved.
         </footer>
       </div>
     </div>
