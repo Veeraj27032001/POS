@@ -1206,10 +1206,10 @@ export default function BillingPage() {
 
   return (
     <div ref={kbdRef} className="space-y-4 p-8">
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl font-semibold">{savedDocumentNumber ?? "New bill"}</h1>
-          <div className="text-muted-foreground flex items-center gap-1.5 text-sm">
+          <div className="text-muted-foreground flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm">
             <span>{customerSummary ?? "Walk-in customer"}</span>
             <span>·</span>
             <span>{billType === "credit_bill" ? "Credit Bill" : "Cash Bill"}</span>
@@ -1256,7 +1256,7 @@ export default function BillingPage() {
             </Dialog>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {billStatus === "held" ? (
             <>
               <Button variant="outline" data-kbd-item="" onClick={saveDraft} disabled={busy}>
