@@ -385,7 +385,9 @@ export default function DashboardPage() {
       <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-[2fr_1fr]">
         <Card>
           <CardContent>
-            <p className="mb-4 text-sm font-bold">Recent activity</p>
+            <p className="mb-4 text-sm font-bold">
+              {summary?.estate ? "Recent activity" : "Your recent activity"}
+            </p>
             <div ref={activityRef} className="divide-y">
               {activityQuery.data?.entries.length === 0 && (
                 <p className="text-muted-foreground py-4 text-sm">No activity yet.</p>

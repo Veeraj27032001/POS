@@ -477,7 +477,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="bg-card flex h-14 shrink-0 items-center gap-4 border-b px-4">
+        <header className="bg-card flex h-14 shrink-0 items-center gap-2 border-b px-3 sm:gap-4 sm:px-4">
           <Button
             variant="ghost"
             size="icon-sm"
@@ -495,10 +495,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               variant="ghost"
               size="sm"
               nativeButton={false}
-              render={<a href={latestDesktopRelease.fileUrl} download />}
+              render={
+                <a
+                  href={latestDesktopRelease.fileUrl}
+                  download
+                  title="Download desktop app"
+                  aria-label="Download desktop app"
+                />
+              }
             >
               <Download className="size-4" />
-              Download desktop app
+              <span className="hidden lg:inline">Download desktop app</span>
             </Button>
           )}
           <ThemeToggle />

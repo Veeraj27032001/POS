@@ -58,7 +58,7 @@ export function FinancialYearSwitcher() {
       disabled={switching}
       items={options.map((fy) => ({ value: fy.id, label: fy.label }))}
     >
-      <SelectTrigger className="w-40">
+      <SelectTrigger className="w-28 sm:w-40">
         <SelectValue placeholder="Financial year" />
       </SelectTrigger>
       <SelectContent>
