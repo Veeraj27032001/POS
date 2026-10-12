@@ -12,7 +12,14 @@ def signingProp = { String key ->
     localProps.getProperty(key) ?: System.getenv(key)
 }
 def releaseKeystore = signingProp("VEDIX_KEYSTORE_FILE")
-def hasReleaseSigning = releaseKeystore != null && file(releaseKeystore).exists()
+def hasReleaseSigning = releaseKeystore != null
+// Asking for signing and silently getting an uninstallable unsigned APK is
+// the worst outcome, so a configured-but-missing keystore stops the build.
+if (hasReleaseSigning && !file(releaseKeystore).exists()) {
+    throw new GradleException(
+        "VEDIX_KEYSTORE_FILE is set to '${releaseKeystore}' but no keystore exists at " +
+        file(releaseKeystore).absolutePath)
+}
 
 android {
     namespace "com.vedixsolutions.pos"
