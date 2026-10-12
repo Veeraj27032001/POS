@@ -24,6 +24,7 @@ import {
   PackageOpen,
   PackagePlus,
   PackageX,
+  Printer,
   Receipt,
   Settings as SettingsIcon,
   Shield,
@@ -308,6 +309,11 @@ const NAV_GROUPS: AppNavGroup[] = [
       { href: "/settings/roles", label: "Roles", icon: <Shield className="h-4 w-4" /> },
       { href: "/logs", label: "Activity Log", icon: <ClipboardList className="h-4 w-4" /> },
       { href: "/settings/security", label: "Security", icon: <ShieldCheck className="h-4 w-4" /> },
+      {
+        href: "/settings/printer",
+        label: "Printer",
+        icon: <Printer className="h-4 w-4" />,
+      },
       {
         href: "/settings/preferences",
         label: "Preferences",
