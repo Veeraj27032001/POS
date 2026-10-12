@@ -8,7 +8,7 @@ function renderBarcodeSvg(value: string): string {
   return svg.outerHTML;
 }
 
-function renderReceiptHtml(p: Extract<PrintPayload, { kind: "receipt" }>): string {
+export function renderReceiptHtml(p: Extract<PrintPayload, { kind: "receipt" }>): string {
   const rows = p.lines
     .map(
       (l) =>
@@ -42,7 +42,7 @@ function renderReceiptHtml(p: Extract<PrintPayload, { kind: "receipt" }>): strin
     </body></html>`;
 }
 
-function renderLabelHtml(p: Extract<PrintPayload, { kind: "label" }>): string {
+export function renderLabelHtml(p: Extract<PrintPayload, { kind: "label" }>): string {
   const labels = p.labels
     .flatMap((item) => {
       const barcodeSvg = renderBarcodeSvg(item.barcodeValue);

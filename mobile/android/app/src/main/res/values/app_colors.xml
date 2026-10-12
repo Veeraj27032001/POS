@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Fills the strip left behind the system bars once the WebView is inset,
+         so it matches the app header rather than flashing a default colour. -->
+    <color name="systemBarBackground">#FFFFFF</color>
+</resources>
