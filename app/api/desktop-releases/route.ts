@@ -52,6 +52,7 @@ export async function POST(request: Request) {
     try {
       created = await db.desktopAppRelease.create({
         data: {
+          platform: data.platform,
           version: data.version,
           fileUrl: data.fileUrl,
           fileSizeBytes: data.fileSizeBytes,
@@ -61,7 +62,11 @@ export async function POST(request: Request) {
       });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-        return apiErrorResponse("conflict", `Version "${data.version}" already exists.`, 409);
+        return apiErrorResponse(
+          "conflict",
+          `Version "${data.version}" already exists for ${data.platform}.`,
+          409,
+        );
       }
       throw error;
     }

@@ -320,7 +320,7 @@ const NAV_GROUPS: AppNavGroup[] = [
       },
       {
         href: "/desktop-app",
-        label: "Desktop App",
+        label: "Apps",
         icon: <Download className="h-4 w-4" />,
       },
     ],

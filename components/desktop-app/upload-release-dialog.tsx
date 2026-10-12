@@ -18,12 +18,33 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 import { uploadFile } from "@/lib/upload";
+import type { AppPlatform } from "@/generated/prisma/client";
 
 export interface UploadReleaseDialogProps {
   onUploaded: () => void;
+  platform: AppPlatform;
 }
 
-export function UploadReleaseDialog({ onUploaded }: UploadReleaseDialogProps) {
+const PLATFORM_COPY: Record<
+  AppPlatform,
+  { title: string; button: string; accept: string; fileLabel: string }
+> = {
+  windows: {
+    title: "Upload Windows Release",
+    button: "Upload Windows version",
+    accept: ".exe",
+    fileLabel: "Installer file (.exe)",
+  },
+  android: {
+    title: "Upload Android Release",
+    button: "Upload Android version",
+    accept: ".apk",
+    fileLabel: "Android package (.apk)",
+  },
+};
+
+export function UploadReleaseDialog({ onUploaded, platform }: UploadReleaseDialogProps) {
+  const copy = PLATFORM_COPY[platform];
   const [open, setOpen] = useState(false);
   const [version, setVersion] = useState("");
   const [releaseNotes, setReleaseNotes] = useState("");
@@ -69,6 +90,7 @@ export function UploadReleaseDialog({ onUploaded }: UploadReleaseDialogProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          platform,
           version,
           releaseNotes: releaseNotes || undefined,
           fileUrl: url,
@@ -100,10 +122,10 @@ export function UploadReleaseDialog({ onUploaded }: UploadReleaseDialogProps) {
         if (!next) reset();
       }}
     >
-      <DialogTrigger render={<Button data-kbd-item="">Upload new version</Button>} />
+      <DialogTrigger render={<Button data-kbd-item="">{copy.button}</Button>} />
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Upload Desktop App Release</DialogTitle>
+          <DialogTitle>{copy.title}</DialogTitle>
         </DialogHeader>
         <form
           ref={kbdRef}
@@ -134,12 +156,12 @@ export function UploadReleaseDialog({ onUploaded }: UploadReleaseDialogProps) {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="release-file">Installer file</Label>
+              <Label htmlFor="release-file">{copy.fileLabel}</Label>
               <input
                 id="release-file"
                 ref={fileInputRef}
                 type="file"
-                accept=".exe"
+                accept={copy.accept}
                 data-kbd-item=""
                 disabled={busy}
                 onChange={(e) => setFile(e.target.files?.[0] ?? null)}

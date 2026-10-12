@@ -772,17 +772,26 @@ model HsnCode {
 // Built Electron installers, uploaded manually by a Super Admin — global,
 // not store-scoped. Any authenticated user can list/download; only a Super
 // Admin can upload a new one (enforced in app/api/desktop-releases).
-model DesktopAppRelease {
-  id               String   @id @default(uuid())
-  version          String   @unique
-  fileUrl          String   @map("file_url")
-  fileSizeBytes    Int      @map("file_size_bytes")
-  releaseNotes     String?  @map("release_notes")
-  uploadedByUserId String   @map("uploaded_by_user_id")
-  uploadedBy       User     @relation(fields: [uploadedByUserId], references: [id])
-  createdAt        DateTime @default(now()) @map("created_at")
-  isActive         Boolean  @default(true) @map("is_active")
+enum AppPlatform {
+  windows
+  android
+}
 
+model DesktopAppRelease {
+  id               String      @id @default(uuid())
+  platform         AppPlatform @default(windows)
+  version          String
+  fileUrl          String      @map("file_url")
+  fileSizeBytes    Int         @map("file_size_bytes")
+  releaseNotes     String?     @map("release_notes")
+  uploadedByUserId String      @map("uploaded_by_user_id")
+  uploadedBy       User        @relation(fields: [uploadedByUserId], references: [id])
+  createdAt        DateTime    @default(now()) @map("created_at")
+  isActive         Boolean     @default(true) @map("is_active")
+
+  // Each platform versions independently — Windows 1.0.10 and Android 1.0.10
+  // are different builds of the same release.
+  @@unique([platform, version])
   @@map("desktop_app_releases")
 }
 

@@ -9,10 +9,18 @@ import { Fragment } from "react";
 // automatic viewport prefetch).
 const NON_NAVIGABLE_SEGMENTS = new Set(["barcodes", "settings"]);
 
+// Where the route name and the page's own title have drifted apart.
+const SEGMENT_LABELS: Record<string, string> = {
+  "desktop-app": "Apps",
+  logs: "Activity Log",
+  warehouses: "Storage",
+};
+
 function humanize(segment: string): string {
   if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(segment)) {
     return "Details";
   }
+  if (SEGMENT_LABELS[segment]) return SEGMENT_LABELS[segment];
   return segment
     .split("-")
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))

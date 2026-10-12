@@ -6,10 +6,13 @@ export interface LatestDesktopRelease {
   version: string;
   fileUrl: string;
   isActive: boolean;
+  platform?: string;
 }
 
-// The most recently uploaded active desktop-app release, for the header
-// download button — null until loaded, or if none has been uploaded yet.
+// The most recently uploaded active Windows release, for the header download
+// button — null until loaded, or if none has been uploaded yet. The platform
+// filter matters now that Android builds live in the same table: without it
+// this would happily hand an APK to the desktop button.
 export function useLatestDesktopRelease(): LatestDesktopRelease | null {
   const [release, setRelease] = useState<LatestDesktopRelease | null>(null);
 
@@ -18,7 +21,7 @@ export function useLatestDesktopRelease(): LatestDesktopRelease | null {
     fetch("/api/desktop-releases")
       .then((res) => (res.ok ? res.json() : null))
       .then((body: { data?: LatestDesktopRelease[] } | null) => {
-        const latest = body?.data?.find((r) => r.isActive);
+        const latest = body?.data?.find((r) => r.isActive && r.platform !== "android");
         if (!cancelled && latest)
           setRelease({ version: latest.version, fileUrl: latest.fileUrl, isActive: true });
       })
