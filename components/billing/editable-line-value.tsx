@@ -58,7 +58,7 @@ export function EditableLineValue({
             (e.target as HTMLInputElement).blur();
           }
         }}
-        className="border-input bg-background h-8 w-16 rounded border px-2 text-sm"
+        className="border-input bg-background h-8 w-12 rounded border px-1.5 text-sm sm:w-16 sm:px-2"
       />
       {warning && (
         <div className="text-warning text-xs whitespace-nowrap">

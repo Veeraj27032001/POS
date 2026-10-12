@@ -119,7 +119,72 @@ export function DataTable<T>({
 
       <LoadProgress active={listQuery.isFetching} />
 
-      <div className="overflow-hidden rounded-md border">
+      {/* Phone layout: a row becomes a labelled card. These tables run 500-900px
+          wide, so on a phone the table form hides the Actions column behind a
+          sideways scroll nobody discovers. */}
+      <div className="divide-border divide-y overflow-hidden rounded-md border sm:hidden">
+        {isInitialLoad &&
+          Array.from({ length: Math.min(skeletonRowCount, 4) }).map((_, i) => (
+            <div key={`m-skeleton-${i}`} className="space-y-2 p-3">
+              <Skeleton className="h-4 w-2/3" />
+              <Skeleton className="h-4 w-1/2" />
+            </div>
+          ))}
+
+        {!isInitialLoad && listQuery.isError && (
+          <div className="p-6 text-center">
+            <p className="text-muted-foreground mb-2">Failed to load this page.</p>
+            <Button variant="outline" size="sm" onClick={() => listQuery.refetch()}>
+              Retry
+            </Button>
+          </div>
+        )}
+
+        {!isInitialLoad && !listQuery.isError && listQuery.data?.data.length === 0 && (
+          <p className="text-muted-foreground p-6 text-center text-sm">{emptyMessage}</p>
+        )}
+
+        {!isInitialLoad &&
+          !listQuery.isError &&
+          listQuery.data?.data.map((row) => (
+            <div
+              key={getRowId(row)}
+              className={cn("space-y-1.5 p-3", rowHref && "cursor-pointer")}
+              tabIndex={rowHref ? 0 : undefined}
+              data-kbd-item={rowHref ? "" : undefined}
+              onClick={rowHref ? () => (window.location.href = rowHref(row)) : undefined}
+            >
+              {columns
+                .filter((col) => !SHRINK_TO_FIT_KEYS.has(col.key))
+                .map((col) => (
+                  <div key={col.key} className="flex items-start justify-between gap-3 text-sm">
+                    <span className="text-muted-foreground shrink-0 text-xs">{col.header}</span>
+                    <span className="min-w-0 text-right break-words">
+                      {col.render
+                        ? col.render(row)
+                        : String((row as Record<string, unknown>)[col.key] ?? "")}
+                    </span>
+                  </div>
+                ))}
+
+              {columns.some((col) => SHRINK_TO_FIT_KEYS.has(col.key)) && (
+                <div
+                  className="flex flex-wrap gap-2 pt-1"
+                  onClick={(e) => e.stopPropagation()}
+                  role="presentation"
+                >
+                  {columns
+                    .filter((col) => SHRINK_TO_FIT_KEYS.has(col.key))
+                    .map((col) => (
+                      <span key={col.key}>{col.render ? col.render(row) : null}</span>
+                    ))}
+                </div>
+              )}
+            </div>
+          ))}
+      </div>
+
+      <div className="hidden overflow-hidden rounded-md border sm:block">
         <Table>
           <TableHeader>
             <TableRow>

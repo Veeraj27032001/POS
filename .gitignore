@@ -53,6 +53,16 @@ electron/node_modules
 electron/dist
 electron/release
 
+# android shell (separate package, not a workspace) — the native project is
+# committed, its build output and local SDK paths are not
+mobile/node_modules
+mobile/android/build
+mobile/android/app/build
+mobile/android/.gradle
+mobile/android/local.properties
+mobile/android/app/release
+mobile/*.keystore
+
 # playwright
 /test-results/
 /playwright-report/

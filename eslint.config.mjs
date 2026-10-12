@@ -24,6 +24,9 @@ const eslintConfig = [
       // Its own separate package (own tsconfig, own `pnpm typecheck`) —
       // Next.js/React lint rules don't apply to its plain Node main process.
       "electron/**",
+      // Likewise the Android shell: a Gradle/Java project plus Capacitor's
+      // own generated JS bridge, none of it written against these rules.
+      "mobile/**",
     ],
   },
   {

@@ -3,6 +3,7 @@
 import type { SearchableSelectOption } from "@/components/searchable-select";
 import { SearchableSelect } from "@/components/searchable-select";
 import { useAvailableStock } from "@/lib/stock/useAvailableStock";
+import { cn } from "@/lib/utils";
 
 export function ProductSelectWithStock({
   value,
@@ -10,6 +11,7 @@ export function ProductSelectWithStock({
   products,
   warehouseId,
   placeholder = "Select product…",
+  className,
   "data-kbd-item": dataKbdItem,
 }: {
   value: string | null | undefined;
@@ -17,12 +19,14 @@ export function ProductSelectWithStock({
   products: SearchableSelectOption[];
   warehouseId: string | null | undefined;
   placeholder?: string;
+  /** Lets a grid parent place this control, e.g. spanning a stacked row. */
+  className?: string;
   "data-kbd-item"?: string;
 }) {
   const available = useAvailableStock(warehouseId, value);
 
   return (
-    <div className="space-y-0.5">
+    <div className={cn("space-y-0.5", className)}>
       <SearchableSelect
         data-kbd-item={dataKbdItem}
         options={products}

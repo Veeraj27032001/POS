@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2Icon, SettingsIcon } from "lucide-react";
+import { Loader2Icon, SettingsIcon, Trash2Icon } from "lucide-react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -1442,9 +1442,11 @@ export default function BillingPage() {
             <TableRow>
               <TableHead>Product</TableHead>
               <TableHead>Qty</TableHead>
-              <TableHead>Unit price</TableHead>
+              {/* Read-only figures give way on a phone so the editable ones
+                  and Remove stay on screen without sideways scrolling. */}
+              <TableHead className="hidden sm:table-cell">Unit price</TableHead>
               <TableHead>Discount</TableHead>
-              <TableHead>Tax</TableHead>
+              <TableHead className="hidden sm:table-cell">Tax</TableHead>
               <TableHead>Total</TableHead>
               <TableHead></TableHead>
             </TableRow>
@@ -1488,7 +1490,7 @@ export default function BillingPage() {
                     onCommit={(next) => updateLineQuantity(line.productId, next)}
                   />
                 </TableCell>
-                <TableCell>
+                <TableCell className="hidden sm:table-cell">
                   {currencySymbol}
                   {money(line.price)}
                 </TableCell>
@@ -1501,7 +1503,7 @@ export default function BillingPage() {
                     onCommit={(next) => updateLineDiscount(line.productId, next)}
                   />
                 </TableCell>
-                <TableCell>
+                <TableCell className="hidden sm:table-cell">
                   {currencySymbol}
                   {money(taxForLine(line.productId))}
                 </TableCell>
@@ -1515,8 +1517,11 @@ export default function BillingPage() {
                     size="sm"
                     data-kbd-item=""
                     onClick={() => removeLine(line.productId)}
+                    aria-label={`Remove ${line.productName}`}
+                    title="Remove"
                   >
-                    Remove
+                    <Trash2Icon className="size-3.5 sm:hidden" />
+                    <span className="hidden sm:inline">Remove</span>
                   </Button>
                 </TableCell>
               </TableRow>

@@ -234,7 +234,7 @@ export default function NewStockInwardPage() {
               </div>
 
               <div className="overflow-hidden rounded-lg border">
-                <div className="text-muted-foreground bg-muted/40 grid grid-cols-[1fr_90px_90px_110px_100px_auto] gap-2 border-b p-3 text-xs font-medium">
+                <div className="text-muted-foreground bg-muted/40 hidden grid-cols-[1fr_90px_90px_110px_100px_auto] gap-2 border-b p-3 text-xs font-medium sm:grid">
                   <span>Product</span>
                   <span>Accepted</span>
                   <span>Rejected</span>
@@ -249,9 +249,11 @@ export default function NewStockInwardPage() {
                     return (
                       <div
                         key={field.id}
-                        className="grid grid-cols-[1fr_90px_90px_110px_100px_auto] items-center gap-2 p-3"
+                        className="grid grid-cols-2 items-center gap-2 p-3 sm:grid-cols-[1fr_90px_90px_110px_100px_auto]"
                       >
                         <Controller
+                          // Product is the widest field, so it takes the whole
+                          // row once the grid stacks on a phone.
                           name={`items.${index}.productId`}
                           control={control}
                           render={({ field: f }) => (
@@ -264,6 +266,7 @@ export default function NewStockInwardPage() {
                               products={products}
                               warehouseId={warehouseId}
                               data-kbd-item=""
+                              className="col-span-2 sm:col-span-1"
                             />
                           )}
                         />
