@@ -9,7 +9,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getHardwarePlugin, type NativePrinter } from "@/lib/adapters/print/capacitor";
+import { renderReceiptHtml } from "@/lib/adapters/print/browser";
 import { encodeReceipt, toBase64 } from "@/lib/adapters/print/escpos";
+import type { ReceiptPrintPayload } from "@/lib/adapters/print/types";
 import {
   readPrinterConfig,
   writePrinterConfig,
@@ -19,6 +21,11 @@ import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
 import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
 
 const TRANSPORTS: { value: PrinterTransport; label: string; hint: string }[] = [
+  {
+    value: "system",
+    label: "Android printing (default)",
+    hint: "Opens Android's print dialog: any system printer, or Save as PDF.",
+  },
   { value: "bluetooth", label: "Bluetooth", hint: "Pair the printer in Android settings first." },
   { value: "usb", label: "USB", hint: "Connect the printer and allow access when prompted." },
   {
@@ -28,9 +35,21 @@ const TRANSPORTS: { value: PrinterTransport; label: string; hint: string }[] = [
   },
 ];
 
+const SAMPLE_RECEIPT: Omit<ReceiptPrintPayload, "documentNumber"> = {
+  kind: "receipt",
+  storeName: "Vedix POS",
+  headerText: "Printer test",
+  lines: [{ name: "Test item", quantity: 1, unitPrice: 1, lineTotal: 1 }],
+  subtotal: 1,
+  discountTotal: 0,
+  taxTotal: 0,
+  grandTotal: 1,
+  footerText: "If you can read this, the printer is set up.",
+};
+
 export default function PrinterSettingsPage() {
   const plugin = getHardwarePlugin();
-  const [transport, setTransport] = useState<PrinterTransport>("bluetooth");
+  const [transport, setTransport] = useState<PrinterTransport>("system");
   const [address, setAddress] = useState("");
   const [name, setName] = useState("");
   const [port, setPort] = useState("9100");
@@ -44,7 +63,6 @@ export default function PrinterSettingsPage() {
 
   useEffect(() => {
     const saved = readPrinterConfig();
-    if (!saved) return;
     setTransport(saved.transport);
     setAddress(saved.address);
     setName(saved.name ?? "");
@@ -73,6 +91,13 @@ export default function PrinterSettingsPage() {
   }
 
   function save() {
+    if (transport === "system") {
+      writePrinterConfig(null);
+      setAddress("");
+      setName("");
+      toast.success("This device will use Android's print dialog.");
+      return;
+    }
     if (!address.trim()) {
       toast.error("Choose or enter a printer address first.");
       return;
@@ -89,25 +114,20 @@ export default function PrinterSettingsPage() {
 
   async function testPrint() {
     if (!plugin) return;
-    if (!address.trim()) {
-      toast.error("Choose a printer first.");
-      return;
-    }
+    const documentNumber = new Date().toLocaleString();
     setBusy(true);
     try {
+      if (transport === "system") {
+        await plugin.print({ html: renderReceiptHtml({ ...SAMPLE_RECEIPT, documentNumber }) });
+        toast.success("Opening the print dialog.");
+        return;
+      }
+      if (!address.trim()) {
+        toast.error("Choose a printer first.");
+        return;
+      }
       const bytes = encodeReceipt(
-        {
-          kind: "receipt",
-          storeName: "Vedix POS",
-          headerText: "Printer test",
-          documentNumber: new Date().toLocaleString(),
-          lines: [{ name: "Test item", quantity: 1, unitPrice: 1, lineTotal: 1 }],
-          subtotal: 1,
-          discountTotal: 0,
-          taxTotal: 0,
-          grandTotal: 1,
-          footerText: "If you can read this, the printer is set up.",
-        },
+        { ...SAMPLE_RECEIPT, documentNumber },
         paperWidth === "80" ? 80 : 58,
       );
       await plugin.printBytes({
@@ -173,7 +193,7 @@ export default function PrinterSettingsPage() {
               {activeHint && <p className="text-muted-foreground text-xs">{activeHint}</p>}
             </div>
 
-            {transport === "network" ? (
+            {transport === "system" ? null : transport === "network" ? (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_120px]">
                 <div className="space-y-1.5">
                   <Label htmlFor="printer-host">IP address</Label>
@@ -231,7 +251,7 @@ export default function PrinterSettingsPage() {
               </div>
             )}
 
-            <div className="space-y-1.5">
+            <div className="space-y-1.5" hidden={transport === "system"}>
               <Label>Paper width</Label>
               <div className="flex gap-2">
                 {(["58", "80"] as const).map((w) => (
@@ -259,18 +279,6 @@ export default function PrinterSettingsPage() {
                 onClick={() => void testPrint()}
               >
                 Test print
-              </Button>
-              <Button
-                variant="ghost"
-                data-kbd-item=""
-                onClick={() => {
-                  writePrinterConfig(null);
-                  setAddress("");
-                  setName("");
-                  toast.success("Printer cleared — printing will use the print dialog.");
-                }}
-              >
-                Clear
               </Button>
             </div>
           </CardContent>

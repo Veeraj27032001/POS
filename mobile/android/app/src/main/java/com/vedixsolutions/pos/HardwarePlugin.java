@@ -12,6 +12,10 @@ import android.hardware.usb.UsbEndpoint;
 import android.hardware.usb.UsbInterface;
 import android.hardware.usb.UsbManager;
 import android.os.Build;
+import android.os.Bundle;
+import android.os.CancellationSignal;
+import android.os.ParcelFileDescriptor;
+import android.print.PageRange;
 import android.print.PrintAttributes;
 import android.print.PrintDocumentAdapter;
 import android.print.PrintManager;
@@ -75,35 +79,75 @@ public class HardwarePlugin extends Plugin {
 
         getActivity().runOnUiThread(() -> {
             try {
-                WebView webView = new WebView(getContext());
+                WebView webView = new WebView(getActivity());
                 webView.setWebViewClient(new WebViewClient() {
                     @Override
                     public void onPageFinished(WebView view, String url) {
                         try {
-                            PrintManager printManager =
-                                (PrintManager) getContext().getSystemService(Context.PRINT_SERVICE);
+                            PrintManager printManager = (PrintManager)
+                                getActivity().getSystemService(Context.PRINT_SERVICE);
                             if (printManager == null) {
-                                call.reject("Printing isn't available on this device.");
+                                printWebView = null;
+                                call.reject("This device has no printing service.");
                                 return;
                             }
                             String jobName = "Vedix POS document";
-                            PrintDocumentAdapter adapter = view.createPrintDocumentAdapter(jobName);
-                            printManager.print(jobName, adapter, new PrintAttributes.Builder().build());
+                            printManager.print(
+                                jobName,
+                                keepAliveAdapter(view.createPrintDocumentAdapter(jobName)),
+                                new PrintAttributes.Builder().build());
                             call.resolve();
                         } catch (Exception e) {
-                            call.reject("Failed to start the print job.", e);
-                        } finally {
                             printWebView = null;
+                            call.reject(describe("Could not open the print dialog", e), e);
                         }
                     }
                 });
+                // Held in a field, not a local: Android renders the document
+                // lazily, after print() returns, and a collected WebView fails
+                // the job with nothing but "printing failed" on screen.
                 printWebView = webView;
                 webView.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null);
             } catch (Exception e) {
                 printWebView = null;
-                call.reject("Failed to prepare the document for printing.", e);
+                call.reject(describe("Could not prepare the document", e), e);
             }
         });
+    }
+
+    /** Releases the WebView only once Android has finished with the document. */
+    private PrintDocumentAdapter keepAliveAdapter(PrintDocumentAdapter inner) {
+        return new PrintDocumentAdapter() {
+            @Override
+            public void onStart() {
+                inner.onStart();
+            }
+
+            @Override
+            public void onLayout(PrintAttributes oldAttributes, PrintAttributes newAttributes,
+                                 CancellationSignal signal, LayoutResultCallback callback,
+                                 Bundle extras) {
+                inner.onLayout(oldAttributes, newAttributes, signal, callback, extras);
+            }
+
+            @Override
+            public void onWrite(PageRange[] pages, ParcelFileDescriptor destination,
+                                CancellationSignal signal, WriteResultCallback callback) {
+                inner.onWrite(pages, destination, signal, callback);
+            }
+
+            @Override
+            public void onFinish() {
+                inner.onFinish();
+                printWebView = null;
+            }
+        };
+    }
+
+    private static String describe(String what, Exception e) {
+        String detail = e.getMessage();
+        if (detail == null || detail.trim().isEmpty()) detail = e.getClass().getSimpleName();
+        return what + ": " + detail;
     }
 
     /* ---------------- Raw ESC/POS: the actual till printer ----------------- */

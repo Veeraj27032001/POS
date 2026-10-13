@@ -66,22 +66,31 @@ export function getCapacitorPrintBridge(): HardwareBridge | null {
   return {
     async print(payload: PrintPayload): Promise<void> {
       const config = readPrinterConfig();
-      const bytes = config ? escPosFor(payload, config) : null;
+      const bytes = config.transport === "system" ? null : escPosFor(payload, config);
 
-      // A configured thermal printer takes receipts and labels directly, with
-      // no dialog. Store-authored page layouts can't be expressed as ESC/POS,
-      // and an unconfigured device has nowhere to send bytes — both fall back
-      // to Android's print dialog so printing still works.
-      if (config && bytes) {
-        await sendBytes(plugin, config, bytes);
+      // Android's print dialog handles anything we cannot send as ESC/POS:
+      // page layouts, tills set to the system printer, and a configured
+      // printer that is switched off or out of range. It also offers Save as
+      // PDF and every system printer, so printing never dead-ends.
+      if (!bytes) {
+        await plugin.print({ html: htmlFor(payload) });
         return;
       }
-      await plugin.print({ html: htmlFor(payload) });
+
+      try {
+        await sendBytes(plugin, config, bytes);
+      } catch {
+        await plugin.print({ html: htmlFor(payload) });
+      }
     },
 
     async openCashDrawer(): Promise<void> {
       const config = readPrinterConfig();
-      if (!config) throw new Error("No printer is set up on this device.");
+      // The kick pulse only exists as printer bytes, so there is no dialog to
+      // fall back to here.
+      if (config.transport === "system") {
+        throw new Error("Set up the till printer on Settings > Printer to open the drawer.");
+      }
       await sendBytes(plugin, config, encodeCashDrawerKick());
     },
   };

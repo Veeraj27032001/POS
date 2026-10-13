@@ -1,8 +1,9 @@
-export type PrinterTransport = "bluetooth" | "usb" | "network";
+export type PrinterTransport = "system" | "bluetooth" | "usb" | "network";
 
 export interface PrinterConfig {
+  /** "system" hands the document to Android's own print dialog. */
   transport: PrinterTransport;
-  /** Bluetooth MAC, USB device name, or network host. */
+  /** Bluetooth MAC, USB device name, or network host. Unused by "system". */
   address: string;
   /** Network printers only; 9100 is the ESC/POS convention. */
   port?: number;
@@ -10,18 +11,29 @@ export interface PrinterConfig {
   name?: string;
 }
 
-// A printer belongs to the device it is plugged into, not to the store — two
-// tablets on the same counter can have different hardware — so the choice is
-// kept locally rather than on the Terminal record.
+// A printer belongs to the device it is plugged into, not to the store, so the
+// choice is kept locally rather than on the Terminal record. Two tablets on the
+// same counter can have different hardware.
 const STORAGE_KEY = "pos:printer-config";
 
-export function readPrinterConfig(): PrinterConfig | null {
-  if (typeof window === "undefined") return null;
+// Android's own dialog lists every system printer and Save as PDF, so it is the
+// default for a till nobody has set up yet.
+export const SYSTEM_PRINTER: PrinterConfig = {
+  transport: "system",
+  address: "",
+  paperWidth: 58,
+};
+
+export function readPrinterConfig(): PrinterConfig {
+  if (typeof window === "undefined") return SYSTEM_PRINTER;
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
+    if (!raw) return SYSTEM_PRINTER;
     const parsed = JSON.parse(raw) as Partial<PrinterConfig>;
-    if (!parsed.transport || !parsed.address) return null;
+    // A direct transport with no target cannot print; the dialog always can.
+    if (!parsed.transport || parsed.transport === "system" || !parsed.address) {
+      return SYSTEM_PRINTER;
+    }
     return {
       transport: parsed.transport,
       address: parsed.address,
@@ -30,15 +42,18 @@ export function readPrinterConfig(): PrinterConfig | null {
       name: parsed.name,
     };
   } catch {
-    return null;
+    return SYSTEM_PRINTER;
   }
 }
 
 export function writePrinterConfig(config: PrinterConfig | null): void {
   if (typeof window === "undefined") return;
   try {
-    if (config) window.localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
-    else window.localStorage.removeItem(STORAGE_KEY);
+    if (config && config.transport !== "system") {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+    } else {
+      window.localStorage.removeItem(STORAGE_KEY);
+    }
   } catch {
     // A locked-down browser profile just means no saved printer.
   }
