@@ -1,9 +1,11 @@
-export type PrinterTransport = "system" | "bluetooth" | "usb" | "network";
+// "windows" is a printer installed in Windows, which is how a USB or paired
+// Bluetooth thermal printer appears on the desktop; "serial" is a COM port.
+export type PrinterTransport = "system" | "bluetooth" | "usb" | "network" | "windows" | "serial";
 
 export interface PrinterConfig {
   /** "system" hands the document to Android's own print dialog. */
   transport: PrinterTransport;
-  /** Bluetooth MAC, USB device name, or network host. Unused by "system". */
+  /** Bluetooth MAC, USB or Windows printer name, COM port, or host. Unused by "system". */
   address: string;
   /** Network printers only; 9100 is the ESC/POS convention. */
   port?: number;

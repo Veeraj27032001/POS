@@ -8,10 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { getHardwarePlugin, type NativePrinter } from "@/lib/adapters/print/capacitor";
+import { getPrinterControl } from "@/lib/adapters/print/printerControl";
 import { renderReceiptHtml } from "@/lib/adapters/print/browser";
 import { encodeReceipt, toBase64 } from "@/lib/adapters/print/escpos";
-import type { ReceiptPrintPayload } from "@/lib/adapters/print/types";
+import type { NativePrinter, ReceiptPrintPayload } from "@/lib/adapters/print/types";
 import {
   readPrinterConfig,
   writePrinterConfig,
@@ -19,21 +19,6 @@ import {
 } from "@/lib/adapters/print/printerConfig";
 import { focusCurrentNavLink } from "@/lib/keyboard/focusCurrentNavLink";
 import { useArrowKeyNav } from "@/lib/keyboard/useArrowKeyNav";
-
-const TRANSPORTS: { value: PrinterTransport; label: string; hint: string }[] = [
-  {
-    value: "system",
-    label: "Android printing (default)",
-    hint: "Opens Android's print dialog: any system printer, or Save as PDF.",
-  },
-  { value: "bluetooth", label: "Bluetooth", hint: "Pair the printer in Android settings first." },
-  { value: "usb", label: "USB", hint: "Connect the printer and allow access when prompted." },
-  {
-    value: "network",
-    label: "Wi-Fi / network",
-    hint: "The printer's IP address on the shop network.",
-  },
-];
 
 const SAMPLE_RECEIPT: Omit<ReceiptPrintPayload, "documentNumber"> = {
   kind: "receipt",
@@ -48,7 +33,9 @@ const SAMPLE_RECEIPT: Omit<ReceiptPrintPayload, "documentNumber"> = {
 };
 
 export default function PrinterSettingsPage() {
-  const plugin = getHardwarePlugin();
+  const control = getPrinterControl();
+  const plugin = control?.hardware ?? null;
+  const transports = control?.transports ?? [];
   const [transport, setTransport] = useState<PrinterTransport>("system");
   const [address, setAddress] = useState("");
   const [name, setName] = useState("");
@@ -144,7 +131,9 @@ export default function PrinterSettingsPage() {
     }
   }
 
-  const activeHint = TRANSPORTS.find((t) => t.value === transport)?.hint;
+  const activeTransport = transports.find((t) => t.value === transport);
+  const activeHint = activeTransport?.hint;
+  const isManual = activeTransport?.manual ?? false;
 
   return (
     <div ref={kbdRef} className="space-y-4 p-8">
@@ -152,7 +141,7 @@ export default function PrinterSettingsPage() {
         <h1 className="text-2xl font-semibold">Printer</h1>
         <p className="text-muted-foreground text-sm">
           Receipt printer for this device. Each till keeps its own setting, so it stays put even
-          when another device signs in to the same store.
+          when another user signs in on it.
         </p>
       </div>
 
@@ -160,8 +149,9 @@ export default function PrinterSettingsPage() {
         <Card>
           <CardContent>
             <p className="text-sm">
-              Direct printing is only available in the Vedix POS Android app. In a browser, printing
-              opens the usual print dialog instead.
+              A browser cannot reach a printer directly, so printing here opens the usual print
+              dialog. To drive a thermal printer, cash drawer or label printer, use the Vedix POS
+              desktop or Android app.
             </p>
           </CardContent>
         </Card>
@@ -174,7 +164,7 @@ export default function PrinterSettingsPage() {
             <div className="space-y-1.5">
               <Label>How is it connected?</Label>
               <div className="flex flex-wrap gap-2">
-                {TRANSPORTS.map((t) => (
+                {transports.map((t) => (
                   <Button
                     key={t.value}
                     type="button"
@@ -193,7 +183,7 @@ export default function PrinterSettingsPage() {
               {activeHint && <p className="text-muted-foreground text-xs">{activeHint}</p>}
             </div>
 
-            {transport === "system" ? null : transport === "network" ? (
+            {transport === "system" ? null : isManual ? (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_120px]">
                 <div className="space-y-1.5">
                   <Label htmlFor="printer-host">IP address</Label>

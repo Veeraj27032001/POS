@@ -16,13 +16,21 @@ type ElectronConfig = ReturnType<typeof loadConfig>;
 // for receipts) — hence DOCUMENT_PRINTER_NAME being a separate config knob
 // from PRINTER_*.
 export function printHtml(html: string, config: ElectronConfig): Promise<void> {
+  const silent = Boolean(config.DOCUMENT_PRINTER_NAME);
+
   return new Promise((resolve, reject) => {
     const win = new BrowserWindow({ show: false, webPreferences: { sandbox: true } });
 
     win.webContents.once("did-finish-load", () => {
+      // The print dialog is owned by its window, so the window has to be on
+      // screen for the cashier to see it. Doubles as a preview of what is
+      // about to print.
+      if (!silent) win.show();
+      // Silent only when this till has a document printer chosen: otherwise the
+      // dialog is the point, so the cashier can pick a printer or save a PDF.
       win.webContents.print(
         {
-          silent: true,
+          silent,
           printBackground: true,
           deviceName: config.DOCUMENT_PRINTER_NAME || undefined,
         },

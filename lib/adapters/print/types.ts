@@ -51,6 +51,27 @@ export interface CardChargeContext {
   currency: string;
 }
 
+export interface NativePrinter {
+  name: string;
+  address: string;
+}
+
+export interface PrintBytesRequest {
+  transport: string;
+  address: string;
+  port?: number;
+  data: string;
+}
+
+// What a native shell (the Electron desktop app, the Android app) exposes:
+// transports and a document pipeline, no formatting. Receipts are encoded as
+// ESC/POS on this side so the two shells cannot drift apart.
+export interface DeviceHardware {
+  print(options: { html: string }): Promise<void>;
+  printBytes(options: PrintBytesRequest): Promise<void>;
+  listPrinters(options: { transport: string }): Promise<{ printers: NativePrinter[] }>;
+}
+
 export interface HardwareBridge {
   print(payload: PrintPayload): Promise<void>;
   openCashDrawer?(): Promise<void>;
