@@ -68,6 +68,33 @@ class EscPosBuilder {
     return this.text(value).raw(LF);
   }
 
+  /** Wraps on word boundaries so a long product name stays readable. */
+  wrapped(value: string): this {
+    const words = toAscii(value).split(/\s+/).filter(Boolean);
+    let line = "";
+    for (const word of words) {
+      if (line && line.length + 1 + word.length > this.columns) {
+        this.line(line);
+        line = "";
+      }
+      if (word.length > this.columns) {
+        if (line) {
+          this.line(line);
+          line = "";
+        }
+        for (let i = 0; i < word.length; i += this.columns) {
+          const chunk = word.slice(i, i + this.columns);
+          if (chunk.length === this.columns) this.line(chunk);
+          else line = chunk;
+        }
+        continue;
+      }
+      line = line ? `${line} ${word}` : word;
+    }
+    if (line) this.line(line);
+    return this;
+  }
+
   rule(char = "-"): this {
     return this.line(char.repeat(this.columns));
   }
@@ -123,7 +150,7 @@ export function encodeReceipt(payload: ReceiptPrintPayload, paperWidth: PaperWid
   b.line(payload.documentNumber).align("left").rule();
 
   for (const line of payload.lines) {
-    b.line(line.name);
+    b.wrapped(line.name);
     b.columnsLine(`  ${line.quantity} x ${money(line.unitPrice)}`, money(line.lineTotal));
   }
 
