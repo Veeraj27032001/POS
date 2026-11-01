@@ -1,4 +1,5 @@
 import { getPrintBridge } from "@/lib/adapters/print";
+import { readPrinterConfig } from "@/lib/adapters/print/printerConfig";
 
 interface PrintableBillLine {
   productName: string;
@@ -33,7 +34,7 @@ async function fetchFormattedHtml(
   return html;
 }
 
-async function printFallbackReceipt(bill: PrintableReceiptBill): Promise<void> {
+async function printStructuredReceipt(bill: PrintableReceiptBill): Promise<void> {
   const snapshot = bill.receiptSnapshot;
   await getPrintBridge().print({
     kind: "receipt",
@@ -56,12 +57,18 @@ async function printFallbackReceipt(bill: PrintableReceiptBill): Promise<void> {
 }
 
 export async function printReceipt(bill: PrintableReceiptBill): Promise<void> {
-  const html = await fetchFormattedHtml(bill.id, "receipt");
-  if (html) {
-    await getPrintBridge().print({ kind: "html", html });
-    return;
+  // A thermal printer takes ESC/POS commands, not a page layout, so a till with
+  // one set up gets the structured receipt sent straight to it. The store's
+  // receipt format is an HTML page and only a page printer can render it, which
+  // is what the system print dialog is for.
+  if (readPrinterConfig().transport === "system") {
+    const html = await fetchFormattedHtml(bill.id, "receipt");
+    if (html) {
+      await getPrintBridge().print({ kind: "html", html });
+      return;
+    }
   }
-  await printFallbackReceipt(bill);
+  await printStructuredReceipt(bill);
 }
 
 export async function printBill(billId: string): Promise<void> {

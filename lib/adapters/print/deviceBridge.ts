@@ -1,3 +1,5 @@
+import { toast } from "sonner";
+
 import { renderLabelHtml, renderReceiptHtml } from "./browser";
 import { encodeCashDrawerKick, encodeLabels, encodeReceipt, toBase64 } from "./escpos";
 import { readPrinterConfig, type PrinterConfig } from "./printerConfig";
@@ -48,7 +50,15 @@ export function makeDeviceBridge(hardware: DeviceHardware): HardwareBridge {
 
       try {
         await sendBytes(hardware, config, bytes);
-      } catch {
+      } catch (error) {
+        // Falling back silently is how a broken printer stays broken for weeks:
+        // the dialog opens, the sale completes, nobody reports anything.
+        toast.warning(
+          error instanceof Error && error.message
+            ? `Printer: ${error.message}`
+            : "The printer did not respond.",
+          { description: "Opened the print dialog instead." },
+        );
         await hardware.print({ html: htmlFor(payload) });
       }
     },
